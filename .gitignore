@@ -1,0 +1,172 @@
+# ==============================================================================
+# .gitignore - KOPERADATA (KoperasiKu)
+# Sistem Koperasi Karyawan Berbasis Big Data & Predictive Analytics
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Environment & Konfigurasi Rahasia
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.testing
+
+# ------------------------------------------------------------------------------
+# Laravel / PHP & Composer
+# ------------------------------------------------------------------------------
+/vendor/
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+
+/storage/*.key
+/storage/app/*
+!/storage/app/.gitignore
+!/storage/app/public/
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Testing & Tools PHP
+.phpunit.result.cache
+.pest/
+phpunit.xml
+!phpunit.xml.dist
+auth.json
+
+# ------------------------------------------------------------------------------
+# Frontend & Node.js (Vite / npm / yarn)
+# ------------------------------------------------------------------------------
+/node_modules/
+/public/build/
+/public/hot
+/public/storage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vite/
+
+# ------------------------------------------------------------------------------
+# Python, PySpark & Big Data Analytics
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter & Notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Spark / Hadoop / PySpark Artifacts & Metastore
+spark-warehouse/
+metastore_db/
+derby.log
+*.spark
+
+# Data storage lokal, cache data mart, MinIO local
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/temp/*
+!data/temp/.gitkeep
+minio_data/
+*.parquet
+
+# File log umum
+*.log
+
+# ------------------------------------------------------------------------------
+# Database Lokal & File Dump
+# ------------------------------------------------------------------------------
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+
+# File upload temporer / Excel migrasi lokal
+/storage/app/imports/*
+!/storage/app/imports/.gitkeep
+
+# ------------------------------------------------------------------------------
+# Editor & IDE
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ------------------------------------------------------------------------------
+# Sistem Operasi (OS Files)
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+
+# ------------------------------------------------------------------------------
+# AI Agent Caches & Temporary Artifacts
+# ------------------------------------------------------------------------------
+.agents/**/scratch/
+.agents/**/.cache/
