@@ -1,0 +1,28 @@
+# Ganti @USERNAME_X dengan username GitHub masing-masing PIC.
+# Aturan: PIC B wajib review OLTP/transaksi, PIC D wajib review KPI/data mart.
+
+/apps/web/database/migrations/          @USERNAME_B
+/apps/web/app/Services/Orders/          @USERNAME_B
+/apps/web/app/Services/Inventory/       @USERNAME_B
+/apps/web/app/Services/Payments/        @USERNAME_B
+/apps/web/app/Services/Credit/          @USERNAME_B
+/apps/web/app/Services/POS/             @USERNAME_B
+/apps/web/routes/api/v1/b_transaksi.php @USERNAME_B
+/contracts/api/                         @USERNAME_B
+
+/apps/web/resources/views/              @USERNAME_A
+/apps/web/resources/js/                 @USERNAME_A
+/apps/web/routes/web.php                @USERNAME_A
+
+/apps/web/app/Services/Master/          @USERNAME_C
+/apps/web/app/Services/Import/          @USERNAME_C
+/apps/web/routes/api/v1/c_masterdata.php @USERNAME_C
+
+/data-platform/etl/                     @USERNAME_D
+/data-platform/analytics/               @USERNAME_D
+/apps/web/routes/api/v1/d_analytics.php @USERNAME_D
+
+/data-platform/forecasting/             @USERNAME_E
+/infra/                                 @USERNAME_E
+/.github/workflows/                     @USERNAME_E
+/apps/web/routes/api/v1/e_health.php    @USERNAME_E
