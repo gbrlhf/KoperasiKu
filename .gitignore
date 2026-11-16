@@ -166,7 +166,7 @@ Icon
 .Trashes
 
 # ------------------------------------------------------------------------------
-# AI Agent Caches & Temporary Artifacts
+# AI Agent & Tools (Lokal / Personal)
 # ------------------------------------------------------------------------------
-.agents/**/scratch/
-.agents/**/.cache/
+.agents/
+
