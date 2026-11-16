@@ -7,6 +7,8 @@
 # Environment & Konfigurasi Rahasia
 # ------------------------------------------------------------------------------
 .env
+.env.backup
+.env.production
 .env.*
 !.env.example
 !.env.testing
@@ -19,11 +21,11 @@
 !/bootstrap/cache/.gitignore
 
 /storage/*.key
-/storage/app/*
-!/storage/app/.gitignore
-!/storage/app/public/
-/storage/framework/cache/*
-!/storage/framework/cache/.gitignore
+/storage/app/public
+/storage/app/private/*
+!/storage/app/private/.gitignore
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
 /storage/framework/sessions/*
 !/storage/framework/sessions/.gitignore
 /storage/framework/testing/*
@@ -36,8 +38,6 @@
 # Testing & Tools PHP
 .phpunit.result.cache
 .pest/
-phpunit.xml
-!phpunit.xml.dist
 auth.json
 
 # ------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ yarn-error.log*
 .vite/
 
 # ------------------------------------------------------------------------------
-# Python, PySpark & Big Data Analytics
+# Python, PySpark & Big Data Analytics (PIC D & E)
 # ------------------------------------------------------------------------------
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -128,12 +128,13 @@ minio_data/
 # ------------------------------------------------------------------------------
 # Editor & IDE
 # ------------------------------------------------------------------------------
-.idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+/.fleet
+/.idea
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
 *.sublime-project
 *.sublime-workspace
 *.suo
@@ -169,6 +170,4 @@ Icon
 # AI Agent & Tools (Lokal / Personal)
 # ------------------------------------------------------------------------------
 .agents/
-
-
 AGENTS.md
