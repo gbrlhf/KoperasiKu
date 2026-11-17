@@ -326,7 +326,6 @@
                     <i class="bi bi-box-seam-fill fs-5"></i>
                     <h5 class="modal-title fw-bold fs-6" id="approveRestockModalLabel">Review & Persetujuan Restock (Human-in-the-Loop)</h5>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="alert alert-info border-info-subtle small d-flex align-items-center gap-2 mb-3">

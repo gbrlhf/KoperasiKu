@@ -32,8 +32,8 @@
                     
                     <!-- Left Column: Product Imagery & Store Badge -->
                     <div class="col-12 col-md-5">
-                        <div class="position-relative rounded-3 overflow-hidden bg-light border mb-3" style="aspect-ratio: 1/1; max-height: 320px;">
-                            <img id="modalProductImage" src="" alt="" class="w-100 h-100 object-fit-cover d-block" onerror="this.classList.add('d-none'); document.getElementById('modalImageFallback').classList.remove('d-none');">
+                        <div class="position-relative rounded-3 overflow-hidden bg-white border mb-3 d-flex align-items-center justify-content-center p-2" style="aspect-ratio: 1/1; max-height: 320px;">
+                            <img id="modalProductImage" src="" alt="" class="w-100 h-100 object-fit-contain d-block" onerror="this.classList.add('d-none'); document.getElementById('modalImageFallback').classList.remove('d-none');">
                             
                             <!-- Fallback Icon if Image Fails -->
                             <div id="modalImageFallback" class="w-100 h-100 d-none d-flex align-items-center justify-content-center text-secondary bg-light">
@@ -185,13 +185,10 @@
             </div>
 
             <!-- Modal Footer Note -->
-            <div class="modal-footer bg-light py-2 px-3 px-md-4 border-top d-flex justify-content-between align-items-center">
+            <div class="modal-footer bg-light py-2 px-3 px-md-4 border-top d-flex justify-content-center align-items-center">
                 <small class="text-muted" style="font-size: 0.74rem;">
                     <i class="bi bi-shield-check text-success me-1"></i> Jaminan komoditas asli & resmi Koperasi Konsumen Polman Bandung
                 </small>
-                <button type="button" class="btn btn-light btn-sm text-secondary px-3" data-bs-dismiss="modal">
-                    Tutup
-                </button>
             </div>
 
         </div>

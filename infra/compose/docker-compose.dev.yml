@@ -1,0 +1,37 @@
+# Lingkungan dev lokal: PostgreSQL 16 + Redis 7.
+# PIC E dapat memperluas file ini (MinIO, Spark, web) tanpa mengubah nama service di bawah.
+services:
+  postgres:
+    image: postgres:16
+    container_name: koperadata-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-koperadata}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ganti_password_lokal}
+      POSTGRES_DB: ${DB_DATABASE:-koperadata}
+      TZ: UTC
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-koperadata}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: koperadata-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -349,7 +349,6 @@
                     <i class="bi bi-patch-check-fill fs-5"></i>
                     <h6 class="modal-title fw-bold mb-0" id="receiptCicilanModalLabel">Bukti Kas Masuk & Pelunasan Piutang</h6>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" onclick="onCloseReceiptModal()"></button>
             </div>
             <div class="modal-body p-3 p-md-4">
                 <!-- Struk Digital Koperasi -->

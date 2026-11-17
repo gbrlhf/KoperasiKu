@@ -297,13 +297,10 @@
     </div>
 
     <!-- Drawer Footer -->
-    <div class="offcanvas-footer bg-light p-3 border-top d-flex justify-content-between align-items-center">
-        <small class="text-muted" style="font-size: 0.72rem;">
-            KOPEG Mart Kanayakan A11 &bull; 07.00 - 18.00 WIB
+    <div class="offcanvas-footer bg-light p-3 border-top text-center">
+        <small class="text-muted" style="font-size: 0.75rem;">
+            <i class="bi bi-geo-alt text-primary me-1"></i> Gerai KOPEG Mart Kanayakan A11 &bull; Buka 07.00 - 18.00 WIB
         </small>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="offcanvas">
-            Tutup
-        </button>
     </div>
 
 </div>
@@ -360,6 +357,17 @@
                             <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Format: QR Code (Dapat di-scan Kamera HP / POS)</small>
                         </div>
                     </div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2 mb-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="openFullscreenPickupModal('{{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}')">
+                        <i class="bi bi-arrows-fullscreen text-primary"></i>
+                        <span>Mode Layar Penuh (Kecerahan Maksimal)</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="copyMemberPickupCode('{{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}', this)">
+                        <i class="bi bi-clipboard"></i>
+                        <span>Salin Kode</span>
+                    </button>
                 </div>
 
                 <script>

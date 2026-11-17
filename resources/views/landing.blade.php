@@ -24,6 +24,7 @@
     @include('partials.landing.checkout-modal')
     @include('partials.landing.product-detail-modal')
     @include('partials.landing.member-profile-drawer')
+    @include('partials.landing.mobile-cart-bar')
 
 @endsection
 

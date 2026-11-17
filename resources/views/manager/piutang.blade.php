@@ -244,9 +244,9 @@
                 </div>
 
                 <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Tutup</button>
-                    <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" onclick="alert('Mencetak lembar penagihan faktur ' + document.getElementById('modalInvNo').textContent)">
-                        <i class="bi bi-printer me-1"></i> Cetak Lembar Tagihan
+                    <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm" onclick="window.print()">
+                        <i class="bi bi-printer"></i>
+                        <span>Cetak Lembar Tagihan</span>
                     </button>
                 </div>
             </div>

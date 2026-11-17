@@ -273,9 +273,6 @@
                     </table>
                 </div>
             </div>
-            <div class="modal-footer border-top py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
-            </div>
         </div>
     </div>
 </div>

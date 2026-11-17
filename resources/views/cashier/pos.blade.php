@@ -807,9 +807,9 @@
                         <span>Lembar Barcode Siap-Scan</span>
                     </button>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal" onclick="stopBarcodeScanner()">
-                    Tutup Scanner
-                </button>
+                <small class="text-muted" style="font-size: 0.72rem;">
+                    <i class="bi bi-camera-video me-1"></i> Kamera aktif &bull; Arahkan ke barcode komoditas
+                </small>
             </div>
         </div>
     </div>
@@ -826,7 +826,6 @@
                     <i class="bi bi-check-circle-fill fs-5"></i>
                     <h6 class="modal-title fw-bold mb-0" id="posReceiptModalLabel">Transaksi Berhasil & Struk Kasir</h6>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" onclick="resetPosCartAfterSale()"></button>
             </div>
             <div class="modal-body p-3 p-md-4">
                 <!-- Struk Digital Card -->
@@ -935,7 +934,6 @@
                     <i class="bi bi-box-seam fs-5"></i>
                     <h6 class="modal-title fw-bold mb-0" id="pickupConfirmModalLabel">Konfirmasi Penyerahan Barang</h6>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body p-3 p-md-4">
                 <div class="p-3 rounded-2 bg-light border mb-3">
@@ -1018,7 +1016,6 @@
                     <i class="bi bi-receipt-cutoff text-primary fs-5"></i>
                     <h6 class="modal-title fw-bold mb-0" id="verifyTransferModalLabel">Verifikasi Pembayaran Transfer Bank</h6>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body p-3 p-md-4">
                 <!-- Info Ringkas Pesanan -->
@@ -1120,7 +1117,6 @@
                     <i class="bi bi-exclamation-octagon-fill fs-5"></i>
                     <h6 class="modal-title fw-bold mb-0" id="cancelOrderModalLabel">Konfirmasi Pembatalan Pesanan</h6>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body p-3 p-md-4">
                 <div class="p-3 rounded-2 bg-light border mb-3">
@@ -1240,9 +1236,6 @@
                     </button>
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2 px-3">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
-            </div>
         </div>
     </div>
 </div>
@@ -1314,13 +1307,13 @@
                     @endforeach
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between">
+            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between align-items-center">
                 <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()">
                     <i class="bi bi-printer me-1"></i> Cetak Lembar Barcode
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">
-                    Tutup
-                </button>
+                <small class="text-muted" style="font-size: 0.72rem;">
+                    <i class="bi bi-info-circle me-1"></i> Barcode siap diarahkan langsung ke scanner kamera gerai
+                </small>
             </div>
         </div>
     </div>
@@ -1384,9 +1377,9 @@
                         <span>Lihat Keranjang</span>
                     </button>
                 </div>
-                <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none" onclick="dismissGopayScanSheet()" style="font-size: 0.75rem;">
-                    Tutup (ESC)
-                </button>
+                <small class="text-muted d-none d-sm-inline" style="font-size: 0.72rem;">
+                    <kbd class="bg-light text-muted border px-1">ESC</kbd> untuk menutup
+                </small>
             </div>
         </div>
 

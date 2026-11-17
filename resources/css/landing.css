@@ -82,7 +82,7 @@ body.landing-page {
     font-family: var(--font-sans);
     background-color: var(--bg-page);
     color: var(--text-primary);
-    overflow-x: hidden;
+    overflow-x: clip;
     scroll-behavior: smooth;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -139,8 +139,13 @@ select:focus-visible {
    1. Two-Tier Header Navigation
    ------------------------------------------------------------------------------ */
 .storefront-header {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
     background-color: var(--bg-surface);
     border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    transition: box-shadow var(--transition-fast);
 }
 
 .storefront-search-bar {
@@ -335,13 +340,13 @@ select:focus-visible {
 }
 
 /* ------------------------------------------------------------------------------
-   4. Product Cards (Crafted 5-Column Grid)
+   4. Product Cards (Tokopedia Marketplace Style)
    ------------------------------------------------------------------------------ */
 .product-card {
     background: var(--bg-surface);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
-    padding: 0.95rem;
+    padding: 0.75rem;
     box-shadow: var(--shadow-card);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
     display: flex;
@@ -356,14 +361,16 @@ select:focus-visible {
 }
 
 .product-thumbnail-box {
-    background-color: var(--bg-subtle);
+    background-color: #ffffff;
     border-radius: var(--radius-sm);
-    height: 140px;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.65rem;
     border: 1px solid var(--border-light);
     overflow: hidden;
 }
@@ -371,13 +378,13 @@ select:focus-visible {
 .product-thumb-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: center;
+    object-fit: contain;
+    padding: 0.35rem;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .product-card:hover .product-thumb-img {
-    transform: scale(1.06);
+    transform: scale(1.05);
 }
 
 .product-icon-fallback {
@@ -396,37 +403,29 @@ select:focus-visible {
     color: var(--brand-primary);
 }
 
-.product-rating-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    color: #b45309;
-    margin-bottom: 0.35rem;
-}
-
 .product-title {
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     line-height: 1.35;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.35rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 2.4em;
+    min-height: 2.3em;
 }
 
 .product-price-box {
     display: flex;
     align-items: baseline;
-    gap: 0.25rem;
+    gap: 0.2rem;
+    margin-bottom: 0.15rem;
 }
 
 .product-price-currency {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
     color: var(--brand-primary);
 }
 
@@ -437,32 +436,207 @@ select:focus-visible {
     letter-spacing: -0.02em;
 }
 
-.btn-add-cart {
-    background-color: var(--brand-primary);
-    color: #ffffff;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 0.42rem 0.75rem;
+.badge-discount {
+    background-color: #fee2e2;
+    color: #dc2626;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    display: inline-block;
+    line-height: 1.2;
+}
+
+.product-price-slashed {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    text-decoration: line-through;
+    margin-left: 0.25rem;
+}
+
+.product-store-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+.product-rating-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.74rem;
+    color: #b45309;
+}
+
+.btn-add-cart,
+.btn-add-cart-tokopedia {
+    border: 1.5px solid var(--brand-primary);
+    color: var(--brand-primary);
+    background-color: #ffffff;
+    font-weight: 700;
     font-size: 0.82rem;
-    font-weight: 600;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    min-height: 36px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.4rem;
-    box-shadow: var(--shadow-xs);
     cursor: pointer;
-    transition: background-color var(--transition-fast), transform var(--transition-fast);
-    min-height: 36px;
 }
 
-.btn-add-cart:hover {
-    background-color: var(--brand-primary-hover);
-    transform: translateY(-1px);
+.btn-add-cart:hover,
+.btn-add-cart-tokopedia:hover {
+    background-color: var(--brand-primary);
     color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2);
 }
 
-.btn-add-cart:active {
+.btn-add-cart:active,
+.btn-add-cart-tokopedia:active {
     background-color: var(--brand-primary-active);
+    color: #ffffff;
     transform: translateY(0);
+}
+
+/* Search Suggestion Dropdown (Tokopedia Style) */
+.search-suggestion-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    z-index: 1050;
+    padding: 0.85rem 1rem;
+    animation: fadeInDropdown 0.15s ease-out;
+}
+
+@keyframes fadeInDropdown {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-chip {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+}
+
+.search-chip:hover {
+    background-color: #e2e8f0;
+    color: var(--brand-primary);
+    border-color: #cbd5e1;
+}
+
+.search-chip:active {
+    transform: scale(0.97);
+}
+
+/* Sticky Mobile Floating Cart Bar (Tokopedia Style) */
+.mobile-sticky-cart-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border-top: 1px solid var(--border-medium);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    z-index: 1040;
+    animation: slideUpCartBar 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpCartBar {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Boarding Pass Ticket Style for Pickup Code */
+.boarding-pass-card {
+    position: relative;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.boarding-pass-notch-left,
+.boarding-pass-notch-right {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: #f8fafc;
+    border-radius: 50%;
+    z-index: 10;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 1px solid #cbd5e1;
+}
+
+.boarding-pass-notch-left {
+    left: -11px;
+}
+
+.boarding-pass-notch-right {
+    right: -11px;
+}
+
+/* Success Checkmark Circle Pulse */
+.success-animation-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.success-checkmark-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 2.2rem;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    animation: pulseCheckmark 1.8s infinite;
+}
+
+@keyframes pulseCheckmark {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 16px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
 }
 
 /* ------------------------------------------------------------------------------
@@ -605,10 +779,10 @@ select:focus-visible {
    9. Comprehensive Responsive & Mobile Refinements (antislop-layoutmobile)
    ------------------------------------------------------------------------------ */
 
-/* Prevent horizontal scroll leaks */
+/* Prevent horizontal scroll leaks without breaking position: sticky */
 html, body {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 /* Ensure images never burst out of containers */
@@ -707,7 +881,8 @@ button,
     }
 
     .product-thumbnail-box {
-        height: 120px;
+        aspect-ratio: 1 / 1;
+        height: auto;
         margin-bottom: 0.5rem;
     }
 
@@ -808,7 +983,8 @@ button,
     }
 
     .product-thumbnail-box {
-        height: 105px;
+        aspect-ratio: 1 / 1;
+        height: auto;
     }
 
     .product-thumbnail-box i {

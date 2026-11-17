@@ -248,7 +248,6 @@
                     <i class="bi bi-shield-exclamation fs-5"></i>
                     <h5 class="modal-title fw-bold fs-6" id="confirmPolicyModalLabel">Konfirmasi Kebijakan Limit Seragam</h5>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <p class="text-dark small mb-3">
@@ -285,7 +284,6 @@
                     <i class="bi bi-person-fill-gear fs-5"></i>
                     <h5 class="modal-title fw-bold fs-6" id="toggleMemberModalLabel">Konfirmasi Perubahan Status Fasilitas</h5>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4 text-center">
                 <div class="mb-3" id="toggleModalIcon">

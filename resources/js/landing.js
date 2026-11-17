@@ -47,6 +47,22 @@ function updateCartUI() {
         }
     });
 
+    // Mobile Sticky Floating Cart Bar (Tokopedia Style)
+    const floatingCart = document.getElementById('mobileStickyCartBar');
+    const floatingCount = document.getElementById('floatingCartItemsCount');
+    const floatingBadge = document.getElementById('floatingCartCountBadge');
+    const floatingPrice = document.getElementById('floatingCartPriceDisplay');
+    if (floatingCart) {
+        if (totalQty > 0) {
+            floatingCart.classList.remove('d-none');
+            if (floatingCount) floatingCount.textContent = `${totalQty} item`;
+            if (floatingBadge) floatingBadge.textContent = totalQty;
+            if (floatingPrice) floatingPrice.textContent = `Rp ${totalPrice.toLocaleString('id-ID')}`;
+        } else {
+            floatingCart.classList.add('d-none');
+        }
+    }
+
     if (!itemList) return;
 
     if (cart.length === 0) {
@@ -112,6 +128,14 @@ window.addToCart = function (id, name, price, unit, icon) {
     saveCart();
 
     // Buka drawer keranjang
+    const drawerEl = document.getElementById('cartDrawer');
+    if (drawerEl && window.bootstrap) {
+        const bsDrawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+        bsDrawer.show();
+    }
+};
+
+window.openCartDrawer = function () {
     const drawerEl = document.getElementById('cartDrawer');
     if (drawerEl && window.bootstrap) {
         const bsDrawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
@@ -417,6 +441,22 @@ window.handleCheckoutSubmit = function (event) {
         if (codeDisplay) codeDisplay.textContent = randomCode;
         if (methodDisplay) methodDisplay.textContent = methodNames[selectedMethod] || selectedMethod;
 
+        // Render Barcode Code-128 di Boarding Pass Tiket
+        if (window.JsBarcode) {
+            try {
+                window.JsBarcode("#checkoutPickupBarcodeSvg", randomCode, {
+                    format: "CODE128",
+                    lineColor: "#000000",
+                    width: 2.2,
+                    height: 60,
+                    displayValue: false,
+                    margin: 4
+                });
+            } catch (e) {
+                console.error("JsBarcode error in checkout success:", e);
+            }
+        }
+
         // Kosongkan keranjang
         cart = [];
         saveCart();
@@ -456,6 +496,106 @@ window.copyPickupCode = function () {
     }).catch(() => {
         alert('Kode Pickup: ' + textToCopy);
     });
+};
+
+// Salin Kode Pengambilan Anggota dari Drawer / Profil
+window.copyMemberPickupCode = function (text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> <span>Tersalin!</span>';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+        }, 2000);
+    }).catch(() => {
+        alert('Kode Pickup: ' + text);
+    });
+};
+
+// Buka Modal Fullscreen Barcode (Kecerahan Maksimal untuk Scanner Kasir)
+window.openFullscreenPickupModal = function (code) {
+    if (!code) code = 'PKP-84920';
+    const badgeEl = document.getElementById('fsPickupCodeBadge');
+    const textEl = document.getElementById('fsPickupCodeText');
+    if (badgeEl) badgeEl.textContent = code;
+    if (textEl) textEl.textContent = code;
+
+    // Render Barcode Code-128 via JsBarcode
+    if (window.JsBarcode) {
+        try {
+            window.JsBarcode("#fsPickupBarcodeSvg", code, {
+                format: "CODE128",
+                lineColor: "#000000",
+                width: 2.8,
+                height: 80,
+                displayValue: false,
+                margin: 4
+            });
+        } catch (e) {
+            console.error("Barcode render error:", e);
+        }
+    }
+
+    // Render QR Code via QRCode
+    if (window.QRCode) {
+        const canvas = document.getElementById('fsPickupQrCanvas');
+        if (canvas) {
+            window.QRCode.toCanvas(canvas, code, {
+                width: 220,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            }, function (error) {
+                if (error) console.error("QR render error:", error);
+            });
+        }
+    }
+
+    const fsModalEl = document.getElementById('fullscreenBarcodeModal');
+    if (fsModalEl && window.bootstrap) {
+        const bsModal = window.bootstrap.Modal.getOrCreateInstance(fsModalEl);
+        bsModal.show();
+    }
+};
+
+// Dropdown Rekomendasi Pencarian Interaktif (Tokopedia Style)
+window.openSearchSuggestions = function () {
+    const dropdown = document.getElementById('searchSuggestionDropdown');
+    if (dropdown) dropdown.classList.remove('d-none');
+};
+
+window.closeSearchSuggestions = function () {
+    setTimeout(() => {
+        const dropdown = document.getElementById('searchSuggestionDropdown');
+        if (dropdown) dropdown.classList.add('d-none');
+    }, 250);
+};
+
+window.openMobileSearchSuggestions = function () {
+    const dropdown = document.getElementById('mobileSearchSuggestionDropdown');
+    if (dropdown) dropdown.classList.remove('d-none');
+};
+
+window.closeMobileSearchSuggestions = function () {
+    setTimeout(() => {
+        const dropdown = document.getElementById('mobileSearchSuggestionDropdown');
+        if (dropdown) dropdown.classList.add('d-none');
+    }, 250);
+};
+
+window.applySearchChip = function (query) {
+    const desktopInput = document.getElementById('storefrontSearchInput');
+    const mobileInput = document.getElementById('mobileStorefrontSearchInput');
+    if (desktopInput) desktopInput.value = query;
+    if (mobileInput) mobileInput.value = query;
+    filterStorefrontSearch(query);
+    const dDropdown = document.getElementById('searchSuggestionDropdown');
+    const mDropdown = document.getElementById('mobileSearchSuggestionDropdown');
+    if (dDropdown) dDropdown.classList.add('d-none');
+    if (mDropdown) mDropdown.classList.add('d-none');
+    scrollToFirstProduct();
 };
 
 // Live Storefront Search & Filter

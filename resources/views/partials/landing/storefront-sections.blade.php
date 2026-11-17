@@ -33,71 +33,7 @@
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
             @foreach($bestDeals as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    <div class="product-card">
-                        <!-- Thumbnail Box with Real Image & Fallback -->
-                        <div class="product-thumbnail-box" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" tabindex="0" title="Klik untuk lihat detail {{ $item['name'] }}" style="cursor: pointer;">
-                            @if(!empty($item['image']))
-                                <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="product-thumb-img" loading="lazy" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
-                                <div class="product-icon-fallback d-none w-100 h-100 d-flex align-items-center justify-content-center">
-                                    <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                                </div>
-                            @else
-                                <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                            @endif
-
-                            @if(!empty($item['badge']))
-                                <span class="position-absolute top-0 start-0 m-2 badge bg-primary text-white fw-semibold rounded-1" style="font-size: 0.65rem;">
-                                    {{ $item['badge'] }}
-                                </span>
-                            @endif
-                        </div>
-
-                        <!-- Card Content -->
-                        <div class="d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="text-muted text-uppercase fw-bold text-truncate" style="font-size: 0.68rem; letter-spacing: 0.03em;">
-                                    {{ $item['category'] }}
-                                </small>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-1" style="font-size: 0.65rem;">
-                                    Stok {{ $item['available_stock'] }}
-                                </span>
-                            </div>
-
-                            <div class="product-rating-bar">
-                                <i class="bi bi-star-fill text-warning me-1"></i>
-                                <span class="fw-bold text-dark">{{ $item['rating'] ?? 4.9 }}</span>
-                                <span class="text-muted">({{ $item['reviews_count'] ?? 28 }})</span>
-                                @if(!empty($item['sold_count']))
-                                    <span class="text-muted ms-1 d-none d-sm-inline">• {{ $item['sold_count'] }}</span>
-                                @endif
-                            </div>
-
-                            <h5 class="product-title" title="{{ $item['name'] }}" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" style="cursor: pointer;">
-                                {{ $item['name'] }}
-                            </h5>
-
-                            <!-- Price & Add Button -->
-                            <div class="mt-auto pt-2.5 border-top d-flex align-items-center justify-content-between gap-1">
-                                <div>
-                                    <div class="product-price-box">
-                                        <span class="product-price-currency">Rp</span>
-                                        <span class="product-price-number">{{ number_format($item['price'], 0, ',', '.') }}</span>
-                                    </div>
-                                    @if(!empty($item['original_price']) && $item['original_price'] > $item['price'])
-                                        <div class="d-flex align-items-center gap-1">
-                                            <del class="text-muted" style="font-size: 0.68rem;">Rp {{ number_format($item['original_price'], 0, ',', '.') }}</del>
-                                        </div>
-                                    @else
-                                        <small class="text-muted" style="font-size: 0.68rem;">/ {{ $item['unit'] }}</small>
-                                    @endif
-                                </div>
-                                <button type="button" class="btn-add-cart" onclick="addToCart('{{ $item['id'] }}', '{{ addslashes($item['name']) }}', {{ $item['price'] }}, '{{ $item['unit'] }}', '{{ $item['icon'] }}')" aria-label="Tambah {{ $item['name'] }} ke keranjang">
-                                    <i class="bi bi-cart-plus me-1"></i>
-                                    <span class="d-none d-sm-inline">+</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    @include('partials.landing.product-card', ['item' => $item])
                 </div>
             @endforeach
         </div>
@@ -195,69 +131,7 @@
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
             @foreach($groceryProducts as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    <div class="product-card">
-                        <!-- Thumbnail Box with Real Image & Fallback -->
-                        <div class="product-thumbnail-box" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" tabindex="0" title="Klik untuk lihat detail {{ $item['name'] }}" style="cursor: pointer;">
-                            @if(!empty($item['image']))
-                                <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="product-thumb-img" loading="lazy" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
-                                <div class="product-icon-fallback d-none w-100 h-100 d-flex align-items-center justify-content-center">
-                                    <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                                </div>
-                            @else
-                                <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                            @endif
-
-                            @if(!empty($item['badge']))
-                                <span class="position-absolute top-0 start-0 m-2 badge bg-success text-white fw-semibold rounded-1" style="font-size: 0.65rem;">
-                                    {{ $item['badge'] }}
-                                </span>
-                            @endif
-                        </div>
-
-                        <div class="d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="text-muted text-uppercase fw-bold text-truncate" style="font-size: 0.68rem; letter-spacing: 0.03em;">
-                                    {{ $item['category'] }}
-                                </small>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-1" style="font-size: 0.65rem;">
-                                    Stok {{ $item['available_stock'] }}
-                                </span>
-                            </div>
-
-                            <div class="product-rating-bar">
-                                <i class="bi bi-star-fill text-warning me-1"></i>
-                                <span class="fw-bold text-dark">{{ $item['rating'] ?? 4.8 }}</span>
-                                <span class="text-muted">({{ $item['reviews_count'] ?? 19 }})</span>
-                                @if(!empty($item['sold_count']))
-                                    <span class="text-muted ms-1 d-none d-sm-inline">• {{ $item['sold_count'] }}</span>
-                                @endif
-                            </div>
-
-                            <h5 class="product-title" title="{{ $item['name'] }}" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" style="cursor: pointer;">
-                                {{ $item['name'] }}
-                            </h5>
-
-                            <div class="mt-auto pt-2.5 border-top d-flex align-items-center justify-content-between gap-1">
-                                <div>
-                                    <div class="product-price-box">
-                                        <span class="product-price-currency">Rp</span>
-                                        <span class="product-price-number">{{ number_format($item['price'], 0, ',', '.') }}</span>
-                                    </div>
-                                    @if(!empty($item['original_price']) && $item['original_price'] > $item['price'])
-                                        <div class="d-flex align-items-center gap-1">
-                                            <del class="text-muted" style="font-size: 0.68rem;">Rp {{ number_format($item['original_price'], 0, ',', '.') }}</del>
-                                        </div>
-                                    @else
-                                        <small class="text-muted" style="font-size: 0.68rem;">/ {{ $item['unit'] }}</small>
-                                    @endif
-                                </div>
-                                <button type="button" class="btn-add-cart" onclick="addToCart('{{ $item['id'] }}', '{{ addslashes($item['name']) }}', {{ $item['price'] }}, '{{ $item['unit'] }}', '{{ $item['icon'] }}')" aria-label="Tambah {{ $item['name'] }} ke keranjang">
-                                    <i class="bi bi-cart-plus me-1"></i>
-                                    <span class="d-none d-sm-inline">+</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    @include('partials.landing.product-card', ['item' => $item])
                 </div>
             @endforeach
         </div>
@@ -316,69 +190,7 @@
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
             @foreach($householdProducts as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    <div class="product-card">
-                        <!-- Thumbnail Box with Real Image & Fallback -->
-                        <div class="product-thumbnail-box" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" tabindex="0" title="Klik untuk lihat detail {{ $item['name'] }}" style="cursor: pointer;">
-                            @if(!empty($item['image']))
-                                <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="product-thumb-img" loading="lazy" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
-                                <div class="product-icon-fallback d-none w-100 h-100 d-flex align-items-center justify-content-center">
-                                    <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                                </div>
-                            @else
-                                <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                            @endif
-
-                            @if(!empty($item['badge']))
-                                <span class="position-absolute top-0 start-0 m-2 badge bg-secondary text-white fw-semibold rounded-1" style="font-size: 0.65rem;">
-                                    {{ $item['badge'] }}
-                                </span>
-                            @endif
-                        </div>
-
-                        <div class="d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="text-muted text-uppercase fw-bold text-truncate" style="font-size: 0.68rem; letter-spacing: 0.03em;">
-                                    {{ $item['category'] }}
-                                </small>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-1" style="font-size: 0.65rem;">
-                                    Stok {{ $item['available_stock'] }}
-                                </span>
-                            </div>
-
-                            <div class="product-rating-bar">
-                                <i class="bi bi-star-fill text-warning me-1"></i>
-                                <span class="fw-bold text-dark">{{ $item['rating'] ?? 4.9 }}</span>
-                                <span class="text-muted">({{ $item['reviews_count'] ?? 14 }})</span>
-                                @if(!empty($item['sold_count']))
-                                    <span class="text-muted ms-1 d-none d-sm-inline">• {{ $item['sold_count'] }}</span>
-                                @endif
-                            </div>
-
-                            <h5 class="product-title" title="{{ $item['name'] }}" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" style="cursor: pointer;">
-                                {{ $item['name'] }}
-                            </h5>
-
-                            <div class="mt-auto pt-2.5 border-top d-flex align-items-center justify-content-between gap-1">
-                                <div>
-                                    <div class="product-price-box">
-                                        <span class="product-price-currency">Rp</span>
-                                        <span class="product-price-number">{{ number_format($item['price'], 0, ',', '.') }}</span>
-                                    </div>
-                                    @if(!empty($item['original_price']) && $item['original_price'] > $item['price'])
-                                        <div class="d-flex align-items-center gap-1">
-                                            <del class="text-muted" style="font-size: 0.68rem;">Rp {{ number_format($item['original_price'], 0, ',', '.') }}</del>
-                                        </div>
-                                    @else
-                                        <small class="text-muted" style="font-size: 0.68rem;">/ {{ $item['unit'] }}</small>
-                                    @endif
-                                </div>
-                                <button type="button" class="btn-add-cart" onclick="addToCart('{{ $item['id'] }}', '{{ addslashes($item['name']) }}', {{ $item['price'] }}, '{{ $item['unit'] }}', '{{ $item['icon'] }}')" aria-label="Tambah {{ $item['name'] }} ke keranjang">
-                                    <i class="bi bi-cart-plus me-1"></i>
-                                    <span class="d-none d-sm-inline">+</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    @include('partials.landing.product-card', ['item' => $item])
                 </div>
             @endforeach
         </div>
@@ -404,69 +216,7 @@
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
             @foreach($snackBeverages as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    <div class="product-card">
-                        <!-- Thumbnail Box with Real Image & Fallback -->
-                        <div class="product-thumbnail-box" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" tabindex="0" title="Klik untuk lihat detail {{ $item['name'] }}" style="cursor: pointer;">
-                            @if(!empty($item['image']))
-                                <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="product-thumb-img" loading="lazy" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
-                                <div class="product-icon-fallback d-none w-100 h-100 d-flex align-items-center justify-content-center">
-                                    <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                                </div>
-                            @else
-                                <i class="bi {{ $item['icon'] }}" aria-hidden="true"></i>
-                            @endif
-
-                            @if(!empty($item['badge']))
-                                <span class="position-absolute top-0 start-0 m-2 badge bg-primary text-white fw-semibold rounded-1" style="font-size: 0.65rem;">
-                                    {{ $item['badge'] }}
-                                </span>
-                            @endif
-                        </div>
-
-                        <div class="d-flex flex-column flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small class="text-muted text-uppercase fw-bold text-truncate" style="font-size: 0.68rem; letter-spacing: 0.03em;">
-                                    {{ $item['category'] }}
-                                </small>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-1" style="font-size: 0.65rem;">
-                                    Stok {{ $item['available_stock'] }}
-                                </span>
-                            </div>
-
-                            <div class="product-rating-bar">
-                                <i class="bi bi-star-fill text-warning me-1"></i>
-                                <span class="fw-bold text-dark">{{ $item['rating'] ?? 4.9 }}</span>
-                                <span class="text-muted">({{ $item['reviews_count'] ?? 32 }})</span>
-                                @if(!empty($item['sold_count']))
-                                    <span class="text-muted ms-1 d-none d-sm-inline">• {{ $item['sold_count'] }}</span>
-                                @endif
-                            </div>
-
-                            <h5 class="product-title" title="{{ $item['name'] }}" onclick="openProductDetailModal('{{ $item['id'] }}')" role="button" style="cursor: pointer;">
-                                {{ $item['name'] }}
-                            </h5>
-
-                            <div class="mt-auto pt-2.5 border-top d-flex align-items-center justify-content-between gap-1">
-                                <div>
-                                    <div class="product-price-box">
-                                        <span class="product-price-currency">Rp</span>
-                                        <span class="product-price-number">{{ number_format($item['price'], 0, ',', '.') }}</span>
-                                    </div>
-                                    @if(!empty($item['original_price']) && $item['original_price'] > $item['price'])
-                                        <div class="d-flex align-items-center gap-1">
-                                            <del class="text-muted" style="font-size: 0.68rem;">Rp {{ number_format($item['original_price'], 0, ',', '.') }}</del>
-                                        </div>
-                                    @else
-                                        <small class="text-muted" style="font-size: 0.68rem;">/ {{ $item['unit'] }}</small>
-                                    @endif
-                                </div>
-                                <button type="button" class="btn-add-cart" onclick="addToCart('{{ $item['id'] }}', '{{ addslashes($item['name']) }}', {{ $item['price'] }}, '{{ $item['unit'] }}', '{{ $item['icon'] }}')" aria-label="Tambah {{ $item['name'] }} ke keranjang">
-                                    <i class="bi bi-cart-plus me-1"></i>
-                                    <span class="d-none d-sm-inline">+</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    @include('partials.landing.product-card', ['item' => $item])
                 </div>
             @endforeach
         </div>

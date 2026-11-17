@@ -3,7 +3,7 @@
    - Tier 1: Logo, Search Bar Live Filter, Gerai Info, Cart Button, Login
    - Tier 2: Sub-nav Baris Kategori & Navigasi Cepat
    ============================================================================== --}}
-<header class="sticky-top">
+<header class="sticky-top storefront-header">
     <!-- TIER 1: MAIN STOREFRONT NAVBAR -->
     <nav class="navbar navbar-expand-lg bg-white border-bottom py-2.5">
         <div class="container px-3 px-lg-4">
@@ -20,13 +20,46 @@
             </a>
 
             <!-- Center Search Bar (Desktop) -->
-            <div class="d-none d-lg-flex flex-grow-1 justify-content-center px-3">
-                <div class="storefront-search-bar">
+            <div class="d-none d-lg-flex flex-grow-1 justify-content-center px-3 position-relative">
+                <div class="storefront-search-bar position-relative" style="max-width: 620px; width: 100%;">
                     <i class="bi bi-search text-muted me-2" aria-hidden="true"></i>
-                    <input type="text" id="storefrontSearchInput" oninput="filterStorefrontSearch(this.value)" placeholder="Cari sembako, beras ramos, minyak goreng, deterjen, biskuit..." aria-label="Cari produk di etalase KoperasiKu">
+                    <input type="text" id="storefrontSearchInput" oninput="filterStorefrontSearch(this.value)" onfocus="openSearchSuggestions()" onblur="closeSearchSuggestions()" placeholder="Cari sembako, beras ramos, minyak goreng, deterjen, biskuit..." aria-label="Cari produk di etalase KoperasiKu" autocomplete="off">
                     <button type="button" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold text-nowrap" onclick="scrollToFirstProduct()">
                         Cari
                     </button>
+
+                    <!-- Dropdown Rekomendasi Pencarian Instan (Tokopedia Style) -->
+                    <div id="searchSuggestionDropdown" class="search-suggestion-dropdown shadow-lg d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-secondary fw-bold small text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                <i class="bi bi-fire text-danger me-1"></i> Pencarian Populer Anggota
+                            </span>
+                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Klik untuk filter</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1.5 mb-2.5">
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Beras Ramos')">
+                                <i class="bi bi-search me-1 text-muted"></i> Beras Ramos 5kg
+                            </button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Minyak Goreng')">
+                                <i class="bi bi-search me-1 text-muted"></i> Minyak Goreng 2L
+                            </button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Gula Pasir')">
+                                <i class="bi bi-search me-1 text-muted"></i> Gula Pasir
+                            </button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Telur Ayam')">
+                                <i class="bi bi-search me-1 text-muted"></i> Telur Ayam
+                            </button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Susu UHT')">
+                                <i class="bi bi-search me-1 text-muted"></i> Susu UHT
+                            </button>
+                        </div>
+                        <div class="p-2 rounded bg-light border d-flex justify-content-between align-items-center">
+                            <small class="text-muted" style="font-size: 0.72rem;">
+                                <i class="bi bi-geo-alt-fill text-danger me-1"></i> Penyerahan pesanan di Gerai Kanayakan A11
+                            </small>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.68rem;">Pickup Bebas Ongkir</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -98,8 +131,21 @@
             
             <!-- Mobile Menu Dropdown -->
             <div class="collapse d-lg-none py-2" id="mobileSubnav">
-                <div class="mb-2">
-                    <input type="text" id="mobileStorefrontSearchInput" class="form-control form-control-sm" placeholder="Cari sembako, minyak, beras..." oninput="filterStorefrontSearch(this.value)">
+                <div class="mb-2 position-relative">
+                    <input type="text" id="mobileStorefrontSearchInput" class="form-control form-control-sm" placeholder="Cari sembako, minyak, beras..." oninput="filterStorefrontSearch(this.value)" onfocus="openMobileSearchSuggestions()" onblur="closeMobileSearchSuggestions()" autocomplete="off">
+                    <!-- Dropdown Rekomendasi Mobile -->
+                    <div id="mobileSearchSuggestionDropdown" class="search-suggestion-dropdown shadow-lg d-none mt-1">
+                        <div class="text-secondary fw-bold small text-uppercase mb-2" style="font-size: 0.72rem;">
+                            <i class="bi bi-fire text-danger me-1"></i> Pencarian Populer:
+                        </div>
+                        <div class="d-flex flex-wrap gap-1.5">
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Beras Ramos')">Beras Ramos 5kg</button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Minyak Goreng')">Minyak Goreng 2L</button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Gula Pasir')">Gula Pasir</button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Telur Ayam')">Telur Ayam</button>
+                            <button type="button" class="search-chip" onmousedown="applySearchChip('Susu UHT')">Susu UHT</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex flex-column gap-1">
                     <button type="button" class="btn btn-link subnav-link text-start text-primary fw-bold p-0 border-0 text-decoration-none" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
@@ -148,13 +194,10 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-link subnav-link text-decoration-none border-0 p-0 text-primary fw-bold" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
-                        <i class="bi bi-person-vcard text-primary me-1" aria-hidden="true"></i>
-                        <span>Profil & Cek Tagihan</span>
-                        @if(!empty($receivableStatus['has_debt']))
-                            <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }}</span>
-                        @endif
-                    </button>
+                    <span class="text-secondary small d-inline-flex align-items-center gap-1.5" style="font-size: 0.74rem;">
+                        <i class="bi bi-shield-check text-success"></i>
+                        <span>Koperasi Konsumen Resmi POLMAN Bandung</span>
+                    </span>
                 </div>
             </div>
 
