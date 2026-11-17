@@ -1,0 +1,45 @@
+{
+  "run_id": "ba997db9-0747-4ebf-9b4e-40bd0971d47e",
+  "date": "2026-11-16",
+  "reconciliation": {
+    "sales_revenue": {
+      "source": "200000",
+      "mart": "200000.00",
+      "match": true
+    },
+    "cogs": {
+      "source": "140000",
+      "mart": "140000.00",
+      "match": true
+    },
+    "cash_receipts": {
+      "source": "75000",
+      "mart": "75000.00",
+      "match": true
+    },
+    "credit_issuance": {
+      "source": "200000",
+      "mart": "200000.00",
+      "match": true
+    },
+    "outstanding": {
+      "source": "125000",
+      "mart": "125000.00",
+      "match": true
+    },
+    "overdue": {
+      "source": "125000",
+      "mart": "125000.00",
+      "match": true
+    }
+  },
+  "minio_objects": 80,
+  "parquet_layers": [
+    "raw",
+    "validated",
+    "transformed"
+  ],
+  "forecast_days": 9,
+  "zero_sale_days": 8,
+  "status": "PASS"
+}

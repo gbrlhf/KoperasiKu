@@ -1,0 +1,47 @@
+[
+  {
+    "file": "KOPERADATA_TEAM_v1.4/DATABASE/ERD_DATABASE_KOPERADATA.md",
+    "local": "docs/referensi/ERD_DATABASE_KOPERADATA.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/PIC/PIC_A_FRONTEND_UIUX.md",
+    "local": "docs/referensi/PIC_A_FRONTEND_UIUX.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/PIC/PIC_B_BACKEND_TRANSAKSI_PIUTANG.md",
+    "local": "docs/referensi/PIC_B_BACKEND_TRANSAKSI_PIUTANG.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/PIC/PIC_C_MASTERDATA_HPP_EXCEL.md",
+    "local": "docs/referensi/PIC_C_MASTERDATA_HPP_EXCEL.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/PIC/PIC_D_BIGDATA_ANALYTICS.md",
+    "local": "docs/referensi/PIC_D_BIGDATA_ANALYTICS.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/PIC/PIC_E_ML_QA_DEVOPS.md",
+    "local": "docs/referensi/PIC_E_ML_QA_DEVOPS.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/README.md",
+    "local": "docs/referensi/TEAM_README.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/SHARED/ATURAN_ARSITEKTUR_BERSAMA.md",
+    "local": "docs/referensi/ATURAN_ARSITEKTUR_BERSAMA.md",
+    "same_content": true
+  },
+  {
+    "file": "KOPERADATA_TEAM_v1.4/SHARED/PRD_KOPERADATA_v1.4_REFERENSI.md",
+    "local": "docs/referensi/PRD_KOPERADATA_v1.4_REFERENSI.md",
+    "same_content": true
+  }
+]

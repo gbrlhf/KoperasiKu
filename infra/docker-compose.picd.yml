@@ -1,0 +1,35 @@
+# Local PIC D dependencies only. E owns the project-wide production Compose.
+services:
+  picd-postgres:
+    image: postgres:16
+    container_name: koperadata-picd-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: koperadata
+      POSTGRES_USER: koperadata
+      POSTGRES_PASSWORD: ${PICD_POSTGRES_PASSWORD:?Set PICD_POSTGRES_PASSWORD in your shell}
+    volumes:
+      - picd_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U koperadata -d koperadata"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  picd-minio:
+    image: koperadata-minio:7aac2a2
+    build:
+      context: ./minio
+    container_name: koperadata-picd-minio
+    command: server /data --console-address ':9001'
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${PICD_MINIO_ROOT_USER:?Set PICD_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${PICD_MINIO_ROOT_PASSWORD:?Set PICD_MINIO_ROOT_PASSWORD}
+    volumes:
+      - picd_minio:/data
+volumes:
+  picd_postgres:
+  picd_minio:
