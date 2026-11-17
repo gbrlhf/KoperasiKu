@@ -1,0 +1,108 @@
+{
+  "method": "Grouped synthetic completed sales by product/day; generation included; integer rupiah",
+  "repeats": 3,
+  "warmup": "Spark range count before measured queries",
+  "host": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "python": "3.11.18",
+  "spark": "3.5.4",
+  "postgresql": "16.16 (Debian 16.16-1.pgdg13+1)",
+  "cpu_count": 12,
+  "spark_threads": 2,
+  "memory_scope": "Client Python and local Spark process-tree RSS, shared pages may be counted more than once",
+  "postgres_server_peak_rss_bytes": null,
+  "results": [
+    {
+      "input_rows": 10000,
+      "accepted_rows": 9000,
+      "output_groups": 6570,
+      "match": true,
+      "sql_median_seconds": 0.01782855900000868,
+      "spark_median_seconds": 0.3458333759999732,
+      "samples": [
+        {
+          "iteration": 1,
+          "sql_seconds": 0.022945211999967796,
+          "spark_seconds": 1.2195864710000706,
+          "client_tree_peak_rss_bytes_sql_phase": 422785024,
+          "client_tree_peak_rss_bytes_spark_phase": 521064448
+        },
+        {
+          "iteration": 2,
+          "sql_seconds": 0.016894941000032304,
+          "spark_seconds": 0.3458333759999732,
+          "client_tree_peak_rss_bytes_sql_phase": 520650752,
+          "client_tree_peak_rss_bytes_spark_phase": 564822016
+        },
+        {
+          "iteration": 3,
+          "sql_seconds": 0.01782855900000868,
+          "spark_seconds": 0.2650065850000374,
+          "client_tree_peak_rss_bytes_sql_phase": 566263808,
+          "client_tree_peak_rss_bytes_spark_phase": 580157440
+        }
+      ]
+    },
+    {
+      "input_rows": 100000,
+      "accepted_rows": 90000,
+      "output_groups": 6570,
+      "match": true,
+      "sql_median_seconds": 0.040031355000110125,
+      "spark_median_seconds": 0.24076134300003105,
+      "samples": [
+        {
+          "iteration": 1,
+          "sql_seconds": 0.040031355000110125,
+          "spark_seconds": 0.33615641599999435,
+          "client_tree_peak_rss_bytes_sql_phase": 581074944,
+          "client_tree_peak_rss_bytes_spark_phase": 592347136
+        },
+        {
+          "iteration": 2,
+          "sql_seconds": 0.0405738739999606,
+          "spark_seconds": 0.24076134300003105,
+          "client_tree_peak_rss_bytes_sql_phase": 592347136,
+          "client_tree_peak_rss_bytes_spark_phase": 596541440
+        },
+        {
+          "iteration": 3,
+          "sql_seconds": 0.03490663399998084,
+          "spark_seconds": 0.21073338099995453,
+          "client_tree_peak_rss_bytes_sql_phase": 597590016,
+          "client_tree_peak_rss_bytes_spark_phase": 600080384
+        }
+      ]
+    },
+    {
+      "input_rows": 1000000,
+      "accepted_rows": 900000,
+      "output_groups": 6570,
+      "match": true,
+      "sql_median_seconds": 0.24426556399998844,
+      "spark_median_seconds": 0.31568684499995925,
+      "samples": [
+        {
+          "iteration": 1,
+          "sql_seconds": 0.24010839300001408,
+          "spark_seconds": 0.3487807729999304,
+          "client_tree_peak_rss_bytes_sql_phase": 600604672,
+          "client_tree_peak_rss_bytes_spark_phase": 613818368
+        },
+        {
+          "iteration": 2,
+          "sql_seconds": 0.24426556399998844,
+          "spark_seconds": 0.24206764400003067,
+          "client_tree_peak_rss_bytes_sql_phase": 614211584,
+          "client_tree_peak_rss_bytes_spark_phase": 619585536
+        },
+        {
+          "iteration": 3,
+          "sql_seconds": 0.26195501000006516,
+          "spark_seconds": 0.31568684499995925,
+          "client_tree_peak_rss_bytes_sql_phase": 621158400,
+          "client_tree_peak_rss_bytes_spark_phase": 625614848
+        }
+      ]
+    }
+  ]
+}

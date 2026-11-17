@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "date": "2026-11-17",
+  "source_schema": "actual Laravel B/C/D migrations",
+  "source_write_denied": true,
+  "member_pseudonymized": true,
+  "category_supplier_adapter": true,
+  "reconciliation": {
+    "sales_revenue": {
+      "source": "200000.00",
+      "mart": "200000.00",
+      "match": true
+    },
+    "cogs": {
+      "source": "140000.00",
+      "mart": "140000.00",
+      "match": true
+    },
+    "cash_receipts": {
+      "source": "75000.00",
+      "mart": "75000.00",
+      "match": true
+    },
+    "credit_issuance": {
+      "source": "200000.00",
+      "mart": "200000.00",
+      "match": true
+    },
+    "outstanding": {
+      "source": "125000.00",
+      "mart": "125000.00",
+      "match": true
+    },
+    "overdue": {
+      "source": "125000.00",
+      "mart": "125000.00",
+      "match": true
+    }
+  },
+  "minio_objects": 80,
+  "rerun_changed_rows": 0,
+  "committed_import_only": true,
+  "cutoff_classified": true,
+  "inventory_unchanged": true,
+  "forecast_days": 9,
+  "zero_sale_days": 8,
+  "run_id": "d9903c0f-b324-47fe-84db-94620271ce85"
+}

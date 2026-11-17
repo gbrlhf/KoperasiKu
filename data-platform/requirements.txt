@@ -1,0 +1,9 @@
+# PIC D / Python 3.11; align installed Java with PySpark version.
+pyspark==3.5.4
+psycopg[binary]>=3.2,<3.4
+boto3>=1.35,<2
+python-dotenv>=1.0,<2
+pytest>=8,<10
+
+tzdata>=2025.1
+psutil>=6,<8
