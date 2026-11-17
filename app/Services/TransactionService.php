@@ -13,6 +13,7 @@ use App\Models\CreditPolicy;
 use App\Models\MemberCreditAccount;
 use App\Models\ReceivablePaymentAllocation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class TransactionService
@@ -28,13 +29,17 @@ class TransactionService
             $orderItemsData = [];
 
             foreach ($items as $item) {
-                $inventory = InventoryBalance::where('product_id', $item['product_id'])->lockForUpdate()->first();
-                
-                if (!$inventory || ($inventory->on_hand - $inventory->reserved) < $item['quantity']) {
-                    throw new \Exception("Stok tidak mencukupi untuk produk ID: {$item['product_id']}", 422);
+                $product = DB::table('products')->where('id', $item['product_id'])->orWhere('sku', $item['product_id'])->first();
+                if (!$product) {
+                    throw new \Exception("Produk tidak ditemukan di master katalog: {$item['product_id']}", 404);
                 }
 
-                $product = DB::table('products')->where('id', $item['product_id'])->first();
+                $inventory = InventoryBalance::where('product_id', $product->id)->lockForUpdate()->first();
+                
+                if (!$inventory || ($inventory->on_hand - $inventory->reserved) < $item['quantity']) {
+                    throw new \Exception("Stok tidak mencukupi untuk produk: {$product->name}", 422);
+                }
+
                 $subtotal = $product->selling_price * $item['quantity'];
                 $totalAmount += $subtotal;
 
@@ -78,11 +83,17 @@ class TransactionService
                 }
             }
 
+            $pickupCode = 'PKP-' . mt_rand(10000, 99999);
+            $orderNo = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+
             $order = Order::create([
                 'member_id' => $memberId,
                 'channel' => $channel,
                 'status' => ($paymentChoice === 'CREDIT') ? 'PENDING_PICKUP' : 'PENDING_PAYMENT',
                 'payment_choice' => $paymentChoice,
+                'order_no' => $orderNo,
+                'pickup_code' => $pickupCode,
+                'total_amount' => $totalAmount,
             ]);
 
             foreach ($orderItemsData as $orderItem) {
@@ -112,7 +123,15 @@ class TransactionService
     public function confirmPickup(string $orderId)
     {
         return DB::transaction(function () use ($orderId) {
-            $order = Order::lockForUpdate()->findOrFail($orderId);
+            $order = Order::lockForUpdate()
+                ->where('id', $orderId)
+                ->orWhere('pickup_code', $orderId)
+                ->orWhere('order_no', $orderId)
+                ->first();
+
+            if (!$order) {
+                throw new \Exception("Pesanan dengan ID / Kode Pickup '{$orderId}' tidak ditemukan.", 404);
+            }
 
             if ($order->status === 'COMPLETED') {
                 throw new \Exception("Pesanan sudah diselesaikan sebelumnya (Idempotent).", 400);
@@ -189,13 +208,17 @@ class TransactionService
             $inventoryUpdates = [];
 
             foreach ($items as $item) {
-                $inventory = InventoryBalance::where('product_id', $item['product_id'])->lockForUpdate()->first();
-                
-                if (!$inventory || $inventory->on_hand < $item['quantity']) {
-                    throw new \Exception("Stok fisik tidak mencukupi untuk produk ID: {$item['product_id']}", 422);
+                $product = DB::table('products')->where('id', $item['product_id'])->orWhere('sku', $item['product_id'])->first();
+                if (!$product) {
+                    throw new \Exception("Produk tidak ditemukan di master katalog: {$item['product_id']}", 404);
                 }
 
-                $product = DB::table('products')->where('id', $item['product_id'])->first();
+                $inventory = InventoryBalance::where('product_id', $product->id)->lockForUpdate()->first();
+                
+                if (!$inventory || $inventory->on_hand < $item['quantity']) {
+                    throw new \Exception("Stok fisik tidak mencukupi untuk produk: {$product->name}", 422);
+                }
+
                 $subtotal = $product->selling_price * $item['quantity'];
                 $totalAmount += $subtotal;
 

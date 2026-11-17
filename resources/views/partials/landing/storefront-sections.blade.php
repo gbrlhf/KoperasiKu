@@ -23,10 +23,10 @@
                 </div>
                 <small class="text-secondary" style="font-size: 0.78rem;">Produk kebutuhan pokok paling banyak dipesan anggota hari ini</small>
             </div>
-            <a href="#sembako-section" class="text-primary text-decoration-none fw-semibold small d-inline-flex align-items-center gap-1">
+            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
                 <span>Lihat Semua</span>
                 <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </a>
+            </button>
         </div>
 
         <!-- 5-Column Product Grid -->
@@ -122,10 +122,10 @@
                 <h3 class="fw-bold text-dark mb-0 fs-5">Bestseller In Grocery (Sembako & Bumbu Dapur)</h3>
                 <small class="text-secondary" style="font-size: 0.78rem;">Komoditas pokok keluarga dengan jaminan kualitas dan pasokan stabil</small>
             </div>
-            <a href="#household-section" class="text-primary text-decoration-none fw-semibold small d-inline-flex align-items-center gap-1">
+            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
                 <span>Lihat Semua</span>
                 <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </a>
+            </button>
         </div>
 
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
@@ -181,10 +181,10 @@
                 <h3 class="fw-bold text-dark mb-0 fs-5">Bestsellers in Household (Sabun & Kebersihan)</h3>
                 <small class="text-secondary" style="font-size: 0.78rem;">Deterjen, sabun cuci, pembersih lantai, dan kebutuhan sanitasi rumah</small>
             </div>
-            <a href="#snack-section" class="text-primary text-decoration-none fw-semibold small d-inline-flex align-items-center gap-1">
+            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
                 <span>Lihat Semua</span>
                 <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </a>
+            </button>
         </div>
 
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
@@ -207,14 +207,47 @@
                 <h3 class="fw-bold text-dark mb-0 fs-5">Bestsellers in Snacks & Minuman Segar</h3>
                 <small class="text-secondary" style="font-size: 0.78rem;">Kopi khas Bandung, biskuit camilan kerja, teh celup, dan olahan produk anggota</small>
             </div>
-            <a href="#alur-pesan" class="text-primary text-decoration-none fw-semibold small d-inline-flex align-items-center gap-1">
+            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
                 <span>Lihat Semua</span>
                 <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </a>
+            </button>
         </div>
 
         <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
             @foreach($snackBeverages as $item)
+                <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
+                    @include('partials.landing.product-card', ['item' => $item])
+                </div>
+            @endforeach
+        </div>
+
+    </div>
+</section>
+
+<!-- 7. KATALOG LENGKAP SEMUA PRODUK KOPERASI (SEMUA 20 KOMODITAS) -->
+<section id="allProductsSection" class="py-5 bg-light border-bottom">
+    <div class="container px-3 px-lg-4">
+        
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h3 class="fw-extrabold text-dark mb-0 fs-4">Semua Produk & Komoditas Koperasi</h3>
+                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.7rem;">
+                        {{ count($allProducts ?? $allProductsMap) }} PRODUK TERSEDIA
+                    </span>
+                </div>
+                <small class="text-secondary" style="font-size: 0.8rem;">Katalog lengkap sembako, bumbu dapur, perlengkapan rumah tangga, dan aneka camilan anggota</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 small fw-semibold">
+                    <i class="bi bi-shop me-1"></i> Pengambilan Gerai Kanayakan A11
+                </span>
+            </div>
+        </div>
+
+        <!-- 5-Column Grid with all 20 products -->
+        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
+            @foreach(($allProducts ?? array_values($allProductsMap)) as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
                     @include('partials.landing.product-card', ['item' => $item])
                 </div>

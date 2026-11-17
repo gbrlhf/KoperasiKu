@@ -416,16 +416,52 @@ window.handleCheckoutSubmit = function (event) {
         'CREDIT': 'Piutang Anggota (Tempo 7 Hari)'
     };
 
-    // Generate kode pickup unik (PKP-XXXXX)
-    const randomCode = 'PKP-' + Math.floor(10000 + Math.random() * 90000);
+    const orderItems = (cart || []).map(item => ({
+        product_id: item.sku || item.id,
+        quantity: item.qty
+    }));
 
-    setTimeout(() => {
-        // Reset tombol
+    if (orderItems.length === 0) {
+        alert('Keranjang belanja masih kosong.');
         if (submitBtn) {
             submitBtn.disabled = false;
             const spinner = submitBtn.querySelector('.spinner-border');
             if (spinner) spinner.classList.add('d-none');
         }
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // Kirim request checkout langsung ke backend Laravel TransactionService
+    fetch('/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+            payment_choice: selectedMethod,
+            channel: 'ONLINE_PICKUP',
+            items: orderItems,
+            idempotency_key: 'checkout-' + Date.now()
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            const spinner = submitBtn.querySelector('.spinner-border');
+            if (spinner) spinner.classList.add('d-none');
+        }
+
+        if (!data.success) {
+            alert('Gagal memproses pesanan: ' + (data.message || 'Terjadi kesalahan validasi di server.'));
+            return;
+        }
+
+        const realPickupCode = data.data?.pickup_code || ('PKP-' + Math.floor(10000 + Math.random() * 90000));
 
         // Tutup modal checkout
         const checkoutModalEl = document.getElementById('checkoutModal');
@@ -434,17 +470,17 @@ window.handleCheckoutSubmit = function (event) {
             if (bsCheckoutModal) bsCheckoutModal.hide();
         }
 
-        // Tampilkan Kode Pickup di Modal Sukses
+        // Tampilkan Kode Pickup dari backend di Modal Sukses
         const codeDisplay = document.getElementById('displayPickupCode');
         const methodDisplay = document.getElementById('displayPaymentMethodName');
 
-        if (codeDisplay) codeDisplay.textContent = randomCode;
+        if (codeDisplay) codeDisplay.textContent = realPickupCode;
         if (methodDisplay) methodDisplay.textContent = methodNames[selectedMethod] || selectedMethod;
 
         // Render Barcode Code-128 di Boarding Pass Tiket
         if (window.JsBarcode) {
             try {
-                window.JsBarcode("#checkoutPickupBarcodeSvg", randomCode, {
+                window.JsBarcode("#checkoutPickupBarcodeSvg", realPickupCode, {
                     format: "CODE128",
                     lineColor: "#000000",
                     width: 2.2,
@@ -467,7 +503,16 @@ window.handleCheckoutSubmit = function (event) {
             const bsSuccessModal = new window.bootstrap.Modal(successModalEl);
             bsSuccessModal.show();
         }
-    }, 500);
+    })
+    .catch(err => {
+        console.error('Checkout fetch error:', err);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            const spinner = submitBtn.querySelector('.spinner-border');
+            if (spinner) spinner.classList.add('d-none');
+        }
+        alert('Terjadi kendala jaringan saat menghubungi backend KoperasiKu.');
+    });
 };
 
 // Fitur Salin Kode Pickup ke Clipboard
@@ -629,7 +674,35 @@ window.filterStorefrontCategory = function (categoryName) {
 };
 
 window.resetStorefrontFilter = function () {
-    filterStorefrontSearch('');
+    window.showAllProducts();
+};
+
+window.showAllProducts = function (event) {
+    if (event && event.preventDefault) {
+        event.preventDefault();
+    }
+
+    // 1. Reset input pencarian desktop & mobile
+    const desktopInput = document.getElementById('storefrontSearchInput');
+    const mobileInput = document.getElementById('mobileStorefrontSearchInput');
+    if (desktopInput) desktopInput.value = '';
+    if (mobileInput) mobileInput.value = '';
+
+    // 2. Munculkan semua kartu produk tanpa filter
+    const productCols = document.querySelectorAll('.product-item-col');
+    productCols.forEach(col => col.classList.remove('d-none'));
+
+    // 3. Tutup dropdown rekomendasi pencarian
+    const dDropdown = document.getElementById('searchSuggestionDropdown');
+    const mDropdown = document.getElementById('mobileSearchSuggestionDropdown');
+    if (dDropdown) dDropdown.classList.add('d-none');
+    if (mDropdown) mDropdown.classList.add('d-none');
+
+    // 4. Smooth scroll ke bagian Semua Produk
+    const target = document.getElementById('allProductsSection') || document.getElementById('best-deals');
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 };
 
 window.scrollToFirstProduct = function () {

@@ -695,9 +695,10 @@ class LandingController extends Controller
             ],
         ];
 
-        // Master lookup map untuk modal rincian produk cepat
+        // Master lookup map & daftar lengkap semua produk koperasi
+        $allProducts = array_merge($bestDeals, $groceryProducts, $householdProducts, $snackBeverages);
         $allProductsMap = [];
-        foreach (array_merge($bestDeals, $groceryProducts, $householdProducts, $snackBeverages) as $p) {
+        foreach ($allProducts as $p) {
             $allProductsMap[$p['id']] = $p;
         }
 
@@ -707,6 +708,7 @@ class LandingController extends Controller
             'groceryProducts',
             'householdProducts',
             'snackBeverages',
+            'allProducts',
             'howToOrder',
             'paymentMethods',
             'statistics',

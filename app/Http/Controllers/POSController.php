@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Product;
 use App\Services\TransactionService;
+use Illuminate\Http\Request;
 
 class POSController extends Controller
 {
@@ -16,21 +17,23 @@ class POSController extends Controller
 
     /**
      * Menangani penjualan langsung kasir (POS)
-     * Endpoint: POST /api/v1/pos/sale
+     * Endpoint: POST /api/v1/pos/sale atau POST /cashier/pos-sale
      */
     public function sale(Request $request)
     {
         try {
-            // Validasi input data dari request kasir
             $validated = $request->validate([
-                'member_id' => 'nullable|uuid',
+                'member_id' => 'nullable|string',
                 'payment_choice' => 'required|string|in:CASH,BANK_TRANSFER,CREDIT',
                 'items' => 'required|array|min:1',
-                'items.*.product_id' => 'required',
+                'items.*.product_id' => 'required|string',
                 'items.*.quantity' => 'required|integer|min:1',
             ]);
 
-            // Eksekusi logika bisnis lewat TransactionService
+            if (empty($validated['member_id']) && $validated['payment_choice'] === 'CREDIT') {
+                $validated['member_id'] = '00000000-0000-0000-0000-000000000001';
+            }
+
             $result = $this->transactionService->posSale($validated);
 
             return response()->json([
@@ -47,5 +50,39 @@ class POSController extends Controller
                 'message' => $e->getMessage()
             ], $statusCode);
         }
+    }
+
+    /**
+     * Pencarian produk via barcode / SKU scanner
+     * Endpoint: GET /api/v1/products/lookup?barcode=...
+     */
+    public function lookup(Request $request)
+    {
+        $barcode = $request->query('barcode') ?? $request->query('q');
+        if (!$barcode) {
+            return response()->json(['success' => false, 'message' => 'Parameter barcode wajib diisi.'], 422);
+        }
+
+        $product = Product::where('barcode', $barcode)
+            ->orWhere('sku', $barcode)
+            ->with('inventory')
+            ->first();
+
+        if (!$product) {
+            return response()->json(['success' => false, 'message' => 'Barang dengan barcode/SKU tersebut tidak ditemukan.'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'name' => $product->name,
+                'price' => $product->selling_price,
+                'unit' => $product->unit,
+                'available_stock' => $product->inventory ? ($product->inventory->on_hand - $product->inventory->reserved) : 0,
+            ]
+        ]);
     }
 }

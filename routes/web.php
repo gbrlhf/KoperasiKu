@@ -4,6 +4,9 @@ use App\Http\Controllers\CashierController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\ManagerController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\POSController;
+use App\Http\Controllers\ReceivableController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -101,3 +104,13 @@ Route::prefix('manager')->name('manager.')->group(function () {
     Route::get('/produk', [ManagerController::class, 'produk'])->name('produk');
     Route::get('/import', [ManagerController::class, 'import'])->name('import');
 });
+
+// --------------------------------------------------------------------------
+// 5. Integrasi Backend Transaksi Langsung (Checkout Storefront, POS & Pickup)
+// --------------------------------------------------------------------------
+Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.submit');
+Route::post('/cashier/confirm-pickup', [OrderController::class, 'confirmPickup'])->name('cashier.confirm-pickup');
+Route::post('/cashier/pos-sale', [POSController::class, 'sale'])->name('cashier.pos-sale');
+Route::get('/api/products/lookup', [POSController::class, 'lookup'])->name('products.lookup');
+Route::get('/api/v1/products/lookup', [POSController::class, 'lookup']);
+

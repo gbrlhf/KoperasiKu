@@ -12,7 +12,7 @@
             <div>
                 <h3 class="fw-bold text-dark mb-0 fs-5">Kategori Belanja Populer</h3>
             </div>
-            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="resetStorefrontFilter()">
+            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
                 <span>Tampilkan Semua Produk ({{ count($categories) }} Kategori)</span>
                 <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
             </button>

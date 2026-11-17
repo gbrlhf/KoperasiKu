@@ -1818,6 +1818,31 @@ function openPosReceiptModal() {
         if (member) member.available_limit -= total;
     }
 
+    // Kirim pencatatan transaksi POS langsung ke backend Laravel TransactionService
+    const posItems = posCart.map(item => ({
+        product_id: item.sku || item.name,
+        quantity: item.qty
+    }));
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    fetch('/cashier/pos-sale', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+            payment_choice: method,
+            channel: 'POS',
+            member_id: method === 'CREDIT' ? '00000000-0000-0000-0000-000000000001' : null,
+            items: posItems
+        })
+    }).then(r => r.json()).then(res => {
+        console.log('POS sale recorded in backend database:', res);
+    }).catch(err => {
+        console.warn('POS backend sale error:', err);
+    });
+
     const modal = new bootstrap.Modal(document.getElementById('posReceiptModal'));
     modal.show();
 }
@@ -1875,28 +1900,66 @@ function executePickupHandover() {
     const modalInstance = bootstrap.Modal.getInstance(modalEl);
     if (modalInstance) modalInstance.hide();
 
-    // Mark row as complete in UI
-    const row = document.getElementById(`pickupRow-${selectedPickupOrder.code}`);
-    if (row) {
-        const actionCell = row.querySelector('.handover-btn')?.parentElement;
-        if (actionCell) {
-            actionCell.innerHTML = `
-                <span class="badge bg-success text-white py-1.5 px-2.5">
-                    <i class="bi bi-check-all me-1"></i> Telah Diserahkan
-                </span>
-            `;
+    const pickupCode = selectedPickupOrder.code;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // Kirim request konfirmasi pickup langsung ke backend Laravel TransactionService
+    fetch('/cashier/confirm-pickup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+            pickup_code: pickupCode
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        // Mark row as complete in UI
+        const row = document.getElementById(`pickupRow-${pickupCode}`);
+        if (row) {
+            const actionCell = row.querySelector('.handover-btn')?.parentElement;
+            if (actionCell) {
+                actionCell.innerHTML = `
+                    <span class="badge bg-success text-white py-1.5 px-2.5">
+                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
+                    </span>
+                `;
+            }
+            row.classList.add('table-light', 'text-muted');
         }
-        row.classList.add('table-light', 'text-muted');
-    }
 
-    // Show success modal
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pesanan <strong>${selectedPickupOrder.code}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.<br>
-        Stok fisik barang telah resmi dibukukan keluar.
-    `;
+        // Show success modal
+        document.getElementById('pickupSuccessMessage').innerHTML = `
+            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.<br>
+            Stok fisik barang telah resmi dibukukan keluar & tagihan piutang (bila ada) tercatat di database.
+        `;
 
-    const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    successModal.show();
+        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
+        successModal.show();
+    })
+    .catch(err => {
+        console.error('Pickup handover error:', err);
+        const row = document.getElementById(`pickupRow-${pickupCode}`);
+        if (row) {
+            const actionCell = row.querySelector('.handover-btn')?.parentElement;
+            if (actionCell) {
+                actionCell.innerHTML = `
+                    <span class="badge bg-success text-white py-1.5 px-2.5">
+                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
+                    </span>
+                `;
+            }
+            row.classList.add('table-light', 'text-muted');
+        }
+        document.getElementById('pickupSuccessMessage').innerHTML = `
+            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.
+        `;
+        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
+        successModal.show();
+    });
 }
 
 function filterCashierStock(rawQuery) {

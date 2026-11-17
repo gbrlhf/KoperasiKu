@@ -49,7 +49,7 @@
 
                         <!-- Action Buttons -->
                         <div class="d-flex flex-wrap gap-2.5">
-                            <a href="#best-deals" class="btn btn-warning text-dark px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center">
+                            <a href="#allProductsSection" class="btn btn-warning text-dark px-4 py-2.5 fw-bold shadow-sm d-inline-flex align-items-center" onclick="showAllProducts(event)">
                                 <i class="bi bi-cart-fill me-2"></i>
                                 <span>Mulai Belanja</span>
                             </a>

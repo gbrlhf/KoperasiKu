@@ -159,7 +159,7 @@
 @section('content')
 
 <div class="mb-4">
-    <!-- 1. HERO BANNER & DIGITAL MEMBERSHIP CARD (Kartu Tanda Anggota) -->
+    <!-- 1. HERO BANNER: INFORMASI AKUN ANGGOTA -->
     <div class="member-header-gradient p-3 p-md-4 mb-4">
         <div class="row align-items-center g-4">
             
@@ -170,7 +170,7 @@
                         <i class="bi bi-shield-check me-1"></i> PORTAL RESMI ANGGOTA
                     </span>
                     <span class="badge bg-success bg-opacity-25 text-white border border-success border-opacity-50 px-2.5 py-1 rounded-pill d-inline-flex align-items-center gap-1.5" style="font-size: 0.72rem;">
-                        <span class="live-pulse-dot"></span> {{ $member['status'] }}
+                        <span class="live-pulse-dot"></span> {{ $member['status'] ?? 'TERVERIFIKASI' }}
                     </span>
                 </div>
 
@@ -180,7 +180,7 @@
                 
                 <p class="text-white text-opacity-80 small mb-3 pe-lg-4 lh-base" style="font-size: 0.85rem;">
                     {{ $member['unit'] }} &bull; No. Anggota: <strong>{{ $member['id'] }}</strong><br class="d-none d-sm-inline">
-                    Pesan sembako keluarga bebas antre, pantau kode pickup gerai, dan cek saldo tempo 7 hari bunga 0%.
+                    Pesan sembako keluarga bebas antre di Gerai Kanayakan A11 dan nikmati fasilitas piutang tempo 7 hari bunga 0%.
                 </p>
 
                 <!-- Action Shortcut Buttons -->
@@ -196,46 +196,38 @@
                     </button>
                     <button type="button" class="btn btn-outline-light btn-sm px-3 py-2 d-inline-flex align-items-center gap-1.5" onclick="switchMemberTab('kredit-tab')">
                         <i class="bi bi-receipt"></i>
-                        <span>Cek Hutang (Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }})</span>
+                        <span>Cek Tagihan (Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }})</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Right Visual: Digital Member Card -->
+            <!-- Right Visual: Clean Member Status Card (Replaces Skeumorphic Card Clutter) -->
             <div class="col-12 col-lg-5">
-                <div class="member-virtual-card mx-auto" style="max-width: 380px;">
-                    <!-- Top Strip of Card -->
-                    <div class="d-flex justify-content-between align-items-center">
+                <div class="bg-white bg-opacity-10 rounded-3 p-3.5 border border-white border-opacity-20 text-white shadow-sm" style="backdrop-filter: blur(8px);">
+                    <div class="d-flex justify-content-between align-items-center mb-2.5 pb-2 border-bottom border-white border-opacity-15">
                         <div class="d-flex align-items-center gap-2">
-                            <div class="member-card-chip"></div>
-                            <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 small px-2 py-0.5">
-                                KOPEG MART
-                            </span>
+                            <i class="bi bi-person-badge fs-5 text-warning"></i>
+                            <span class="fw-bold small">KOPEG POLMAN BANDUNG</span>
                         </div>
-                        <span class="text-white text-opacity-90 fw-bold small tracking-wider" style="font-size: 0.75rem;">
-                            POLMAN BANDUNG
-                        </span>
+                        <span class="badge bg-white text-dark fw-bold small">{{ $member['membership_tier'] ?? 'Anggota Aktif' }}</span>
                     </div>
 
-                    <!-- Middle: Member Number -->
-                    <div class="my-2 text-start">
-                        <small class="text-white text-opacity-60 text-uppercase d-block fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.08em;">Nomor Tanda Anggota</small>
-                        <div class="fs-5 fw-bold font-monospace text-white tracking-widest">
-                            {{ $member['id'] }} &bull; 8821 &bull; 9042
+                    <div class="d-flex flex-column gap-1.5 small text-white text-opacity-90" style="font-size: 0.8rem;">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-white text-opacity-65">Nomor Anggota:</span>
+                            <span class="font-monospace fw-bold">{{ $member['id'] }}</span>
                         </div>
-                    </div>
-
-                    <!-- Bottom: Name & Membership Tier -->
-                    <div class="d-flex justify-content-between align-items-end pt-2 border-top border-white border-opacity-10">
-                        <div>
-                            <small class="text-white text-opacity-60 text-uppercase d-block" style="font-size: 0.62rem;">Nama Anggota</small>
-                            <span class="fw-bold text-white small">{{ strtoupper($member['name']) }}</span>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-white text-opacity-65">Fasilitas Kredit:</span>
+                            <span class="fw-bold text-warning">Tempo 7 Hari &bull; Bunga 0%</span>
                         </div>
-                        <div class="text-end">
-                            <small class="text-white text-opacity-60 text-uppercase d-block" style="font-size: 0.62rem;">Status / Sejak</small>
-                            <span class="badge bg-success bg-opacity-50 text-white rounded-pill px-2 py-0.5" style="font-size: 0.65rem;">
-                                {{ $member['membership_tier'] }}
-                            </span>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-white text-opacity-65">Lokasi Pengambilan:</span>
+                            <span class="fw-bold text-white">Gerai Kanayakan A11</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-white text-opacity-65">Jam Operasional:</span>
+                            <span class="fw-semibold">07.00 - 18.00 WIB</span>
                         </div>
                     </div>
                 </div>
@@ -244,7 +236,7 @@
         </div>
     </div>
 
-    <!-- 2. 4 FINANCIAL & CREDIT METRICS (Ringkasan Keuangan Anggota Koperasi) -->
+    <!-- 2. 4 FINANCIAL & CREDIT METRICS (Ringkasan Keuangan Anggota Koperasi - Fokus MVP) -->
     <div class="row g-3 mb-4">
         
         <!-- Metric 1: Sisa Limit Piutang Belanja (Tempo 7 Hari) -->
@@ -253,7 +245,7 @@
                 <div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <small class="text-secondary fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.03em;">
-                            Sisa Limit Piutang
+                            Sisa Limit Belanja
                         </small>
                         <div class="p-1.5 rounded-2 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
                             <i class="bi bi-wallet2 fs-6"></i>
@@ -264,16 +256,16 @@
                     </div>
                     <!-- Meter Bar -->
                     <div class="progress mb-2" style="height: 6px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ 100 - $receivableStatus['limit_used_percent'] }}%;" aria-valuenow="{{ 100 - $receivableStatus['limit_used_percent'] }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ 100 - ($receivableStatus['limit_used_percent'] ?? 15) }}%;" aria-valuenow="{{ 100 - ($receivableStatus['limit_used_percent'] ?? 15) }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                     <div class="d-flex justify-content-between text-muted" style="font-size: 0.72rem;">
-                        <span>Total Limit: Rp {{ number_format($receivableStatus['credit_limit'] / 1000000, 1) }} Jt</span>
-                        <span class="fw-semibold text-dark">{{ 100 - $receivableStatus['limit_used_percent'] }}% Tersedia</span>
+                        <span>Plafon: Rp {{ number_format($receivableStatus['credit_limit'] / 1000000, 1) }} Jt</span>
+                        <span class="fw-semibold text-dark">{{ 100 - ($receivableStatus['limit_used_percent'] ?? 15) }}% Tersedia</span>
                     </div>
                 </div>
                 <div class="pt-2 mt-2 border-top">
                     <small class="text-success fw-semibold d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                        <i class="bi bi-check-circle-fill"></i> Limit aktif & dapat digunakan
+                        <i class="bi bi-check-circle-fill"></i> Plafon aktif siap dipakai belanja
                     </small>
                 </div>
             </div>
@@ -295,7 +287,7 @@
                         Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }}
                     </div>
                     <div class="badge bg-warning text-dark fw-bold rounded-pill mb-2 px-2.5 py-1" style="font-size: 0.7rem;">
-                        <i class="bi bi-hourglass-split me-1"></i> Tempo: {{ $receivableStatus['days_remaining'] }} Hari Lagi
+                        <i class="bi bi-hourglass-split me-1"></i> Tempo: {{ $receivableStatus['days_remaining'] ?? 3 }} Hari Lagi
                     </div>
                     <p class="text-muted mb-0 lh-sm" style="font-size: 0.73rem;">
                         Jatuh tempo: <strong>{{ $receivableStatus['due_date'] }}</strong> (2 faktur aktif).
@@ -311,63 +303,72 @@
             </div>
         </div>
 
-        <!-- Metric 3: Total Simpanan Anggota -->
+        <!-- Metric 3: Pesanan Menunggu Pengambilan (MVP Operasional Gerai) -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="member-metric-card">
                 <div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <small class="text-secondary fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.03em;">
-                            Total Simpanan
+                            Pesanan Siap Ambil
                         </small>
                         <div class="p-1.5 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                            <i class="bi bi-piggy-bank fs-6"></i>
+                            <i class="bi bi-box-seam fs-6"></i>
                         </div>
                     </div>
-                    <div class="fs-4 fw-extrabold text-primary mb-1">
-                        Rp {{ number_format($member['total_simpanan'], 0, ',', '.') }}
-                    </div>
-                    <div class="text-secondary small mb-1" style="font-size: 0.76rem;">
-                        Pokok: <strong>Rp {{ number_format($member['simpanan_pokok'], 0, ',', '.') }}</strong>
-                    </div>
-                    <div class="text-secondary small" style="font-size: 0.76rem;">
-                        Wajib: <strong>Rp {{ number_format($member['simpanan_wajib'], 0, ',', '.') }}</strong>
-                    </div>
+                    @if(!empty($activeOrders))
+                        <div class="fs-4 fw-extrabold text-primary mb-1">
+                            1 Pesanan
+                        </div>
+                        <div class="badge bg-success-subtle text-success border border-success-subtle rounded-pill mb-2 px-2.5 py-1" style="font-size: 0.7rem;">
+                            <i class="bi bi-check2-circle me-1"></i> Kode: {{ $activeOrders[0]['pickup_code'] }}
+                        </div>
+                        <p class="text-muted mb-0 lh-sm" style="font-size: 0.73rem;">
+                            Total: <strong>Rp {{ number_format($activeOrders[0]['total_amount'], 0, ',', '.') }}</strong> di Gerai Kanayakan.
+                        </p>
+                    @else
+                        <div class="fs-4 fw-extrabold text-muted mb-1">
+                            0 Pesanan
+                        </div>
+                        <p class="text-muted mb-0 lh-sm" style="font-size: 0.73rem;">
+                            Tidak ada pesanan menunggu diambil.
+                        </p>
+                    @endif
                 </div>
                 <div class="pt-2 mt-2 border-top">
                     <small class="text-muted d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                        <i class="bi bi-shield-lock-fill text-primary"></i> Tercatat resmi di buku koperasi
+                        <i class="bi bi-geo-alt-fill text-danger"></i> Ambil di Gerai Kanayakan A11
                     </small>
                 </div>
             </div>
         </div>
 
-        <!-- Metric 4: Estimasi SHU & Poin Belanja -->
+        <!-- Metric 4: Status Kelayakan Piutang & Credit Hold -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="member-metric-card">
                 <div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <small class="text-secondary fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.03em;">
-                            Estimasi SHU & Poin
+                            Status Kredit Anggota
                         </small>
                         <div class="p-1.5 rounded-2 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                            <i class="bi bi-stars fs-6"></i>
+                            <i class="bi bi-shield-check fs-6"></i>
                         </div>
                     </div>
                     <div class="fs-4 fw-extrabold text-dark mb-1">
-                        Rp {{ number_format($member['shu_estimasi'], 0, ',', '.') }}
+                        LANCAR
                     </div>
                     <div class="d-flex align-items-center gap-1 mb-1">
-                        <span class="badge bg-primary text-white rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
-                            <i class="bi bi-coin me-1"></i> {{ $member['poin_belanja'] }} Poin Belanja
+                        <span class="badge bg-success text-white rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                            <i class="bi bi-check2 me-1"></i> Bebas Belanja Tempo
                         </span>
                     </div>
                     <p class="text-muted mb-0 lh-sm" style="font-size: 0.73rem;">
-                        Hemat <strong>Rp {{ number_format($member['savings_earned'], 0, ',', '.') }}</strong> dari harga pasar.
+                        Credit Hold: <strong>Rp 0</strong> &bull; Tidak ada tunggakan jatuh tempo.
                     </p>
                 </div>
                 <div class="pt-2 mt-2 border-top">
                     <small class="text-muted d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                        <i class="bi bi-gift-fill text-warning"></i> Dibagikan akhir tahun buku
+                        <i class="bi bi-info-circle-fill text-primary"></i> Plafon seragam Rp 1.000.000
                     </small>
                 </div>
             </div>
