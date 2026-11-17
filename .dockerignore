@@ -1,0 +1,4 @@
+﻿.git
+apps/web/vendor
+apps/web/node_modules
+apps/web/storage/logs/*.log
