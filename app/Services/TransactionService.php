@@ -8,8 +8,10 @@ use App\Models\StockReservation;
 use App\Models\StockMovement;
 use App\Models\CreditHold;
 use App\Models\Receivable;
+use App\Models\Payment;
 use App\Models\CreditPolicy;
 use App\Models\MemberCreditAccount;
+use App\Models\ReceivablePaymentAllocation;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -25,7 +27,6 @@ class TransactionService
             $totalAmount = 0;
             $orderItemsData = [];
 
-            // Validasi Stok Tersedia (available = on_hand - reserved)[cite: 4]
             foreach ($items as $item) {
                 $inventory = InventoryBalance::where('product_id', $item['product_id'])->lockForUpdate()->first();
                 
@@ -45,7 +46,6 @@ class TransactionService
                 ];
             }
 
-            // Validasi Limit Global Piutang jika metode CREDIT[cite: 4]
             if ($paymentChoice === 'CREDIT') {
                 if (!$memberId) {
                     throw new \Exception("Pembelian kredit memerlukan identitas anggota.", 422);
@@ -56,7 +56,11 @@ class TransactionService
                     throw new \Exception("Fasilitas kredit anggota tidak aktif atau diblokir.", 422);
                 }
 
-                $hasOverdue = Receivable::where('member_id', $memberId)->where('status', 'OVERDUE')->exists();
+                $hasOverdue = Receivable::where('member_id', $memberId)
+                    ->where('outstanding_amount', '>', 0)
+                    ->where('due_date', '<', Carbon::now('Asia/Jakarta')->toDateString())
+                    ->exists();
+
                 if ($hasOverdue) {
                     throw new \Exception("Anggota memiliki tunggakan piutang lewat jatuh tempo. Kredit baru ditolak.", 422);
                 }
@@ -142,7 +146,7 @@ class TransactionService
 
             $receivableId = null;
             if ($order->payment_choice === 'CREDIT') {
-                $dueDate = Carbon::now('Asia/Jakarta')->addDays(7)->toDateString(); // Jatuh tempo 7 hari[cite: 4]
+                $dueDate = Carbon::now('Asia/Jakarta')->addDays(7)->toDateString();
 
                 $receivable = Receivable::create([
                     'order_id' => $order->id,
@@ -165,6 +169,235 @@ class TransactionService
                 'status' => 'COMPLETED',
                 'completed_at' => $order->completed_at,
                 'receivable_id' => $receivableId,
+            ];
+        });
+    }
+
+    public function posSale(array $data)
+    {
+        return DB::transaction(function () use ($data) {
+            $memberId = $data['member_id'] ?? null;
+            $paymentChoice = $data['payment_choice']; 
+            $items = $data['items'];
+
+            if (!$memberId && $paymentChoice === 'CREDIT') {
+                throw new \Exception("Penjualan POS untuk non-anggota wajib lunas (Tunai/Transfer).", 422);
+            }
+
+            $totalAmount = 0;
+            $orderItemsData = [];
+            $inventoryUpdates = [];
+
+            foreach ($items as $item) {
+                $inventory = InventoryBalance::where('product_id', $item['product_id'])->lockForUpdate()->first();
+                
+                if (!$inventory || $inventory->on_hand < $item['quantity']) {
+                    throw new \Exception("Stok fisik tidak mencukupi untuk produk ID: {$item['product_id']}", 422);
+                }
+
+                $product = DB::table('products')->where('id', $item['product_id'])->first();
+                $subtotal = $product->selling_price * $item['quantity'];
+                $totalAmount += $subtotal;
+
+                $orderItemsData[] = [
+                    'product_id' => $product->id,
+                    'quantity' => $item['quantity'],
+                    'unit_price_snapshot' => $product->selling_price,
+                    'hpp_snapshot' => $product->current_cost,
+                ];
+
+                $inventoryUpdates[] = [
+                    'inventory' => $inventory,
+                    'quantity' => $item['quantity'],
+                ];
+            }
+
+            if ($paymentChoice === 'CREDIT') {
+                $creditAccount = MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
+                if (!$creditAccount || $creditAccount->status !== 'ACTIVE') {
+                    throw new \Exception("Fasilitas kredit anggota tidak aktif atau diblokir.", 422);
+                }
+
+                $hasOverdue = Receivable::where('member_id', $memberId)
+                    ->where('outstanding_amount', '>', 0)
+                    ->where('due_date', '<', Carbon::now('Asia/Jakarta')->toDateString())
+                    ->exists();
+
+                if ($hasOverdue) {
+                    throw new \Exception("Anggota memiliki tunggakan piutang lewat jatuh tempo. Kredit POS ditolak.", 422);
+                }
+
+                $policy = CreditPolicy::where('active', true)->latest('effective_at')->first();
+                if (!$policy) {
+                    throw new \Exception("Kebijakan limit global belum dikonfigurasi oleh Manajer.", 500);
+                }
+
+                $outstanding = Receivable::where('member_id', $memberId)->whereIn('status', ['OPEN', 'PARTIALLY_PAID', 'OVERDUE'])->sum('outstanding_amount');
+                $activeHolds = CreditHold::where('member_id', $memberId)->where('status', 'ACTIVE')->sum('amount');
+
+                if (($outstanding + $activeHolds + $totalAmount) > $policy->limit_amount) {
+                    throw new \Exception("Limit piutang global tidak mencukupi untuk transaksi POS ini.", 422);
+                }
+            }
+
+            $order = Order::create([
+                'member_id' => $memberId,
+                'channel' => 'POS',
+                'status' => 'COMPLETED',
+                'payment_choice' => $paymentChoice,
+                'completed_at' => Carbon::now('Asia/Jakarta'),
+            ]);
+
+            foreach ($inventoryUpdates as $update) {
+                $inv = $update['inventory'];
+                $qty = $update['quantity'];
+
+                $inv->decrement('on_hand', $qty);
+
+                StockMovement::create([
+                    'product_id' => $inv->product_id,
+                    'quantity_change' => -$qty,
+                    'type' => 'POS_SALE',
+                    'reference_id' => $order->id,
+                    'reason' => 'Penjualan langsung POS',
+                ]);
+            }
+
+            foreach ($orderItemsData as $orderItem) {
+                OrderItem::create(array_merge($orderItem, ['order_id' => $order->id]));
+            }
+
+            $receivableId = null;
+            if ($paymentChoice === 'CREDIT') {
+                $dueDate = Carbon::now('Asia/Jakarta')->addDays(7)->toDateString();
+
+                $receivable = Receivable::create([
+                    'order_id' => $order->id,
+                    'member_id' => $memberId,
+                    'original_amount' => $totalAmount,
+                    'outstanding_amount' => $totalAmount,
+                    'due_date' => $dueDate,
+                    'status' => 'OPEN',
+                ]);
+                $receivableId = $receivable->id;
+            } else {
+                Payment::create([
+                    'order_id' => $order->id,
+                    'member_id' => $memberId,
+                    'amount' => $totalAmount,
+                    'method' => $paymentChoice,
+                    'status' => 'VERIFIED',
+                ]);
+            }
+
+            return [
+                'order_id' => $order->id,
+                'status' => 'COMPLETED',
+                'channel' => 'POS',
+                'total_amount' => $totalAmount,
+                'receivable_id' => $receivableId,
+            ];
+        });
+    }
+
+    public function payReceivable(array $data)
+    {
+        return DB::transaction(function () use ($data) {
+            $memberId = $data['member_id'];
+            $method = $data['method']; 
+            $amount = $data['amount'];
+            $allocations = $data['allocations']; 
+
+            $totalAllocated = collect($allocations)->sum('amount');
+            if ($totalAllocated != $amount) {
+                throw new \Exception("Total alokasi pembayaran tidak sesuai dengan nominal pembayaran.", 422);
+            }
+
+            $paymentStatus = ($method === 'CASH') ? 'VERIFIED' : 'PENDING_VERIFICATION';
+            
+            $payment = Payment::create([
+                'member_id' => $memberId,
+                'amount' => $amount,
+                'method' => $method,
+                'status' => $paymentStatus,
+            ]);
+
+            if ($paymentStatus === 'VERIFIED') {
+                foreach ($allocations as $alloc) {
+                    $receivable = Receivable::lockForUpdate()->findOrFail($alloc['receivable_id']);
+
+                    if ($receivable->member_id !== $memberId) {
+                        throw new \Exception("Tagihan piutang tidak sesuai dengan anggota yang membayar.", 422);
+                    }
+
+                    if ($alloc['amount'] > $receivable->outstanding_amount) {
+                        throw new \Exception("Nominal alokasi melebihi sisa saldo tagihan piutang.", 422);
+                    }
+
+                    ReceivablePaymentAllocation::create([
+                        'payment_id' => $payment->id,
+                        'receivable_id' => $receivable->id,
+                        'allocated_amount' => $alloc['amount'],
+                    ]);
+
+                    $newOutstanding = $receivable->outstanding_amount - $alloc['amount'];
+                    $newStatus = ($newOutstanding <= 0) ? 'PAID' : 'PARTIALLY_PAID';
+
+                    $receivable->update([
+                        'outstanding_amount' => $newOutstanding,
+                        'status' => $newStatus,
+                    ]);
+                }
+            }
+
+            return [
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'amount' => $amount,
+                'message' => $paymentStatus === 'VERIFIED' 
+                    ? 'Pembayaran cicilan berhasil dicatat dan piutang telah dipotong.' 
+                    : 'Bukti transfer berhasil diunggah dan menunggu verifikasi petugas.',
+            ];
+        });
+    }
+
+    public function cancelOrder(string $orderId)
+    {
+        return DB::transaction(function () use ($orderId) {
+            $order = Order::lockForUpdate()->findOrFail($orderId);
+
+            if ($order->status === 'COMPLETED') {
+                throw new \Exception("Pesanan yang sudah selesai (COMPLETED) tidak dapat dibatalkan.", 400);
+            }
+
+            if ($order->status === 'CANCELLED') {
+                throw new \Exception("Pesanan sudah dibatalkan sebelumnya (Idempotent).", 400);
+            }
+
+            $reservations = StockReservation::where('order_id', $order->id)->get();
+
+            foreach ($reservations as $res) {
+                $inventory = InventoryBalance::where('product_id', $res->product_id)->lockForUpdate()->first();
+                if ($inventory) {
+                    $inventory->decrement('reserved', $res->quantity);
+                }
+            }
+
+            StockReservation::where('order_id', $order->id)->delete();
+
+            $creditHold = CreditHold::where('order_id', $order->id)->first();
+            if ($creditHold && $creditHold->status === 'ACTIVE') {
+                $creditHold->update(['status' => 'RELEASED']);
+            }
+
+            $order->update([
+                'status' => 'CANCELLED',
+            ]);
+
+            return [
+                'order_id' => $order->id,
+                'status' => 'CANCELLED',
+                'message' => 'Pesanan berhasil dibatalkan, reservasi stok dan hold kredit telah dilepas.',
             ];
         });
     }
