@@ -22,6 +22,7 @@ return new class extends Migration {
         if (!Schema::hasTable('products')) {
             Schema::create('products', function (Blueprint $table) {
                 $table->uuid('id')->primary();
+                $table->string('prd_id')->nullable()->index();
                 $table->string('sku')->unique();
                 $table->string('barcode')->unique()->nullable();
                 $table->string('name');
@@ -38,6 +39,10 @@ return new class extends Migration {
                 $table->integer('sales_count')->default(0);
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
+            });
+        } elseif (!Schema::hasColumn('products', 'prd_id')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->string('prd_id')->nullable()->index()->after('id');
             });
         }
 

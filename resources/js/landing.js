@@ -416,10 +416,13 @@ window.handleCheckoutSubmit = function (event) {
         'CREDIT': 'Piutang Anggota (Tempo 7 Hari)'
     };
 
-    const orderItems = (cart || []).map(item => ({
-        product_id: item.sku || item.id,
-        quantity: item.qty
-    }));
+    const orderItems = (cart || []).map(item => {
+        const meta = (window.allProducts && window.allProducts[item.id]) ? window.allProducts[item.id] : null;
+        return {
+            product_id: meta?.sku || item.sku || item.id,
+            quantity: item.qty
+        };
+    });
 
     if (orderItems.length === 0) {
         alert('Keranjang belanja masih kosong.');

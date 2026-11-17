@@ -48,6 +48,34 @@ class TransactionE2ETest extends TestCase
             ]);
     }
 
+    public function test_checkout_with_storefront_prd_code_like_prd_005(): void
+    {
+        $response = $this->postJson('/checkout', [
+            'payment_choice' => 'CASH',
+            'channel' => 'ONLINE_PICKUP',
+            'items' => [
+                ['product_id' => 'PRD-005', 'quantity' => 1],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    'order_id',
+                    'order_no',
+                    'pickup_code',
+                    'status',
+                    'payment_choice',
+                    'total_amount',
+                ]
+            ]);
+
+        $this->assertEquals(28500, (float) $response->json('data.total_amount'));
+    }
+
     public function test_pos_direct_sale_endpoint(): void
     {
         $response = $this->postJson('/cashier/pos-sale', [

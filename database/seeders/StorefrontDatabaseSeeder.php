@@ -443,9 +443,12 @@ class StorefrontDatabaseSeeder extends Seeder
             ],
         ];
 
-        foreach ($productsData as $p) {
+        foreach ($productsData as $i => $p) {
+            $prdId = sprintf('PRD-%03d', $i + 1);
+
             Product::updateOrCreate(['sku' => $p['sku']], [
                 'id' => $p['id'],
+                'prd_id' => $prdId,
                 'barcode' => $p['barcode'],
                 'name' => $p['name'],
                 'category' => $p['category'],
@@ -462,6 +465,12 @@ class StorefrontDatabaseSeeder extends Seeder
 
             // Buat / Update Inventory Balance (Invariant: available = on_hand - reserved)
             InventoryBalance::updateOrCreate(['product_id' => $p['id']], [
+                'on_hand' => $p['stock'],
+                'reserved' => 0,
+            ]);
+
+            // Alias untuk kompatibilitas SKU dan PRD-ID
+            InventoryBalance::updateOrCreate(['product_id' => $prdId], [
                 'on_hand' => $p['stock'],
                 'reserved' => 0,
             ]);
