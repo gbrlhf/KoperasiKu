@@ -21,7 +21,7 @@
 
             <!-- Center Search Bar (Desktop) -->
             <div class="d-none d-lg-flex flex-grow-1 justify-content-center px-3 position-relative">
-                <div class="storefront-search-bar position-relative" style="max-width: 620px; width: 100%;">
+                <div class="storefront-search-bar position-relative" style="max-width: 820px; width: 100%;">
                     <i class="bi bi-search text-muted me-2" aria-hidden="true"></i>
                     <input type="text" id="storefrontSearchInput" oninput="filterStorefrontSearch(this.value)" onfocus="openSearchSuggestions()" onblur="closeSearchSuggestions()" placeholder="Cari sembako, beras ramos, minyak goreng, deterjen, biskuit..." aria-label="Cari produk di etalase KoperasiKu" autocomplete="off">
                     <button type="button" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold text-nowrap" onclick="scrollToFirstProduct()">
