@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 /**
  * ApiClient
  * 
- * Kerangka pemanggilan REST API internal backend KOPERADATA (/api/v1).
+ * Kerangka pemanggilan REST API internal backend KoperasiKu (/api/v1).
  * Dikelola oleh PIC A untuk konsumsi data dari service PIC B, C, dan D.
  */
 class ApiClient
@@ -16,7 +16,7 @@ class ApiClient
 
     public function __construct()
     {
-        $this->baseUrl = config('services.koperadata.base_url', 'http://localhost:8000/api/v1');
+        $this->baseUrl = config('services.koperasiku.base_url', 'http://localhost:8000/api/v1');
     }
 
     /**

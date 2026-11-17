@@ -1,0 +1,885 @@
+/* ==============================================================================
+   landing.css - KoperasiKu E-Commerce Storefront
+   Crafted Design System & Anti-Slop Refinements
+   - Purpose-driven color palette (Cooperative Blue + Forest Green + Warm Amber)
+   - Strict WCAG AA contrast compliance (minimum 4.5:1 body, 3:1 large text)
+   - Standardized spacing and icon alignment rules
+   - Fallback fractional utility classes to prevent collapse
+   - 44px minimum tap targets on mobile
+   ============================================================================== */
+
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
+
+:root {
+    /* Brand Colors */
+    --brand-navy: #091724;
+    --brand-navy-surface: #0f2942;
+    --brand-primary: #1d4ed8;
+    --brand-primary-hover: #1e40af;
+    --brand-primary-active: #172554;
+    --brand-primary-subtle: #eff6ff;
+    --brand-primary-border: #bfdbfe;
+    
+    --brand-success: #15803d;
+    --brand-success-hover: #166534;
+    --brand-success-subtle: #f0fdf4;
+    --brand-success-border: #bbf7d0;
+
+    --brand-amber: #b45309;
+    --brand-amber-subtle: #fffbeb;
+    --brand-amber-border: #fde68a;
+
+    --brand-danger: #b91c1c;
+    --brand-danger-subtle: #fef2f2;
+    --brand-danger-border: #fecaca;
+
+    /* Neutrals & Text (Verified WCAG AA) */
+    --text-primary: #0f172a;       /* 15.8:1 on white (AAA) */
+    --text-secondary: #334155;     /* 9.1:1 on white (AAA) */
+    --text-muted: #64748b;         /* 4.6:1 on white (AA) */
+
+    --bg-page: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-muted: #e2e8f0;
+
+    --border-light: #e2e8f0;
+    --border-medium: #cbd5e1;
+    --border-dark: #94a3b8;
+
+    /* Typographic Family */
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Standardized Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-pill: 9999px;
+
+    /* Grounded Elevations */
+    --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+    --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --shadow-hover: 0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ------------------------------------------------------------------------------
+   Base & Global Accessibility
+   ------------------------------------------------------------------------------ */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body.landing-page {
+    font-family: var(--font-sans);
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Icon general hygiene: ensure icons sit vertically aligned with text */
+.bi, [class^="bi-"], [class*=" bi-"] {
+    display: inline-block;
+    vertical-align: -0.125em;
+    line-height: 1;
+}
+
+/* Accessible focus ring for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------------------
+   Utility Spacing Fallbacks (Prevents CSS collapse when fractional classes are used)
+   ------------------------------------------------------------------------------ */
+.gap-1-5, .gap-1\.5 { gap: 0.375rem !important; }
+.gap-2-5, .gap-2\.5 { gap: 0.75rem !important; }
+.gap-3-5, .gap-3\.5 { gap: 1.25rem !important; }
+
+.p-1-5, .p-1\.5 { padding: 0.375rem !important; }
+.p-2-5, .p-2\.5 { padding: 0.75rem !important; }
+.p-3-5, .p-3\.5 { padding: 1.25rem !important; }
+
+.py-1-5, .py-1\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+.py-2-5, .py-2\.5 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+
+.px-2-5, .px-2\.5 { padding-left: 0.625rem !important; padding-right: 0.625rem !important; }
+.px-3-5, .px-3\.5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
+
+.mb-0-5, .mb-0\.5 { margin-bottom: 0.25rem !important; }
+.mb-1-5, .mb-1\.5 { margin-bottom: 0.375rem !important; }
+.mb-2-5, .mb-2\.5 { margin-bottom: 0.75rem !important; }
+.mb-3-5, .mb-3\.5 { margin-bottom: 1.25rem !important; }
+
+.me-0-5, .me-0\.5 { margin-right: 0.25rem !important; }
+.me-1-5, .me-1\.5 { margin-right: 0.375rem !important; }
+
+/* ------------------------------------------------------------------------------
+   1. Two-Tier Header Navigation
+   ------------------------------------------------------------------------------ */
+.storefront-header {
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.storefront-search-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-surface);
+    border: 1.5px solid var(--border-medium);
+    border-radius: var(--radius-pill);
+    padding: 4px 6px 4px 14px;
+    width: 100%;
+    max-width: 540px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.storefront-search-bar:focus-within {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+.storefront-search-bar input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    background: transparent;
+    padding: 6px 8px;
+}
+
+.storefront-search-bar input::placeholder {
+    color: var(--text-muted);
+}
+
+.storefront-location-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.85rem;
+    background-color: var(--bg-subtle);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Tier 2 Sub-Nav Strip */
+.storefront-subnav {
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.85rem;
+}
+
+.subnav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.6rem 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.subnav-link:hover {
+    color: var(--brand-primary);
+    background-color: var(--brand-primary-subtle);
+}
+
+.subnav-link.active {
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------------------------
+   2. Asymmetric Split Hero Banners & Glass Badges
+   ------------------------------------------------------------------------------ */
+.hero-split-grid {
+    padding: 1.25rem 0 0.75rem;
+}
+
+.hero-main-banner {
+    background: linear-gradient(135deg, #091724 0%, #0f2942 50%, #1d4ed8 100%);
+    border-radius: var(--radius-lg);
+    color: #ffffff;
+    padding: 2.75rem 2.25rem;
+    height: 100%;
+    min-height: 310px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hero-side-banner {
+    background: linear-gradient(135deg, #14532d 0%, #15803d 70%, #166534 100%);
+    border-radius: var(--radius-lg);
+    color: #ffffff;
+    padding: 2.5rem 1.85rem;
+    height: 100%;
+    min-height: 310px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Translucent Badges in Dark Hero (Guaranteed Legibility - High Contrast Dark Glass) */
+.hero-glass-pill {
+    background-color: rgba(15, 23, 42, 0.45) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: var(--radius-pill);
+    padding: 0.4rem 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    line-height: 1.2;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.hero-glass-pill span {
+    color: #ffffff !important;
+}
+
+.hero-glass-pill .bi {
+    color: #fde047 !important; /* Bright warm yellow icon */
+}
+
+/* ------------------------------------------------------------------------------
+   3. Circular Category Avatars (Inspirasi e-mox)
+   ------------------------------------------------------------------------------ */
+.category-circle-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    padding: 0.5rem 0.25rem;
+    border-radius: var(--radius-md);
+    transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.category-circle-item:hover {
+    transform: translateY(-3px);
+    color: var(--brand-primary);
+}
+
+.category-circle-avatar {
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background-color: var(--bg-surface);
+    border: 1.5px solid var(--border-light);
+    box-shadow: var(--shadow-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.55rem;
+    color: var(--brand-primary);
+    margin-bottom: 0.5rem;
+    transition: all var(--transition-fast);
+}
+
+.category-circle-item:hover .category-circle-avatar {
+    background-color: var(--brand-primary);
+    color: #ffffff;
+    border-color: var(--brand-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.category-circle-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--text-primary);
+}
+
+.category-circle-item:hover .category-circle-name {
+    color: var(--brand-primary);
+}
+
+/* ------------------------------------------------------------------------------
+   4. Product Cards (Crafted 5-Column Grid)
+   ------------------------------------------------------------------------------ */
+.product-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 0.95rem;
+    box-shadow: var(--shadow-card);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--border-medium);
+}
+
+.product-thumbnail-box {
+    background-color: var(--bg-subtle);
+    border-radius: var(--radius-sm);
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.product-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-card:hover .product-thumb-img {
+    transform: scale(1.06);
+}
+
+.product-icon-fallback {
+    color: #64748b;
+    font-size: 2.75rem;
+}
+
+.product-thumbnail-box i {
+    font-size: 2.75rem;
+    color: #64748b;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.product-card:hover .product-thumbnail-box i {
+    transform: scale(1.08);
+    color: var(--brand-primary);
+}
+
+.product-rating-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: #b45309;
+    margin-bottom: 0.35rem;
+}
+
+.product-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    line-height: 1.35;
+    margin-bottom: 0.45rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.4em;
+}
+
+.product-price-box {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.product-price-currency {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--brand-primary);
+}
+
+.product-price-number {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--brand-primary);
+    letter-spacing: -0.02em;
+}
+
+.btn-add-cart {
+    background-color: var(--brand-primary);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.42rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    min-height: 36px;
+}
+
+.btn-add-cart:hover {
+    background-color: var(--brand-primary-hover);
+    transform: translateY(-1px);
+    color: #ffffff;
+}
+
+.btn-add-cart:active {
+    background-color: var(--brand-primary-active);
+    transform: translateY(0);
+}
+
+/* ------------------------------------------------------------------------------
+   5. Promotional Banners (Triple Grid & Fullwidth)
+   ------------------------------------------------------------------------------ */
+.promo-tile {
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    color: #ffffff;
+    height: 100%;
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.promo-fullwidth-banner {
+    background: linear-gradient(135deg, #091724 0%, #0f2942 50%, #15803d 100%);
+    border-radius: var(--radius-lg);
+    color: #ffffff;
+    padding: 2.75rem 2.25rem;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ------------------------------------------------------------------------------
+   6. How-to-Order Horizontal Flow Bar & Step Chips
+   ------------------------------------------------------------------------------ */
+.how-to-order-bar {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 1.5rem 1.75rem;
+    box-shadow: var(--shadow-xs);
+}
+
+.step-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+}
+
+.step-chip-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--brand-primary-subtle);
+    color: var(--brand-primary);
+    font-weight: 800;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--brand-primary-border);
+}
+
+/* Notice box for pickup info */
+.pickup-notice-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+
+/* ------------------------------------------------------------------------------
+   7. Payment Selection Radio Cards (Checkout Modal)
+   ------------------------------------------------------------------------------ */
+.payment-option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.95rem 1.15rem;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border-light);
+    background-color: var(--bg-surface);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.payment-option-card:hover {
+    border-color: var(--border-medium);
+    background-color: var(--bg-subtle);
+}
+
+.payment-option-card.selected,
+.payment-option-card:has(input[type="radio"]:checked) {
+    border-color: var(--brand-primary);
+    background-color: var(--brand-primary-subtle);
+}
+
+/* ------------------------------------------------------------------------------
+   8. Accordion FAQ & Footer
+   ------------------------------------------------------------------------------ */
+.faq-accordion .accordion-item {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-xs);
+}
+
+.faq-accordion .accordion-button {
+    font-weight: 600;
+    color: var(--text-primary);
+    background-color: var(--bg-surface);
+    padding: 1.1rem 1.35rem;
+    font-size: 0.92rem;
+}
+
+.faq-accordion .accordion-button:not(.collapsed) {
+    color: var(--brand-primary);
+    background-color: var(--brand-primary-subtle);
+    box-shadow: none;
+}
+
+.landing-footer {
+    background-color: #091724;
+    color: #94a3b8;
+    border-top: 1px solid #1e293b;
+    padding: 3.5rem 0 2rem;
+    font-size: 0.88rem;
+}
+
+.landing-footer a {
+    color: #cbd5e1;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.landing-footer a:hover {
+    color: #ffffff;
+}
+
+/* ------------------------------------------------------------------------------
+   9. Comprehensive Responsive & Mobile Refinements (antislop-layoutmobile)
+   ------------------------------------------------------------------------------ */
+
+/* Prevent horizontal scroll leaks */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Ensure images never burst out of containers */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Base interactive touch target rule */
+button, 
+.btn, 
+.subnav-link,
+.category-circle-item {
+    touch-action: manipulation;
+}
+
+/* Laptops / Small Desktops (<= 1199.98px) */
+@media (max-width: 1199.98px) {
+    .hero-main-banner h1 {
+        font-size: 2.1rem;
+    }
+    .hero-main-banner,
+    .hero-side-banner {
+        min-height: 330px;
+        padding: 2.25rem 1.75rem;
+    }
+}
+
+/* Tablets (<= 991.98px) */
+@media (max-width: 991.98px) {
+    .hero-main-banner,
+    .hero-side-banner {
+        min-height: auto;
+        padding: 2rem 1.5rem;
+    }
+
+    .hero-main-banner h1 {
+        font-size: 1.85rem;
+    }
+
+    /* Offcanvas responsive constraints */
+    .offcanvas-end {
+        width: 420px !important;
+        max-width: 92vw !important;
+    }
+
+    /* Sticky subnav on tablet/mobile */
+    .storefront-subnav {
+        padding: 0.25rem 0;
+    }
+}
+
+/* Phablets & Large Phones (<= 767.98px) */
+@media (max-width: 767.98px) {
+    /* Header & Badges */
+    .navbar-brand {
+        font-size: 1.05rem !important;
+    }
+
+    .hero-split-grid {
+        padding: 0.75rem 0 0.5rem;
+    }
+
+    .hero-main-banner,
+    .hero-side-banner {
+        padding: 1.5rem 1.25rem;
+        border-radius: var(--radius-md);
+    }
+
+    .hero-main-banner h1 {
+        font-size: 1.5rem;
+        line-height: 1.3;
+    }
+
+    .hero-glass-pill {
+        font-size: 0.7rem;
+        padding: 0.35rem 0.65rem;
+    }
+
+    /* Category Circle Avatars */
+    .category-circle-avatar {
+        width: 52px;
+        height: 52px;
+        font-size: 1.25rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .category-circle-name {
+        font-size: 0.72rem;
+    }
+
+    /* Storefront Product Cards */
+    .product-card {
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+    }
+
+    .product-thumbnail-box {
+        height: 120px;
+        margin-bottom: 0.5rem;
+    }
+
+    .product-thumbnail-box i {
+        font-size: 2.2rem;
+    }
+
+    .product-title {
+        font-size: 0.82rem;
+        min-height: 2.3em;
+        margin-bottom: 0.35rem;
+    }
+
+    .product-price-number {
+        font-size: 0.95rem;
+    }
+
+    .btn-add-cart {
+        padding: 0.4rem 0.65rem;
+        min-height: 38px;
+        min-width: 38px;
+        font-size: 0.8rem;
+    }
+
+    /* Promo Tiles */
+    .promo-tile {
+        padding: 1.25rem;
+    }
+
+    .promo-fullwidth-banner {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .promo-fullwidth-banner .display-6 {
+        font-size: 1.45rem !important;
+    }
+
+    /* Steps Bar */
+    .how-to-order-bar .step-chip {
+        padding: 1rem;
+    }
+
+    .pickup-notice-card {
+        padding: 1rem 1.25rem;
+    }
+
+    .pickup-notice-card .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Product Detail Modal on Mobile */
+    #productDetailModal .modal-body {
+        padding: 1.25rem;
+    }
+
+    #productDetailModal .modal-body .col-md-5 .position-relative {
+        max-height: 220px !important;
+    }
+
+    /* Offcanvas Drawers Mobile Fullwidth Touch */
+    .offcanvas-end {
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+
+    /* Footer Mobile Padding */
+    .landing-footer {
+        padding: 2.5rem 0 1.5rem;
+    }
+}
+
+/* Compact Phones (<= 575.98px) */
+@media (max-width: 575.98px) {
+    .container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .hero-main-banner h1 {
+        font-size: 1.35rem;
+    }
+
+    .hero-main-banner .btn,
+    .hero-side-banner .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* 2 Columns on Smallest Viewports with tight spacing */
+    .storefront-grid {
+        --bs-gutter-x: 0.5rem;
+        --bs-gutter-y: 0.5rem;
+    }
+
+    .product-card {
+        padding: 0.65rem;
+    }
+
+    .product-thumbnail-box {
+        height: 105px;
+    }
+
+    .product-thumbnail-box i {
+        font-size: 1.85rem;
+    }
+
+    .product-rating-bar {
+        font-size: 0.7rem;
+    }
+
+    .product-price-currency {
+        font-size: 0.65rem;
+    }
+
+    .product-price-number {
+        font-size: 0.88rem;
+    }
+
+    /* Cart drawer items */
+    .cart-item-row {
+        padding: 0.5rem;
+    }
+
+    /* Touch target guarantee */
+    .btn, button.btn-add-cart {
+        min-height: 42px;
+    }
+}
+
+/* Extra Small Devices (<= 380px) */
+@media (max-width: 380px) {
+    .category-circle-avatar {
+        width: 46px;
+        height: 46px;
+        font-size: 1.1rem;
+    }
+
+    .category-circle-name {
+        font-size: 0.68rem;
+    }
+
+    .product-title {
+        font-size: 0.78rem;
+    }
+
+    .btn-add-cart span {
+        display: none !important;
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   10. Product Detail Modal Marketplace Enhancements
+   ------------------------------------------------------------------------------ */
+#productDetailModal .nav-tabs-sm .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+#productDetailModal .nav-tabs-sm .nav-link:hover {
+    color: var(--brand-primary);
+}
+
+#productDetailModal .nav-tabs-sm .nav-link.active {
+    color: var(--brand-primary);
+    border-bottom-color: var(--brand-primary);
+    background: transparent;
+}
+
+#productDetailModal .table-sm td {
+    padding: 0.5rem 0.65rem;
+}

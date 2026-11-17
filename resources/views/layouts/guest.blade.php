@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Masuk') — KOPERADATA</title>
+    <title>@yield('title', 'Masuk') — {{ config('koperasi.brand_name', 'KoperasiKu') }}</title>
 
     <!-- Vite Assets (Bootstrap 5, Chart.js, Icons, Sass) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -23,7 +23,7 @@
 
                 {{-- Footer Info --}}
                 <div class="text-center text-muted small mt-4">
-                    &copy; {{ date('Y') }} KOPERADATA &bull; Sistem Koperasi Karyawan
+                    &copy; {{ date('Y') }} {{ config('koperasi.brand_name', 'KoperasiKu') }} &bull; Sistem Koperasi Karyawan
                 </div>
             </div>
         </div>
