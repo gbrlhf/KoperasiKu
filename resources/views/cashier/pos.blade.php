@@ -2,6 +2,199 @@
 
 @section('title', 'Portal Kasir & Monitoring Stok')
 
+@push('styles')
+<style>
+    /* Styling modul scanner barcode html5-qrcode */
+    #qr-reader {
+        border: none !important;
+        width: 100% !important;
+    }
+    #qr-reader video {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 280px !important;
+        object-fit: cover !important;
+        border-radius: 8px !important;
+    }
+    #qr-reader__scan_region {
+        background: transparent !important;
+        position: relative;
+    }
+    #qr-reader__dashboard {
+        padding: 6px 0 !important;
+    }
+    #qr-reader__dashboard_section_csr button,
+    #qr-reader__dashboard_section_swaplink button {
+        background-color: #0d6efd !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 4px 10px !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+    }
+
+    /* Animasi Laser Barcode Scanner */
+    .scanner-viewport-box {
+        position: relative;
+        background-color: #090d16;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 2px solid #1e293b;
+        min-height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .scanner-laser-line {
+        position: absolute;
+        left: 6%;
+        right: 6%;
+        height: 2.5px;
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 50%, rgba(239, 68, 68, 0) 100%);
+        box-shadow: 0 0 10px #ef4444, 0 0 20px #dc2626;
+        animation: laserScanAnim 1.8s infinite ease-in-out;
+        z-index: 15;
+        pointer-events: none;
+    }
+    @keyframes laserScanAnim {
+        0% { top: 15%; opacity: 0.3; }
+        50% { top: 85%; opacity: 1; }
+        100% { top: 15%; opacity: 0.3; }
+    }
+
+    /* Reticle Garis Bidik Barcode Sembako */
+    .scanner-reticle {
+        position: absolute;
+        inset: 12% 8%;
+        border: 2px dashed rgba(255, 255, 255, 0.45);
+        border-radius: 8px;
+        pointer-events: none;
+        z-index: 10;
+        box-shadow: inset 0 0 0 1000px rgba(0, 0, 0, 0.22);
+    }
+    .scanner-reticle::before,
+    .scanner-reticle::after {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-color: #38bdf8;
+        border-style: solid;
+    }
+    .scanner-reticle::before {
+        top: -2px; left: -2px;
+        border-width: 3px 0 0 3px;
+    }
+    .scanner-reticle::after {
+        bottom: -2px; right: -2px;
+        border-width: 0 3px 3px 0;
+    }
+
+    /* Flash Sukses Scan */
+    .scanner-flash-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(34, 197, 94, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 25;
+        transition: opacity 0.25s ease-out;
+    }
+    .scanner-flash-overlay.active {
+        opacity: 1;
+        transition: none;
+    }
+
+    /* GoPay-Style Modern Scan Feedback Bottom Sheet (Frontend-Design Crafted) */
+    .gopay-scan-sheet {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 1095;
+        max-width: 440px;
+        width: calc(100% - 32px);
+        margin: 0 auto;
+        animation: gopaySlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        pointer-events: auto;
+    }
+    @media (max-width: 767.98px) {
+        .gopay-scan-sheet {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 100%;
+            width: 100%;
+        }
+    }
+    @keyframes gopaySlideIn {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    .gopay-sheet-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.22), 0 0 1px 1px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+        position: relative;
+    }
+    @media (max-width: 767.98px) {
+        .gopay-sheet-card {
+            border-radius: 20px 20px 0 0;
+            border-bottom: none;
+        }
+    }
+    .gopay-drag-handle {
+        width: 36px;
+        height: 4px;
+        background: #cbd5e1;
+        border-radius: 999px;
+        margin: 10px auto 2px auto;
+    }
+    .gopay-icon-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+        animation: gopayBadgePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes gopayBadgePop {
+        0% { transform: scale(0.6); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .gopay-progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: #10b981;
+        width: 100%;
+        transform-origin: left;
+    }
+    .gopay-progress-bar.active {
+        animation: gopayProgressShrink 5s linear forwards;
+    }
+    @keyframes gopayProgressShrink {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+    }
+</style>
+@endpush
+
 @section('header')
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
     <div>
@@ -87,10 +280,16 @@
                     <h5 class="card-title fw-bold text-dark mb-0 fs-6">Master Persediaan & Stok Barang Gerai</h5>
                     <small class="text-muted" style="font-size: 0.75rem;">Stok tersedia = Stok fisik rak dikurangi barang ter-reservasi pesanan online</small>
                 </div>
-                <div style="max-width: 320px;" class="w-100">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="stockSearchInput" class="form-control" placeholder="Cari SKU atau nama barang..." oninput="filterCashierStock(this.value)">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1.5" onclick="openTestBarcodeGalleryModal()" title="Buka lembar katalog barcode siap dipindai kamera">
+                        <i class="bi bi-upc-scan text-primary"></i>
+                        <span>Katalog Barcode & QR</span>
+                    </button>
+                    <div style="max-width: 260px;" class="w-100">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" id="stockSearchInput" class="form-control" placeholder="Cari SKU atau nama barang..." oninput="filterCashierStock(this.value)">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -113,8 +312,13 @@
                         @foreach($stockItems as $item)
                             <tr class="stock-item-row" data-name="{{ strtolower($item['name']) }}" data-sku="{{ strtolower($item['sku']) }}">
                                 <td>
-                                    <span class="fw-bold font-monospace text-dark">{{ $item['sku'] }}</span>
-                                    <small class="text-muted d-block" style="font-size: 0.72rem;">{{ $item['barcode'] }}</small>
+                                    <div class="d-flex align-items-center gap-1.5">
+                                        <span class="fw-bold font-monospace text-dark">{{ $item['sku'] }}</span>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="showProductBarcodeModal('{{ $item['sku'] }}', '{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}', {{ $item['sell_price'] }})" title="Lihat Barcode Fisik & QR">
+                                            <i class="bi bi-upc-scan" style="font-size: 0.85rem;"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">{{ $item['barcode'] }}</small>
                                 </td>
                                 <td>
                                     <span class="fw-semibold text-dark">{{ $item['name'] }}</span>
@@ -460,64 +664,150 @@
 </div>
 
 <!-- ==============================================================================
-     MODAL 1: SCANNER BARCODE KAMERA GERAI (html5-qrcode CDN)
+     MODAL 1: SCANNER BARCODE KAMERA & HARDWARE GERAI (html5-qrcode Nyata)
      ============================================================================== -->
 <div class="modal fade" id="barcodeScannerModal" tabindex="-1" aria-labelledby="barcodeScannerModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark text-white py-3 px-3 px-md-4">
-                <h6 class="modal-title fw-bold d-flex align-items-center gap-2" id="barcodeScannerModalLabel">
-                    <i class="bi bi-upc-scan text-primary fs-5"></i>
-                    <span>Scanner Barcode Kamera Gerai</span>
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" onclick="stopBarcodeScanner()"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-1.5 rounded-2 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="bi bi-upc-scan fs-6"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0 fs-6" id="barcodeScannerModalLabel">Scanner Barcode Kamera Gerai KOPEG</h6>
+                        <small class="text-white-50" style="font-size: 0.72rem;">Mendukung EAN-13, EAN-8, Code-128, QR Code, dan File Gambar</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="sessionScanCountBadge" class="badge bg-success-subtle text-success border border-success-subtle fw-bold" style="font-size: 0.72rem;">
+                        0 Barang Ter-scan
+                    </span>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" onclick="stopBarcodeScanner()"></button>
+                </div>
             </div>
+
             <div class="modal-body p-3 p-md-4">
-                <!-- Scanner Viewport Container -->
-                <div class="position-relative bg-black rounded-3 overflow-hidden mb-3 border" style="min-height: 250px;">
+                <!-- 1. Scanner Viewport Container with Real-time Laser Line -->
+                <div class="scanner-viewport-box mb-3" id="scannerViewportBox">
                     <div id="qr-reader" style="width: 100%;"></div>
+                    <!-- Animated Laser Beam -->
+                    <div class="scanner-laser-line" id="scannerLaserBeam"></div>
+                    <!-- Reticle Frame -->
+                    <div class="scanner-reticle" id="scannerReticle"></div>
+                    <!-- Green Flash Effect on Hit -->
+                    <div class="scanner-flash-overlay" id="scannerFlashOverlay"></div>
                 </div>
 
-                <!-- Status Banner -->
-                <div id="scannerStatusAlert" class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-2">
-                    <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"></div>
-                    <span id="scannerStatusText">Mengaktifkan modul kamera... Arahkan barcode ke kotak bidik.</span>
+                <!-- 2. Status & Controls Row -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <!-- Status Banner -->
+                    <div id="scannerStatusAlert" class="alert alert-info py-1.5 px-3 small d-flex align-items-center gap-2 mb-0 flex-grow-1">
+                        <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" id="scannerSpinner" role="status"></div>
+                        <span id="scannerStatusText">Mengaktifkan modul kamera... Arahkan barcode ke kotak bidik.</span>
+                    </div>
+
+                    <!-- Mode Scan Beruntun (Multi-Scan Switch) -->
+                    <div class="form-check form-switch small mb-0 px-2 py-1 bg-light rounded border flex-shrink-0" title="Secara default, scan barcode akan langsung keluar otomatis seperti di GoPay. Aktifkan jika ingin scan banyak barang tanpa menutup kamera.">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" id="toggleMultiScan">
+                        <label class="form-check-label fw-semibold text-dark" for="toggleMultiScan" style="font-size: 0.74rem;">
+                            Scan Beruntun (Tetap di Kamera)
+                        </label>
+                    </div>
                 </div>
 
-                <!-- Error Banner: Ditampilkan ramah jika NotAllowedError / no camera -->
-                <div id="scannerErrorAlert" class="alert alert-danger py-2.5 px-3 small d-none">
+                <!-- 3. Error Banner: Ramah jika akses ditolak atau tidak ada kamera -->
+                <div id="scannerErrorAlert" class="alert alert-danger py-2.5 px-3 small d-none mb-3">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-octagon-fill fs-5 text-danger flex-shrink-0 mt-0.5"></i>
-                        <div>
-                            <strong class="d-block mb-1" id="scannerErrorTitle">Akses Kamera Tidak Tersedia</strong>
+                        <div class="flex-grow-1">
+                            <strong class="d-block mb-1" id="scannerErrorTitle">Akses Kamera Belum Tersedia</strong>
                             <span id="scannerErrorMessage" class="d-block text-secondary mb-2">
-                                Izin kamera tidak diberikan atau perangkat komputer kasir tidak memiliki kamera.
+                                Izin kamera tidak diberikan atau perangkat komputer kasir tidak memiliki webcam.
                             </span>
-                            <div class="p-2 rounded bg-white border small text-dark">
-                                <strong>Solusi Cepat:</strong> Silakan gunakan input teks SKU/Barcode manual di bawah ini.
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2.5 fw-semibold" onclick="retryCameraAccess()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> Coba Akses Kamera Lagi
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm py-1 px-2.5 fw-semibold" onclick="document.getElementById('barcodeFileInput').click()">
+                                    <i class="bi bi-image me-1"></i> Pindai dari File Gambar Barcode
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Input Manual Fallback di dalam Modal -->
+                <!-- 4. Pilihan Cepat Barcode Demo Instan (100% Berfungsi Kapan Saja) -->
+                <div class="p-2.5 rounded-3 bg-light border mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+                        <small class="text-secondary fw-bold text-uppercase d-inline-flex align-items-center gap-1.5" style="font-size: 0.72rem;">
+                            <i class="bi bi-lightning-charge-fill text-warning"></i>
+                            <span>Pilihan Cepat & Uji Coba Barcode:</span>
+                        </small>
+                        <div class="d-flex gap-1.5 align-items-center">
+                            <button type="button" class="btn btn-warning btn-sm py-0.5 px-2.5 fw-bold text-dark shadow-xs" style="font-size: 0.72rem;" onclick="openTestBarcodeGalleryModal()">
+                                <i class="bi bi-grid-3x3-gap-fill me-1"></i> Buka Lembar Barcode Siap-Scan
+                            </button>
+                            <span class="badge bg-white text-primary border small" style="font-size: 0.65rem;">
+                                <i class="bi bi-hand-index-thumb me-1"></i> Klik untuk Scan Instan
+                            </span>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1.5">
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991001', 'Beras Premium Ramos 5 Kg')">
+                            <i class="bi bi-upc me-1"></i> 89999991001 (Beras Ramos)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991002', 'Minyak Goreng Pouch 2L')">
+                            <i class="bi bi-upc me-1"></i> 89999991002 (Minyak 2L)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991003', 'Gula Pasir Kristal 1kg')">
+                            <i class="bi bi-upc me-1"></i> 89999991003 (Gula 1kg)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991005', 'Telur Ayam Fresh 1kg')">
+                            <i class="bi bi-upc me-1"></i> 89999991005 (Telur 1kg)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991008', 'Kopi Arabika 250g')">
+                            <i class="bi bi-upc me-1"></i> 89999991008 (Kopi 250g)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991011', 'Deterjen Bubuk 800g')">
+                            <i class="bi bi-upc me-1"></i> 89999991011 (Deterjen)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Input Manual Barcode / SKU di Meja Kasir -->
                 <div class="p-2.5 rounded-2 bg-light border">
-                    <label class="form-label text-secondary fw-semibold d-block mb-1" style="font-size: 0.72rem;">Input Manual di Meja Kasir:</label>
+                    <label class="form-label text-secondary fw-semibold d-block mb-1" style="font-size: 0.72rem;">Ketik Manual SKU / Barcode di Meja Kasir:</label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white"><i class="bi bi-upc"></i></span>
-                        <input type="text" id="modalManualBarcodeInput" class="form-control font-monospace" placeholder="Ketik SKU / Barcode (cth: SEM-001 / 89999991001)..." onkeydown="if(event.key === 'Enter'){ submitModalManualBarcode(); }">
-                        <button type="button" class="btn btn-primary fw-semibold" onclick="submitModalManualBarcode()">
+                        <input type="text" id="modalManualBarcodeInput" class="form-control font-monospace" placeholder="Ketik SKU atau nomor barcode (contoh: SEM-001 / 89999991001)..." onkeydown="if(event.key === 'Enter'){ submitModalManualBarcode(); }">
+                        <button type="button" class="btn btn-primary fw-semibold px-3" onclick="submitModalManualBarcode()">
                             + Masukkan
                         </button>
                     </div>
                 </div>
+
+                <!-- Hidden file input & temp reader untuk scan gambar barcode -->
+                <input type="file" id="barcodeFileInput" class="d-none" accept="image/*" onchange="handleBarcodeFile(this)">
+                <div id="qr-reader-file-temp" class="d-none"></div>
             </div>
-            <div class="modal-footer bg-light py-2 px-3 justify-content-between">
-                <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" id="btnSwitchCamera" onclick="switchScannerCamera()">
-                    <i class="bi bi-arrow-repeat"></i>
-                    <span>Ganti Kamera</span>
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="stopBarcodeScanner()">
+
+            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1.5" id="btnSwitchCamera" onclick="switchScannerCamera()">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>Ganti Kamera</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5" onclick="document.getElementById('barcodeFileInput').click()">
+                        <i class="bi bi-image"></i>
+                        <span>Scan dari Gambar</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-warning text-dark fw-semibold btn-sm d-inline-flex align-items-center gap-1.5" onclick="openTestBarcodeGalleryModal()">
+                        <i class="bi bi-upc-scan text-dark"></i>
+                        <span>Lembar Barcode Siap-Scan</span>
+                    </button>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal" onclick="stopBarcodeScanner()">
                     Tutup Scanner
                 </button>
             </div>
@@ -881,6 +1171,244 @@
                     <i class="bi bi-trash3 me-1"></i> Ya, Batalkan Pesanan Ini
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     MODAL 7: PRATINJAU BARCODE & QR KODE PRODUK (SINGLE PRODUCT)
+     ============================================================================== -->
+<div class="modal fade" id="singleProductBarcodeModal" tabindex="-1" aria-labelledby="singleProductBarcodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white py-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-1.5 rounded-2 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="bi bi-upc-scan fs-6"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0 fs-6" id="singleProductBarcodeModalLabel">Label Barcode Komoditas</h6>
+                        <small class="text-white-50" style="font-size: 0.72rem;">Format standar Code-128 & QR Code untuk scan kamera</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="badge bg-light text-secondary border px-2.5 py-1 mb-2 font-monospace" id="spbSkuBadge">-</div>
+                <h5 class="fw-bold text-dark mb-1" id="spbProductName">-</h5>
+                <p class="text-primary fw-bold font-monospace mb-3" id="spbPriceBadge">Rp 0</p>
+
+                <!-- Nav Tabs Barcode 1D / QR 2D -->
+                <ul class="nav nav-pills nav-fill bg-light p-1 rounded-2 mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active py-1.5 px-3 fw-semibold small" id="tab-spb-barcode" data-bs-toggle="pill" data-bs-target="#pane-spb-barcode" type="button" role="tab">
+                            <i class="bi bi-upc me-1"></i> Barcode 1D (Code-128)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-1.5 px-3 fw-semibold small" id="tab-spb-qr" data-bs-toggle="pill" data-bs-target="#pane-spb-qr" type="button" role="tab">
+                            <i class="bi bi-qr-code me-1"></i> QR Code 2D
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mb-3">
+                    <div class="tab-pane fade show active p-3 bg-white border rounded-3 shadow-xs" id="pane-spb-barcode" role="tabpanel">
+                        <div class="p-2 bg-white rounded text-center d-flex justify-content-center">
+                            <svg id="singleBarcodeSvg" style="max-width: 100%; height: auto;"></svg>
+                        </div>
+                        <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">
+                            Format standar Code-128 dengan Quiet Zone putih untuk pembacaan akurat kamera.
+                        </small>
+                    </div>
+                    <div class="tab-pane fade p-3 bg-white border rounded-3 shadow-xs text-center" id="pane-spb-qr" role="tabpanel">
+                        <div class="p-2 bg-white rounded d-inline-block text-center">
+                            <canvas id="singleBarcodeQrCanvas"></canvas>
+                        </div>
+                        <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">
+                            Format QR Code 2D cepat discan pada segala resolusi kamera & pencahayaan.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold" onclick="testScanCurrentSingleBarcode()">
+                        <i class="bi bi-cart-plus me-1"></i> Uji Scan Masuk Keranjang
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="window.print()">
+                        <i class="bi bi-printer me-1"></i> Cetak Label
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-3">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     MODAL 8: LEMBAR KATALOG BARCODE & QR PRODUK SIAP-SCAN
+     ============================================================================== -->
+<div class="modal fade" id="testBarcodeGalleryModal" tabindex="-1" aria-labelledby="testBarcodeGalleryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white py-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-1.5 rounded-2 bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="bi bi-qr-code-scan fs-6"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0 fs-6" id="testBarcodeGalleryModalLabel">Katalog Barcode & QR Siap-Scan Kamera Gerai</h6>
+                        <small class="text-white-50" style="font-size: 0.72rem;">Arahkan kamera HP atau webcam kasir ke barcode di bawah ini untuk menguji deteksi scan nyata</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-light btn-sm py-1 px-2.5" onclick="renderAllGalleryBarcodes()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Barcode
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3 p-md-4 bg-light">
+                <div class="alert alert-primary py-2.5 px-3 small d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-camera-video-fill fs-5 text-primary flex-shrink-0"></i>
+                    <div>
+                        <strong>Petunjuk Pengujian Barcode Kamera:</strong>
+                        Buka modal ini di layar kedua / smartphone, lalu arahkan kamera scanner kasir ke barcode atau QR code di bawah. Setiap barcode telah dikonfigurasi dengan standar Code-128 dan QR Code kontras tinggi.
+                    </div>
+                </div>
+
+                <div class="row g-3" id="galleryBarcodeListContainer">
+                    @foreach($stockItems as $idx => $item)
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border shadow-xs rounded-3 bg-white">
+                                <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-light text-secondary border font-monospace">{{ $item['sku'] }}</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold">Rp {{ number_format($item['sell_price'], 0, ',', '.') }}</span>
+                                </div>
+                                <div class="card-body p-3 text-center">
+                                    <h6 class="fw-bold text-dark mb-1 text-truncate" title="{{ $item['name'] }}">{{ $item['name'] }}</h6>
+                                    <small class="text-muted d-block font-monospace mb-2" style="font-size: 0.72rem;">Barcode: {{ $item['barcode'] }}</small>
+                                    
+                                    <!-- Barcode SVG Container -->
+                                    <div class="p-2 bg-white border rounded mb-2 text-center" style="min-height: 85px;">
+                                        <svg class="gallery-barcode-svg" id="galleryBarcodeSvg_{{ $idx }}" data-barcode="{{ $item['barcode'] }}" style="max-width: 100%; height: auto;"></svg>
+                                    </div>
+
+                                    <!-- QR Code Canvas Container -->
+                                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2 p-1.5 bg-light rounded border">
+                                        <canvas class="gallery-qr-canvas" id="galleryQrCanvas_{{ $idx }}" data-barcode="{{ $item['barcode'] }}"></canvas>
+                                        <div class="text-start" style="font-size: 0.7rem;">
+                                            <span class="d-block fw-bold text-dark">Mode QR 2D</span>
+                                            <span class="text-muted">Alternatif scan cepat jika kamera webcam beresolusi rendah</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-semibold" onclick="simulateBarcodeScan('{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}')">
+                                        <i class="bi bi-cart-plus me-1"></i> Scan Masuk Keranjang
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between">
+                <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Cetak Lembar Barcode
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     GOPAY-STYLE SCAN CONFIRMATION BOTTOM SHEET / FLOATING CARD (Frontend-Design)
+     ============================================================================== -->
+<div id="gopayScanSuccessSheet" class="gopay-scan-sheet d-none" aria-live="polite">
+    <div class="gopay-sheet-card shadow-xl">
+        <!-- Drag Handle (Mobile) -->
+        <div class="gopay-drag-handle d-md-none"></div>
+
+        <div class="p-3 p-md-3.5">
+            <!-- Top Status Row -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-1.5">
+                    <span id="gopayStatusBadge" class="badge bg-success text-white fw-bold px-2 py-0.5 rounded-pill" style="font-size: 0.68rem; letter-spacing: 0.03em;">
+                        <i class="bi bi-upc-scan me-1"></i> SCAN BERHASIL
+                    </span>
+                    <span class="text-muted small" id="gopayScanType" style="font-size: 0.72rem;">Komoditas Kasir</span>
+                </div>
+                <button type="button" class="btn-close btn-sm p-1" onclick="dismissGopayScanSheet()" aria-label="Tutup"></button>
+            </div>
+
+            <!-- Content Card -->
+            <div class="d-flex align-items-center gap-3 mb-2.5 p-2.5 bg-light rounded-3 border">
+                <div class="gopay-icon-badge flex-shrink-0" id="gopayIconBadge">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                    <h6 class="fw-extrabold text-dark mb-1 text-truncate" id="gopayItemTitle" style="font-size: 0.95rem;">
+                        -
+                    </h6>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="badge bg-white text-secondary border font-monospace" id="gopayItemCode" style="font-size: 0.7rem;">
+                            -
+                        </span>
+                        <span class="fw-extrabold text-success font-monospace" id="gopayItemPrice" style="font-size: 0.95rem;">
+                            Rp 0
+                        </span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold" id="gopayItemQtyBadge" style="font-size: 0.68rem;">
+                            +1 ke Keranjang
+                        </span>
+                    </div>
+                    <small class="text-secondary d-block text-truncate" id="gopayItemSubtitle" style="font-size: 0.72rem;">
+                        Otomatis masuk ke kalkulasi kasir gerai.
+                    </small>
+                </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold d-inline-flex align-items-center gap-1.5" id="gopaySheetActionBtn">
+                        <i class="bi bi-camera-fill"></i>
+                        <span>Scan Lagi</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm px-2.5 fw-semibold d-inline-flex align-items-center gap-1" onclick="focusPosCart()">
+                        <i class="bi bi-cart3"></i>
+                        <span>Lihat Keranjang</span>
+                    </button>
+                </div>
+                <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none" onclick="dismissGopayScanSheet()" style="font-size: 0.75rem;">
+                    Tutup (ESC)
+                </button>
+            </div>
+        </div>
+
+        <!-- Animated Progress Countdown Bar -->
+        <div class="gopay-progress-bar" id="gopayProgressBar"></div>
+    </div>
+</div>
+
+<!-- FLOATING LIVE SCAN TOAST -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+    <div id="posScanToast" class="toast align-items-center text-bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2 py-2 px-3 text-white">
+                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center p-1.5 flex-shrink-0" style="width: 32px; height: 32px;">
+                    <i class="bi bi-check-lg fs-5"></i>
+                </div>
+                <div>
+                    <strong class="d-block" id="toastItemName">Produk Berhasil Di-scan</strong>
+                    <small class="text-white-50" id="toastItemDetail">Ditambahkan ke keranjang kasir</small>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     </div>
 </div>
@@ -1578,46 +2106,193 @@ function executeCancelOrder() {
 }
 
 // ==============================================================================
-// 6. BARCODE SCANNER KAMERA NYATA (html5-qrcode CDN Integration)
+// 6. ENGINE SCANNER BARCODE KAMERA & HARDWARE GERAI (html5-qrcode Real Engine)
 // ==============================================================================
 let html5QrCode = null;
 let currentCameraId = null;
 let availableCameras = [];
 let isScannerRunning = false;
+let lastScannedCode = '';
+let lastScannedTimestamp = 0;
+let sessionScanCount = 0;
+
+// Sound & Haptic Feedback khas E-Wallet (GoPay Style Chime)
+function playGopayChime() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+
+        // Nada 1: 880 Hz (A5), nada awal
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.1);
+
+        // Nada 2: 1760 Hz (A6), nada harmonik kedua e-wallet sukses
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1760, ctx.currentTime + 0.06);
+        gain2.gain.setValueAtTime(0.22, ctx.currentTime + 0.06);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.06);
+        osc2.stop(ctx.currentTime + 0.22);
+    } catch (e) {
+        // Audio policy or blocked
+    }
+}
 
 function playScanBeep() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(900, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.12);
-    } catch (e) {
-        // AudioContext might be muted or blocked by browser policy
+    playGopayChime();
+}
+
+function flashScannerVisual() {
+    const overlay = document.getElementById('scannerFlashOverlay');
+    if (overlay) {
+        overlay.classList.add('active');
+        setTimeout(() => overlay.classList.remove('active'), 250);
+    }
+}
+
+function showScanToast(title, subtitle) {
+    document.getElementById('toastItemName').textContent = title;
+    document.getElementById('toastItemDetail').textContent = subtitle;
+    const toastEl = document.getElementById('posScanToast');
+    if (toastEl && window.bootstrap) {
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2800 });
+        toast.show();
+    }
+}
+
+// GoPay-Style Bottom Sheet Manager
+let gopayDismissTimeout = null;
+
+function showGopayScanSheet(data) {
+    const sheetEl = document.getElementById('gopayScanSuccessSheet');
+    if (!sheetEl) return;
+
+    if (gopayDismissTimeout) {
+        clearTimeout(gopayDismissTimeout);
+    }
+
+    const typeEl = document.getElementById('gopayScanType');
+    if (typeEl) typeEl.textContent = data.type || 'Komoditas Kasir';
+    
+    const badgeEl = document.getElementById('gopayStatusBadge');
+    if (badgeEl) {
+        badgeEl.className = `badge ${data.badgeClass || 'bg-success text-white'} fw-bold px-2 py-0.5 rounded-pill`;
+        badgeEl.innerHTML = `<i class="bi bi-upc-scan me-1"></i> ${data.badgeText || 'SCAN BERHASIL'}`;
+    }
+
+    const titleEl = document.getElementById('gopayItemTitle');
+    if (titleEl) titleEl.textContent = data.title || '-';
+
+    const codeEl = document.getElementById('gopayItemCode');
+    if (codeEl) codeEl.textContent = data.code || '-';
+
+    const priceEl = document.getElementById('gopayItemPrice');
+    if (priceEl) priceEl.textContent = data.price || 'Rp 0';
+
+    const qtyEl = document.getElementById('gopayItemQtyBadge');
+    if (qtyEl) qtyEl.textContent = data.qtyBadge || '+1 ke Keranjang';
+
+    const subEl = document.getElementById('gopayItemSubtitle');
+    if (subEl) subEl.textContent = data.subtitle || 'Barang otomatis ditambahkan ke keranjang kasir.';
+
+    // Action CTA Button
+    const actionBtn = document.getElementById('gopaySheetActionBtn');
+    if (actionBtn) {
+        actionBtn.innerHTML = `<i class="bi ${data.actionBtnIcon || 'bi-camera-fill'}"></i> <span>${data.actionBtnText || 'Scan Lagi'}</span>`;
+        actionBtn.onclick = data.actionCallback || function() {
+            dismissGopayScanSheet();
+            openBarcodeScannerModal();
+        };
+    }
+
+    // Reset progress bar animation
+    const progressEl = document.getElementById('gopayProgressBar');
+    if (progressEl) {
+        progressEl.classList.remove('active');
+        void progressEl.offsetWidth; // trigger reflow
+        progressEl.classList.add('active');
+    }
+
+    // Tampilkan sheet
+    sheetEl.classList.remove('d-none');
+    sheetEl.style.transform = 'translateY(0)';
+    sheetEl.style.opacity = '1';
+
+    // Auto dismiss setelah 5 detik
+    gopayDismissTimeout = setTimeout(() => {
+        dismissGopayScanSheet();
+    }, 5000);
+}
+
+function dismissGopayScanSheet() {
+    const sheetEl = document.getElementById('gopayScanSuccessSheet');
+    if (!sheetEl) return;
+    sheetEl.style.transform = 'translateY(20px)';
+    sheetEl.style.opacity = '0';
+    setTimeout(() => {
+        sheetEl.classList.add('d-none');
+    }, 280);
+}
+
+function focusPosCart() {
+    dismissGopayScanSheet();
+    const cartCard = document.querySelector('.card.border-0.shadow-sm.bg-white.mb-4');
+    if (cartCard) {
+        cartCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        cartCard.classList.add('border-primary');
+        setTimeout(() => cartCard.classList.remove('border-primary'), 2000);
     }
 }
 
 function openBarcodeScannerModal() {
+    dismissGopayScanSheet();
+
     const errorAlert = document.getElementById('scannerErrorAlert');
     const statusAlert = document.getElementById('scannerStatusAlert');
     const statusText = document.getElementById('scannerStatusText');
+    const spinner = document.getElementById('scannerSpinner');
 
     errorAlert.classList.add('d-none');
     statusAlert.classList.remove('d-none');
+    if (spinner) spinner.classList.remove('d-none');
     statusText.textContent = "Menginisialisasi modul kamera gerai...";
 
-    const modal = new bootstrap.Modal(document.getElementById('barcodeScannerModal'));
-    modal.show();
-
-    setTimeout(() => {
+    const modalEl = document.getElementById('barcodeScannerModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    
+    // Pastikan pemanggilan stream kamera dieksekusi setelah modal selesai bertransisi
+    const onShown = () => {
+        modalEl.removeEventListener('shown.bs.modal', onShown);
         startBarcodeScanner();
-    }, 400);
+    };
+    modalEl.addEventListener('shown.bs.modal', onShown);
+    modal.show();
+}
+
+function retryCameraAccess() {
+    const errorAlert = document.getElementById('scannerErrorAlert');
+    const statusAlert = document.getElementById('scannerStatusAlert');
+    const statusText = document.getElementById('scannerStatusText');
+    const spinner = document.getElementById('scannerSpinner');
+
+    errorAlert.classList.add('d-none');
+    statusAlert.classList.remove('d-none');
+    if (spinner) spinner.classList.remove('d-none');
+    statusText.textContent = "Mencoba ulang akses kamera perangkat...";
+    startBarcodeScanner();
 }
 
 async function startBarcodeScanner() {
@@ -1628,144 +2303,681 @@ async function startBarcodeScanner() {
     const statusText = document.getElementById('scannerStatusText');
     const errorMessage = document.getElementById('scannerErrorMessage');
     const errorTitle = document.getElementById('scannerErrorTitle');
+    const spinner = document.getElementById('scannerSpinner');
+
+    errorAlert.classList.add('d-none');
+    statusAlert.classList.remove('d-none');
+    if (spinner) spinner.classList.remove('d-none');
+    statusText.textContent = "Mengakses stream kamera gerai...";
 
     try {
-        if (!window.Html5Qrcode) {
-            throw new Error("LibraryScannerBelumTerload");
+        const Html5QrcodeClass = window.Html5Qrcode || (typeof Html5Qrcode !== 'undefined' ? Html5Qrcode : null);
+        if (!Html5QrcodeClass) {
+            throw new Error("Library scanner barcode belum terpasang atau gagal dimuat.");
         }
 
-        if (!html5QrCode) {
-            html5QrCode = new Html5Qrcode("qr-reader");
+        // 1. Cek keamanan konteks browser (HTTPS atau localhost wajib untuk getUserMedia)
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!window.isSecureContext && !isLocal) {
+            throw new Error("Akses kamera diblokir peramban karena belum menggunakan HTTPS atau localhost. Silakan buka via http://localhost:8000 atau gunakan opsi Scan dari Gambar.");
         }
 
-        availableCameras = await Html5Qrcode.getCameras();
-        if (!availableCameras || availableCameras.length === 0) {
-            throw new Error("NoCameraFound");
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("Perangkat atau peramban ini tidak mendukung API kamera (navigator.mediaDevices.getUserMedia).");
         }
 
-        // Cari kamera belakang jika di smartphone
-        let backCam = availableCameras.find(cam => 
-            cam.label.toLowerCase().includes('back') || 
-            cam.label.toLowerCase().includes('rear') || 
-            cam.label.toLowerCase().includes('belakang')
-        );
-        let selectedCamId = currentCameraId || (backCam ? backCam.id : availableCameras[0].id);
-        currentCameraId = selectedCamId;
+        // 2. Format retail yang didukung
+        const Formats = window.Html5QrcodeSupportedFormats || (typeof Html5QrcodeSupportedFormats !== 'undefined' ? Html5QrcodeSupportedFormats : null);
+        const supportedFormats = Formats ? [
+            Formats.QR_CODE,
+            Formats.CODE_128,
+            Formats.EAN_13,
+            Formats.EAN_8,
+            Formats.CODE_39,
+            Formats.UPC_A,
+            Formats.UPC_E
+        ] : [0, 5, 9, 10, 3, 14, 15];
 
-        const config = {
-            fps: 15,
-            qrbox: { width: 260, height: 160 },
-            aspectRatio: 1.333
+        // 3. Bersihkan instance scanner sebelumnya jika ada
+        if (html5QrCode) {
+            try {
+                if (isScannerRunning) {
+                    await html5QrCode.stop();
+                }
+                await html5QrCode.clear();
+            } catch (cleanupErr) {
+                console.warn("Cleanup old scanner:", cleanupErr);
+            }
+            isScannerRunning = false;
+            html5QrCode = null;
+        }
+
+        const qrReaderContainer = document.getElementById('qr-reader');
+        if (qrReaderContainer) {
+            qrReaderContainer.innerHTML = '';
+        }
+
+        html5QrCode = new Html5QrcodeClass("qr-reader", { 
+            formatsToSupport: supportedFormats, 
+            verbose: false,
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        });
+
+        // 4. Deteksi daftar kamera hardware yang terhubung
+        try {
+            availableCameras = await Html5QrcodeClass.getCameras();
+            const btnSwitch = document.getElementById('btnSwitchCamera');
+            if (btnSwitch) {
+                btnSwitch.classList.toggle('d-none', !availableCameras || availableCameras.length <= 1);
+            }
+        } catch (camErr) {
+            console.warn("Query kamera awal:", camErr);
+        }
+
+        // 5. Konfigurasi scan viewfinder aman (selalu berada di dalam dimensi container)
+        const scanConfig = {
+            fps: 20,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const w = Math.max(160, Math.floor(viewfinderWidth * 0.88));
+                const h = Math.max(120, Math.floor(viewfinderHeight * 0.65));
+                return {
+                    width: Math.min(w, Math.max(100, viewfinderWidth - 10)),
+                    height: Math.min(h, Math.max(80, viewfinderHeight - 10))
+                };
+            },
+            aspectRatio: 1.333333,
+            disableFlip: false
         };
 
-        await html5QrCode.start(
-            selectedCamId,
-            config,
-            onBarcodeScanSuccess,
-            (errorMsg) => {
-                // Ignore scanning noise
+        // 6. Strategi pemilihan kamera multi-tier (Mencegah OverconstrainedError)
+        let started = false;
+
+        // Strategi 1: Gunakan deviceId kamera tertentu jika tersedia
+        if (availableCameras && availableCameras.length > 0) {
+            let targetId = currentCameraId;
+            if (!targetId || !availableCameras.some(c => c.id === targetId)) {
+                // Prioritaskan kamera belakang di mobile jika ada label back/environment
+                const backCam = availableCameras.find(c => /back|rear|belakang|environment/i.test(c.label));
+                targetId = backCam ? backCam.id : availableCameras[0].id;
+                currentCameraId = targetId;
             }
-        );
+
+            try {
+                await html5QrCode.start(
+                    targetId,
+                    scanConfig,
+                    onBarcodeScanSuccess,
+                    () => {} // silence noise
+                );
+                started = true;
+            } catch (camIdErr) {
+                console.warn("Start kamera dengan deviceId gagal, mencoba fallback facingMode...", camIdErr);
+            }
+        }
+
+        // Strategi 2: Coba kamera belakang (environment)
+        if (!started) {
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    scanConfig,
+                    onBarcodeScanSuccess,
+                    () => {}
+                );
+                started = true;
+            } catch (envErr) {
+                console.warn("Kamera environment tidak ada, mencoba kamera user/depan laptop...", envErr);
+            }
+        }
+
+        // Strategi 3: Coba kamera depan (user - webcam laptop/PC)
+        if (!started) {
+            try {
+                await html5QrCode.start(
+                    { facingMode: "user" },
+                    scanConfig,
+                    onBarcodeScanSuccess,
+                    () => {}
+                );
+                started = true;
+            } catch (userErr) {
+                console.warn("Kamera user gagal, mencoba default stream...", userErr);
+            }
+        }
+
+        // Strategi 4: Default video stream tanpa batasan constraint
+        if (!started) {
+            await html5QrCode.start(
+                {},
+                scanConfig,
+                onBarcodeScanSuccess,
+                () => {}
+            );
+            started = true;
+        }
 
         isScannerRunning = true;
-        statusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-record-circle-fill text-danger me-1"></i> Kamera Aktif:</span> Arahkan barcode sembako ke garis bidik.`;
+        if (spinner) spinner.classList.add('d-none');
+        statusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-record-circle-fill text-danger me-1"></i> Kamera Aktif:</span> Dekatkan barcode sembako atau QR ke dalam kotak bidik.`;
+
     } catch (err) {
-        console.warn("Scanner Initialization Notice:", err);
+        console.warn("Camera start exception:", err);
         isScannerRunning = false;
         statusAlert.classList.add('d-none');
         errorAlert.classList.remove('d-none');
 
-        const errStr = (err.name || '') + ' ' + (err.message || '');
+        const errStr = String(err.name || '') + ' ' + String(err.message || '');
         if (errStr.includes('NotAllowedError') || errStr.toLowerCase().includes('permission')) {
-            errorTitle.textContent = "Izin Kamera Ditolak Browser";
-            errorMessage.textContent = "Akses kamera diblokir oleh izin browser. Silakan izinkan akses kamera pada icon gembok URL atau gunakan input SKU manual di bawah.";
+            errorTitle.textContent = "Izin Akses Kamera Ditolak Browser";
+            errorMessage.textContent = "Peramban memblokir akses ke webcam/kamera. Silakan klik ikon perizinan di address bar peramban untuk mengizinkan kamera, lalu klik tombol coba lagi di bawah.";
+        } else if (errStr.includes('HTTPS') || errStr.includes('localhost') || errStr.includes('isSecureContext')) {
+            errorTitle.textContent = "Batasan Keamanan Peramban (Bukan HTTPS)";
+            errorMessage.textContent = err.message || "Akses kamera browser mewajibkan HTTPS atau alamat localhost. Buka via http://localhost:8000 atau gunakan scan dari file gambar.";
         } else if (errStr.includes('NoCameraFound') || errStr.toLowerCase().includes('notfound')) {
-            errorTitle.textContent = "Modul Kamera Tidak Ditemukan";
-            errorMessage.textContent = "Komputer kasir tidak memiliki perangkat webcam/kamera terhubung. Gunakan scanner barcode USB atau input SKU manual.";
+            errorTitle.textContent = "Kamera / Webcam Tidak Ditemukan";
+            errorMessage.textContent = "Perangkat kasir tidak mendeteksi modul webcam. Silakan tancapkan kamera USB fisik atau gunakan fitur Scan dari File Gambar.";
         } else {
-            errorTitle.textContent = "Kamera Belum Dapat Diakses";
-            errorMessage.textContent = "Tidak dapat membuka stream video (" + (err.message || 'Izin peramban dibutuhkan') + "). Silakan gunakan input manual di bawah.";
+            errorTitle.textContent = "Kamera Belum Dapat Dibuka";
+            errorMessage.textContent = (err.message || 'Gagal memulai stream video kamera') + ". Silakan gunakan opsi Scan dari File Gambar atau input manual.";
         }
     }
 }
 
 function onBarcodeScanSuccess(decodedText) {
-    playScanBeep();
-    stopBarcodeScanner();
+    const now = Date.now();
+    // Debounce 1.2 detik agar tidak men-scan ganda dalam milidetik yang sama
+    if (decodedText === lastScannedCode && (now - lastScannedTimestamp) < 1200) {
+        return;
+    }
 
-    const modalEl = document.getElementById('barcodeScannerModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    lastScannedCode = decodedText;
+    lastScannedTimestamp = now;
 
-    handleIncomingBarcode(decodedText);
+    playGopayChime();
+    flashScannerVisual();
+    if (navigator.vibrate) {
+        try { navigator.vibrate([40, 40, 60]); } catch(e) {}
+    }
+
+    sessionScanCount++;
+    const countBadge = document.getElementById('sessionScanCountBadge');
+    if (countBadge) {
+        countBadge.textContent = `${sessionScanCount} Barang Ter-scan`;
+    }
+
+    // Cek apakah mode multi-scan aktif
+    const multiScan = document.getElementById('toggleMultiScan')?.checked ?? false;
+    if (!multiScan) {
+        // Keluar otomatis dari modal seperti di GoPay
+        stopBarcodeScanner();
+        const modalEl = document.getElementById('barcodeScannerModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+        
+        handleIncomingBarcode(decodedText, { source: 'camera', showGopaySheet: true });
+    } else {
+        // Tetap di kamera untuk scan beruntun
+        handleIncomingBarcode(decodedText, { source: 'camera', showGopaySheet: false });
+    }
 }
 
-function stopBarcodeScanner() {
+async function stopBarcodeScanner() {
     if (html5QrCode && isScannerRunning) {
-        html5QrCode.stop().then(() => {
+        try {
+            await html5QrCode.stop();
+        } catch (err) {
+            console.warn("Stop scanner error:", err);
+        } finally {
             isScannerRunning = false;
-        }).catch((err) => {
-            console.warn("Stop scanner catch:", err);
-            isScannerRunning = false;
-        });
+        }
     }
 }
 
 async function switchScannerCamera() {
-    if (availableCameras.length <= 1) {
-        alert("Hanya ada 1 kamera yang terdeteksi pada perangkat kasir.");
+    if (!availableCameras || availableCameras.length <= 1) {
+        showScanToast("Info Kamera", "Hanya ada 1 kamera yang terdeteksi pada perangkat kasir.");
         return;
     }
-    stopBarcodeScanner();
+    await stopBarcodeScanner();
     let currentIndex = availableCameras.findIndex(c => c.id === currentCameraId);
     let nextIndex = (currentIndex + 1) % availableCameras.length;
     currentCameraId = availableCameras[nextIndex].id;
     setTimeout(() => {
         startBarcodeScanner();
-    }, 350);
+    }, 300);
+}
+
+// Simulasi scan instan untuk tombol demo
+window.simulateBarcodeScan = function(code, name) {
+    playGopayChime();
+    flashScannerVisual();
+    if (navigator.vibrate) {
+        try { navigator.vibrate([40, 40, 60]); } catch(e) {}
+    }
+    sessionScanCount++;
+    const countBadge = document.getElementById('sessionScanCountBadge');
+    if (countBadge) {
+        countBadge.textContent = `${sessionScanCount} Barang Ter-scan`;
+    }
+    handleIncomingBarcode(code, { source: 'demo', showGopaySheet: true });
+};
+
+// Scan dari berkas gambar / foto barcode (Langsung keluar otomatis seperti di GoPay)
+async function handleBarcodeFile(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+
+    try {
+        // Hentikan kamera jika sedang aktif agar tidak bentrok
+        if (html5QrCode && isScannerRunning) {
+            try { await html5QrCode.stop(); } catch(e) {}
+            isScannerRunning = false;
+        }
+
+        const Html5QrcodeClass = window.Html5Qrcode || (typeof Html5Qrcode !== 'undefined' ? Html5Qrcode : null);
+        if (!Html5QrcodeClass) throw new Error("Library scanner barcode belum terpasang.");
+
+        const Formats = window.Html5QrcodeSupportedFormats || (typeof Html5QrcodeSupportedFormats !== 'undefined' ? Html5QrcodeSupportedFormats : null);
+        const supportedFormats = Formats ? [
+            Formats.QR_CODE,
+            Formats.CODE_128,
+            Formats.EAN_13,
+            Formats.EAN_8,
+            Formats.CODE_39,
+            Formats.UPC_A,
+            Formats.UPC_E
+        ] : [0, 5, 9, 10, 3, 14, 15];
+
+        let fileScanner = new Html5QrcodeClass("qr-reader-file-temp", {
+            formatsToSupport: supportedFormats,
+            verbose: false
+        });
+
+        const decodedText = await fileScanner.scanFile(file, true);
+        try { await fileScanner.clear(); } catch(e) {}
+
+        // 1. LANGSUNG TUTUP MODAL SCANNER SEPERTI DI GOPAY
+        const modalEl = document.getElementById('barcodeScannerModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+
+        // 2. MAIN SUARA CHIME & VIBRATION
+        playGopayChime();
+        if (navigator.vibrate) {
+            try { navigator.vibrate([60, 40, 80]); } catch(e) {}
+        }
+
+        // 3. PROSES DATA BARCODE & TAMPILKAN GOPAY BOTTOM SHEET
+        handleIncomingBarcode(decodedText, { source: 'file', showGopaySheet: true });
+
+    } catch (err) {
+        console.warn("Scan file barcode error:", err);
+        showScanToast("Gagal Membaca File Gambar", "Pastikan foto barcode tajam, tidak miring ekstrem, dan memiliki kontras yang cukup.");
+    } finally {
+        input.value = '';
+    }
 }
 
 function submitModalManualBarcode() {
     const val = document.getElementById('modalManualBarcodeInput').value.trim();
     if (!val) return;
 
-    stopBarcodeScanner();
-    const modalEl = document.getElementById('barcodeScannerModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    playGopayChime();
+    sessionScanCount++;
+    const countBadge = document.getElementById('sessionScanCountBadge');
+    if (countBadge) {
+        countBadge.textContent = `${sessionScanCount} Barang Ter-scan`;
+    }
 
-    handleIncomingBarcode(val);
     document.getElementById('modalManualBarcodeInput').value = '';
+
+    const multiScan = document.getElementById('toggleMultiScan')?.checked ?? false;
+    if (!multiScan) {
+        stopBarcodeScanner();
+        const modalEl = document.getElementById('barcodeScannerModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        handleIncomingBarcode(val, { source: 'manual', showGopaySheet: true });
+    } else {
+        handleIncomingBarcode(val, { source: 'manual', showGopaySheet: false });
+    }
 }
 
 function submitManualBarcodeField() {
     const val = document.getElementById('posBarcodeField').value.trim();
     if (!val) return;
-    handleIncomingBarcode(val);
+    playGopayChime();
+    handleIncomingBarcode(val, { source: 'input', showGopaySheet: true });
     document.getElementById('posBarcodeField').value = '';
 }
 
-function handleIncomingBarcode(code) {
+function handleIncomingBarcode(code, options = {}) {
     const clean = code.trim().toLowerCase();
+    const shouldShowSheet = options.showGopaySheet !== false;
     
-    // Cari di katalog stok kasir
+    // 1. Cek jika yang di-scan adalah Kode Pickup Anggota (contoh: PKP-84920 atau ORD-1082)
+    if (clean.startsWith('pkp-') || clean.startsWith('ord-')) {
+        const pickupUpper = code.trim().toUpperCase();
+        const foundOrder = @json($pickupQueue ?? []).find(o => 
+            o.pickup_code.toUpperCase() === pickupUpper || 
+            o.id.toUpperCase() === pickupUpper
+        );
+
+        if (foundOrder) {
+            if (shouldShowSheet) {
+                showGopayScanSheet({
+                    type: 'Kode Pickup Pesanan Online',
+                    badgeText: 'PICKUP TERVERIFIKASI',
+                    badgeClass: 'bg-primary text-white',
+                    title: `${foundOrder.member_name} (${foundOrder.member_id})`,
+                    code: `${foundOrder.pickup_code} • ${foundOrder.id}`,
+                    price: `Rp ${Number(foundOrder.total_amount).toLocaleString('id-ID')}`,
+                    qtyBadge: `${foundOrder.items_count} Komoditas`,
+                    subtitle: `Pesanan siap diambil di gerai. Status: ${foundOrder.payment_status === 'PAID' ? 'LUNAS (Transfer/Cash)' : 'Piutang Anggota'}.`,
+                    actionBtnText: 'Serah Terima Barang',
+                    actionBtnIcon: 'bi-box-seam',
+                    actionCallback: () => {
+                        dismissGopayScanSheet();
+                        openPickupConfirm(foundOrder.pickup_code, foundOrder.member_name, foundOrder.member_id, foundOrder.total_amount, foundOrder.payment_status);
+                    }
+                });
+            } else {
+                showScanToast(
+                    `Kode Pickup ${pickupUpper} Ditemukan!`,
+                    `Pesanan atas nama ${foundOrder.member_name} (${foundOrder.member_id})`
+                );
+            }
+
+            // Alihkan ke tab Antrean Pickup
+            const tabBtn = document.getElementById('pickup-tab');
+            if (tabBtn) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(tabBtn);
+                bsTab.show();
+            }
+            // Highlight baris
+            const row = document.getElementById(`pickupRow-${foundOrder.pickup_code}`);
+            if (row) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.add('table-warning');
+                setTimeout(() => row.classList.remove('table-warning'), 3000);
+            }
+            return;
+        }
+    }
+
+    // 2. Cek jika yang di-scan adalah Barang Sembako di Katalog Kasir
+    const barcodeAliases = {
+        '8991001100223': '89999991001',
+        '8992002200334': '89999991002',
+        '8993003300445': '89999991003',
+        '8994004400556': '89999991005',
+        '8995005500667': '89999991008',
+        '8996006600778': '89999991011',
+    };
+    const resolvedBarcode = barcodeAliases[clean] || clean;
+
     const found = stockCatalogue.find(item => 
         item.sku.toLowerCase() === clean || 
         item.barcode.toLowerCase() === clean ||
+        item.barcode.toLowerCase() === resolvedBarcode ||
         item.name.toLowerCase().includes(clean)
     );
 
     if (found) {
         posAddToCart(found.name, found.sell_price, found.sku);
+        
+        if (shouldShowSheet) {
+            showGopayScanSheet({
+                type: 'Komoditas Gerai KOPEG',
+                badgeText: 'SCAN BERHASIL',
+                badgeClass: 'bg-success text-white',
+                title: found.name,
+                code: `${found.sku} • ${found.barcode}`,
+                price: `Rp ${Number(found.sell_price).toLocaleString('id-ID')}`,
+                qtyBadge: '+1 ke Keranjang Kasir',
+                subtitle: `Stok tersedia: ${found.available} ${found.unit ?? 'Pcs'}. Otomatis masuk ke kalkulasi POS.`,
+                actionBtnText: 'Scan Lagi',
+                actionBtnIcon: 'bi-camera-fill',
+                actionCallback: () => {
+                    dismissGopayScanSheet();
+                    openBarcodeScannerModal();
+                }
+            });
+        } else {
+            showScanToast(
+                `✓ ${found.name}`,
+                `Barcode: ${found.barcode} • Rp ${found.sell_price.toLocaleString('id-ID')} masuk keranjang`
+            );
+        }
     } else {
-        // Fallback untuk barang non-katalog atau custom scan
+        // Fallback untuk barang sembako baru atau barcode custom
         posAddToCart(`Komoditas Sembako #${code.toUpperCase()}`, 25000, code.toUpperCase());
+        if (shouldShowSheet) {
+            showGopayScanSheet({
+                type: 'Item Cepat / Custom',
+                badgeText: 'ITEM DITAMBAHKAN',
+                badgeClass: 'bg-info text-dark',
+                title: `Komoditas Sembako #${code.toUpperCase()}`,
+                code: code.toUpperCase(),
+                price: 'Rp 25.000',
+                qtyBadge: '+1 ke Keranjang',
+                subtitle: 'Barcode belum terdaftar di master persediaan, dicatat sebagai item cepat.',
+                actionBtnText: 'Scan Lagi',
+                actionBtnIcon: 'bi-camera-fill',
+                actionCallback: () => {
+                    dismissGopayScanSheet();
+                    openBarcodeScannerModal();
+                }
+            });
+        } else {
+            showScanToast(
+                `✓ Komoditas #${code.toUpperCase()}`,
+                `Item terdeteksi (Rp 25.000) ditambahkan ke keranjang kasir`
+            );
+        }
     }
 }
 
-// Inisialisasi Keranjang Kasir Awal
+// Global Keydown Listener untuk Barcode Scanner Gun Fisik (USB / Bluetooth HID)
+let barcodeGunBuffer = '';
+let lastGunKeyTime = Date.now();
+
+window.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    const isTypingInOtherInput = activeEl && 
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable) &&
+        activeEl.id !== 'posBarcodeField' && 
+        activeEl.id !== 'modalManualBarcodeInput';
+
+    if (isTypingInOtherInput) return;
+
+    const now = Date.now();
+    // Barcode scanner hardware mengetik dengan interval sangat cepat (< 65ms per karakter)
+    if (now - lastGunKeyTime > 65) {
+        barcodeGunBuffer = '';
+    }
+    lastGunKeyTime = now;
+
+    if (e.key === 'Enter') {
+        if (barcodeGunBuffer.length >= 3) {
+            e.preventDefault();
+            playScanBeep();
+            handleIncomingBarcode(barcodeGunBuffer);
+            barcodeGunBuffer = '';
+        }
+    } else if (e.key.length === 1) {
+        barcodeGunBuffer += e.key;
+    }
+});
+
+// ==============================================================================
+// MODUL RENDERING BARCODE & QR KODE FISIK (JSBARCODE & QRCODE)
+// ==============================================================================
+function renderAllGalleryBarcodes() {
+    const jsb = window.JsBarcode || (typeof JsBarcode !== 'undefined' ? JsBarcode : null);
+    const qrc = window.QRCode || (typeof QRCode !== 'undefined' ? QRCode : null);
+
+    if (jsb) {
+        document.querySelectorAll('.gallery-barcode-svg').forEach(svg => {
+            const code = svg.getAttribute('data-barcode');
+            if (code) {
+                try {
+                    jsb(svg, code, {
+                        format: "CODE128",
+                        width: 1.8,
+                        height: 52,
+                        displayValue: true,
+                        fontSize: 12,
+                        margin: 8,
+                        lineColor: "#000000",
+                        background: "#ffffff"
+                    });
+                } catch (e) {
+                    console.warn("JsBarcode error for:", code, e);
+                }
+            }
+        });
+    }
+
+    if (qrc) {
+        document.querySelectorAll('.gallery-qr-canvas').forEach(canvas => {
+            const code = canvas.getAttribute('data-barcode');
+            if (code) {
+                try {
+                    qrc.toCanvas(canvas, code, {
+                        width: 80,
+                        margin: 1,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    });
+                } catch (e) {
+                    console.warn("QRCode error for:", code, e);
+                }
+            }
+        });
+    }
+}
+
+function openTestBarcodeGalleryModal() {
+    const modalEl = document.getElementById('testBarcodeGalleryModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+let currentSingleBarcodeData = { sku: '', barcode: '', name: '', price: 0 };
+
+function showProductBarcodeModal(sku, barcode, name, price) {
+    currentSingleBarcodeData = { sku, barcode, name, price };
+    
+    const skuBadge = document.getElementById('spbSkuBadge');
+    if (skuBadge) skuBadge.textContent = sku;
+    const prodName = document.getElementById('spbProductName');
+    if (prodName) prodName.textContent = name;
+    const priceBadge = document.getElementById('spbPriceBadge');
+    if (priceBadge) priceBadge.textContent = price ? `Rp ${Number(price).toLocaleString('id-ID')}` : '';
+
+    const modalEl = document.getElementById('singleProductBarcodeModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    setTimeout(() => {
+        renderSingleBarcode(barcode);
+    }, 200);
+}
+
+function renderSingleBarcode(barcode) {
+    const jsb = window.JsBarcode || (typeof JsBarcode !== 'undefined' ? JsBarcode : null);
+    const qrc = window.QRCode || (typeof QRCode !== 'undefined' ? QRCode : null);
+
+    if (jsb) {
+        try {
+            jsb("#singleBarcodeSvg", barcode, {
+                format: "CODE128",
+                width: 2.2,
+                height: 70,
+                displayValue: true,
+                fontSize: 14,
+                margin: 10,
+                lineColor: "#000000",
+                background: "#ffffff"
+            });
+        } catch (e) {
+            console.warn("JsBarcode single error", e);
+        }
+    }
+
+    if (qrc) {
+        const canvas = document.getElementById('singleBarcodeQrCanvas');
+        if (canvas) {
+            try {
+                qrc.toCanvas(canvas, barcode, {
+                    width: 140,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
+                    }
+                });
+            } catch (e) {
+                console.warn("QRCode single error", e);
+            }
+        }
+    }
+}
+
+function testScanCurrentSingleBarcode() {
+    if (!currentSingleBarcodeData.barcode) return;
+    const modalEl = document.getElementById('singleProductBarcodeModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+    
+    simulateBarcodeScan(currentSingleBarcodeData.barcode, currentSingleBarcodeData.name);
+}
+
+// Inisialisasi Keranjang Kasir Awal & Modal Listeners
 document.addEventListener('DOMContentLoaded', () => {
     renderPosCart();
+
+    const scannerModalEl = document.getElementById('barcodeScannerModal');
+    if (scannerModalEl) {
+        scannerModalEl.addEventListener('hidden.bs.modal', () => {
+            stopBarcodeScanner();
+        });
+    }
+
+    // Dismiss GoPay Sheet dengan tombol Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            dismissGopayScanSheet();
+        }
+    });
+
+    const galleryModalEl = document.getElementById('testBarcodeGalleryModal');
+    if (galleryModalEl) {
+        galleryModalEl.addEventListener('shown.bs.modal', () => {
+            renderAllGalleryBarcodes();
+        });
+    }
+
+    const singleModalEl = document.getElementById('singleProductBarcodeModal');
+    if (singleModalEl) {
+        singleModalEl.addEventListener('shown.bs.modal', () => {
+            if (currentSingleBarcodeData.barcode) {
+                renderSingleBarcode(currentSingleBarcodeData.barcode);
+            }
+        });
+    }
 });
 </script>
 @endsection
