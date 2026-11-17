@@ -11,6 +11,7 @@
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d koperadata"]
       interval: 5s
@@ -35,10 +36,31 @@
       DB_DATABASE: koperadata
       DB_USERNAME: postgres
       DB_PASSWORD: secret
+      ML_SERVICE_URL: http://ml:8001
     ports:
       - "8000:8000"
     volumes:
       - ./apps/web:/var/www/html
+
+  ml:
+    build:
+      context: .
+      dockerfile: docker/python/Dockerfile
+    container_name: koperasiku-ml
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: koperadata
+      DB_USER: postgres
+      DB_PASSWORD: secret
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/ml:/app
 
 volumes:
   pgdata:

@@ -39,3 +39,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/imports/{id}/commit', [ImportController::class, 'commit']);
     });
 });
+
+Route::prefix('v1/ml')->group(function () {
+    Route::get('/health', [\App\Http\Controllers\MlController::class, 'health']);
+    Route::post('/demand-forecast', [\App\Http\Controllers\MlController::class, 'forecastDemand']);
+    Route::post('/credit-risk', [\App\Http\Controllers\MlController::class, 'creditRisk']);
+});
