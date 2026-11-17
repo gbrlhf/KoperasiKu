@@ -19,6 +19,23 @@
     </div>
 
     <div class="offcanvas-body p-3 d-flex flex-column">
+        @if(empty($isLoggedIn))
+            <!-- Guest Login Alert -->
+            <div class="p-3 rounded-2 bg-warning-subtle border border-warning-subtle text-dark small mb-3 shadow-xs">
+                <div class="d-flex align-items-center gap-1.5 fw-bold mb-1">
+                    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                    <span>Status: Belum Masuk Akun</span>
+                </div>
+                <p class="mb-2.5 lh-sm" style="font-size: 0.76rem;">
+                    Untuk dapat memesan sembako dan reservasi pengambilan di kasir gerai, Anda harus masuk sebagai anggota koperasi terlebih dahulu.
+                </p>
+                <button type="button" class="btn btn-warning btn-sm w-100 fw-bold text-dark py-1.5 d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="openLoginModalFromCart()">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Masuk Akun Anggota</span>
+                </button>
+            </div>
+        @endif
+
         <!-- Delivery Notice Pill -->
         <div class="p-3 rounded-2 bg-primary-subtle border border-primary-subtle text-primary small d-flex align-items-center gap-2.5 mb-3">
             <i class="bi bi-shop fs-5 flex-shrink-0 me-1" aria-hidden="true"></i>

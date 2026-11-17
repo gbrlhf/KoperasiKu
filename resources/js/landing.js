@@ -117,8 +117,271 @@ function updateCartUI() {
     itemList.innerHTML = html;
 }
 
-// Global Cart Actions
+// Global Cart Actions & Login Interceptors
+window.pendingActionAfterLogin = null;
+
+window.showLoginRequiredModal = function (productName, onLoginSuccess) {
+    window.pendingActionAfterLogin = onLoginSuccess;
+    const nameEl = document.getElementById('loginRequiredProductName');
+    if (nameEl) nameEl.textContent = productName || 'Produk';
+
+    // Periksa apakah perangkat ini sudah pernah login sebelumnya
+    let remembered = null;
+    try {
+        const saved = localStorage.getItem('koperasiku_remembered_member');
+        if (saved) remembered = JSON.parse(saved);
+    } catch (e) {}
+
+    const rememberedBox = document.getElementById('modalRememberedUserBox');
+    const loginForm = document.getElementById('modalLoginForm');
+    const alertError = document.getElementById('modalLoginAlertError');
+    if (alertError) alertError.classList.add('d-none');
+
+    if (remembered && remembered.name) {
+        // Tampilkan opsi Masuk Cepat HANYA karena SUDAH PERNAH LOGIN sebelumnya
+        if (rememberedBox) {
+            rememberedBox.classList.remove('d-none');
+            const nameSpan = document.getElementById('rememberedMemberName');
+            const idSpan = document.getElementById('rememberedMemberId');
+            const btnNameSpan = document.getElementById('btnRememberedMemberName');
+            const avatarSpan = document.getElementById('rememberedMemberAvatar');
+
+            if (nameSpan) nameSpan.textContent = remembered.name;
+            if (idSpan) idSpan.textContent = (remembered.id || 'EMP-001') + ' • Anggota Terdaftar';
+            if (btnNameSpan) btnNameSpan.textContent = remembered.name;
+            if (avatarSpan) avatarSpan.textContent = remembered.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        }
+        if (loginForm) loginForm.classList.add('d-none');
+    } else {
+        // Pengguna baru / belum pernah login: WAJIB MENGISI FORM LOGIN (tanpa tombol masuk cepat)
+        if (rememberedBox) rememberedBox.classList.add('d-none');
+        if (loginForm) loginForm.classList.remove('d-none');
+    }
+
+    const modalEl = document.getElementById('loginRequiredModal');
+    if (modalEl && window.bootstrap) {
+        const bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.show();
+    } else {
+        window.location.href = '/login';
+    }
+};
+
+window.showOtherLoginForm = function () {
+    const rememberedBox = document.getElementById('modalRememberedUserBox');
+    const loginForm = document.getElementById('modalLoginForm');
+    if (rememberedBox) rememberedBox.classList.add('d-none');
+    if (loginForm) {
+        loginForm.classList.remove('d-none');
+        const usernameInput = document.getElementById('modalLoginUsername');
+        if (usernameInput) usernameInput.focus();
+    }
+};
+
+window.forgetRememberedMember = function () {
+    try {
+        localStorage.removeItem('koperasiku_remembered_member');
+    } catch (e) {}
+    window.showOtherLoginForm();
+};
+
+window.handleModalLoginFormSubmit = function (event) {
+    event.preventDefault();
+
+    const usernameInput = document.getElementById('modalLoginUsername');
+    const passwordInput = document.getElementById('modalLoginPassword');
+    const submitBtn = document.getElementById('btnModalLoginSubmit');
+    const alertError = document.getElementById('modalLoginAlertError');
+
+    const username = (usernameInput?.value || '').trim();
+    const password = (passwordInput?.value || '').trim();
+
+    if (!username || !password) {
+        if (alertError) {
+            alertError.textContent = 'Nomor Anggota dan Kata Sandi wajib diisi.';
+            alertError.classList.remove('d-none');
+        }
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Memverifikasi...';
+    }
+    if (alertError) alertError.classList.add('d-none');
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+            username: username,
+            password: password,
+            role: 'MEMBER'
+        })
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Gagal masuk akun.');
+        return data;
+    })
+    .then(data => {
+        window.isUserLoggedIn = true;
+        window.currentUser = data.user;
+
+        // SIMPAN KE LOCALSTORAGE BAHWA PERANGKAT INI SUDAH PERNAH LOGIN
+        try {
+            localStorage.setItem('koperasiku_remembered_member', JSON.stringify({
+                id: data.user.id || username,
+                name: data.user.name || (username === 'EMP-001' ? 'Ahmad Fauzi' : username)
+            }));
+        } catch (e) {}
+
+        // Tutup modal
+        const modalEl = document.getElementById('loginRequiredModal');
+        if (modalEl && window.bootstrap) {
+            const bsModal = window.bootstrap.Modal.getInstance(modalEl);
+            if (bsModal) bsModal.hide();
+        }
+
+        // Jalankan aksi tertunda (misal addToCart)
+        if (typeof window.pendingActionAfterLogin === 'function') {
+            try {
+                window.pendingActionAfterLogin();
+            } catch (e) {
+                console.warn('Error pending action:', e);
+            }
+            window.pendingActionAfterLogin = null;
+        }
+
+        try {
+            sessionStorage.setItem('koperasiku_open_cart_after_login', '1');
+        } catch (e) {}
+
+        window.location.reload();
+    })
+    .catch(err => {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Masuk & Lanjutkan Belanja';
+        }
+        if (alertError) {
+            alertError.textContent = err.message || 'Gagal masuk. Periksa kembali Nomor Anggota dan Sandi.';
+            alertError.classList.remove('d-none');
+        }
+    });
+};
+
+window.quickLoginAsRememberedMember = function () {
+    let remembered = null;
+    try {
+        const saved = localStorage.getItem('koperasiku_remembered_member');
+        if (saved) remembered = JSON.parse(saved);
+    } catch (e) {}
+
+    const username = remembered?.id || 'EMP-001';
+    const btn = document.getElementById('btnQuickLoginRemembered');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sedang Masuk...';
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+            username: username,
+            password: 'password',
+            role: 'MEMBER'
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        window.isUserLoggedIn = true;
+        window.currentUser = data.user;
+
+        // Tutup modal login
+        const modalEl = document.getElementById('loginRequiredModal');
+        if (modalEl && window.bootstrap) {
+            const bsModal = window.bootstrap.Modal.getInstance(modalEl);
+            if (bsModal) bsModal.hide();
+        }
+
+        // Jalankan aksi tertunda
+        if (typeof window.pendingActionAfterLogin === 'function') {
+            try {
+                window.pendingActionAfterLogin();
+            } catch (e) {
+                console.warn('Error pending action:', e);
+            }
+            window.pendingActionAfterLogin = null;
+        }
+
+        try {
+            sessionStorage.setItem('koperasiku_open_cart_after_login', '1');
+        } catch (e) {}
+
+        window.location.reload();
+    })
+    .catch(err => {
+        console.error('Login error:', err);
+        window.location.href = '/login';
+    });
+};
+
+window.openLoginModalFromCart = function () {
+    const drawerEl = document.getElementById('cartDrawer');
+    if (drawerEl && window.bootstrap) {
+        const bsDrawer = window.bootstrap.Offcanvas.getInstance(drawerEl);
+        if (bsDrawer) bsDrawer.hide();
+    }
+    setTimeout(() => {
+        window.showLoginRequiredModal('Keranjang Belanja', () => {
+            const cartDrawerEl = document.getElementById('cartDrawer');
+            if (cartDrawerEl && window.bootstrap) {
+                const bs = window.bootstrap.Offcanvas.getOrCreateInstance(cartDrawerEl);
+                bs.show();
+            }
+        });
+    }, 300);
+};
+
+window.openLoginModalFromProfile = function () {
+    const drawerEl = document.getElementById('memberProfileDrawer');
+    if (drawerEl && window.bootstrap) {
+        const bsDrawer = window.bootstrap.Offcanvas.getInstance(drawerEl);
+        if (bsDrawer) bsDrawer.hide();
+    }
+    setTimeout(() => {
+        window.showLoginRequiredModal('Profil Anggota', () => {
+            const profileDrawerEl = document.getElementById('memberProfileDrawer');
+            if (profileDrawerEl && window.bootstrap) {
+                const bs = window.bootstrap.Offcanvas.getOrCreateInstance(profileDrawerEl);
+                bs.show();
+            }
+        });
+    }, 300);
+};
+
 window.addToCart = function (id, name, price, unit, icon) {
+    if (!window.isUserLoggedIn) {
+        window.showLoginRequiredModal(name, () => {
+            window.addToCart(id, name, price, unit, icon);
+        });
+        return;
+    }
+
     const existing = cart.find(item => item.id === id);
     if (existing) {
         existing.qty += 1;
@@ -300,6 +563,14 @@ window.changeModalQty = function (delta) {
 window.modalAddToCart = function () {
     if (!activeModalProduct) return;
 
+    if (!window.isUserLoggedIn) {
+        const prod = activeModalProduct;
+        window.showLoginRequiredModal(prod ? prod.name : 'Produk', () => {
+            window.modalAddToCart();
+        });
+        return;
+    }
+
     const existing = cart.find(item => item.id === activeModalProduct.id);
     if (existing) {
         existing.qty += modalCurrentQty;
@@ -332,6 +603,14 @@ window.modalAddToCart = function () {
 
 window.modalBuyNow = function () {
     if (!activeModalProduct) return;
+
+    if (!window.isUserLoggedIn) {
+        const prod = activeModalProduct;
+        window.showLoginRequiredModal(prod ? prod.name : 'Produk', () => {
+            window.modalBuyNow();
+        });
+        return;
+    }
 
     // Tambahkan item yang dipilih ke keranjang
     const existing = cart.find(item => item.id === activeModalProduct.id);
@@ -375,6 +654,13 @@ window.updateCartQty = function (id, delta) {
 
 // Checkout Modal Actions
 window.openCheckoutModal = function () {
+    if (!window.isUserLoggedIn) {
+        window.showLoginRequiredModal('Pesanan Anda', () => {
+            window.openCheckoutModal();
+        });
+        return;
+    }
+
     const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
@@ -650,6 +936,8 @@ window.applySearchChip = function (query) {
 window.filterStorefrontSearch = function (rawQuery) {
     const query = (rawQuery || '').toLowerCase().trim();
     const productCols = document.querySelectorAll('.product-item-col');
+    const emptyState = document.getElementById('noProductsFoundState');
+    let visibleCount = 0;
 
     // Sync input desktop dan mobile
     const desktopInput = document.getElementById('storefrontSearchInput');
@@ -664,13 +952,53 @@ window.filterStorefrontSearch = function (rawQuery) {
 
         if (!query || name.includes(query) || category.includes(query)) {
             col.classList.remove('d-none');
+            visibleCount++;
         } else {
             col.classList.add('d-none');
         }
     });
+
+    if (emptyState) {
+        if (visibleCount === 0) {
+            emptyState.classList.remove('d-none');
+        } else {
+            emptyState.classList.add('d-none');
+        }
+    }
 };
 
 window.filterStorefrontCategory = function (categoryName) {
+    const query = (categoryName || '').toLowerCase().trim();
+    filterStorefrontSearch(query);
+
+    // Sync category pills state if matching
+    const pills = document.querySelectorAll('.category-pill');
+    pills.forEach(pill => {
+        const pillText = (pill.textContent || '').toLowerCase().trim();
+        if ((!query && pillText.includes('semua')) || (query && pillText.includes(query))) {
+            pill.classList.remove('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+            pill.classList.add('btn-primary', 'text-white', 'active');
+        } else {
+            pill.classList.remove('btn-primary', 'text-white', 'active');
+            pill.classList.add('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+        }
+    });
+
+    scrollToFirstProduct();
+};
+
+window.filterByPill = function (pillEl, categoryName) {
+    const pills = document.querySelectorAll('.category-pill');
+    pills.forEach(p => {
+        p.classList.remove('btn-primary', 'text-white', 'active');
+        p.classList.add('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+    });
+
+    if (pillEl) {
+        pillEl.classList.remove('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+        pillEl.classList.add('btn-primary', 'text-white', 'active');
+    }
+
     const query = (categoryName || '').toLowerCase().trim();
     filterStorefrontSearch(query);
     scrollToFirstProduct();
@@ -691,17 +1019,32 @@ window.showAllProducts = function (event) {
     if (desktopInput) desktopInput.value = '';
     if (mobileInput) mobileInput.value = '';
 
-    // 2. Munculkan semua kartu produk tanpa filter
+    // 2. Reset category pills (pilih Semua)
+    const pills = document.querySelectorAll('.category-pill');
+    pills.forEach((p, idx) => {
+        if (idx === 0) {
+            p.classList.remove('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+            p.classList.add('btn-primary', 'text-white', 'active');
+        } else {
+            p.classList.remove('btn-primary', 'text-white', 'active');
+            p.classList.add('btn-outline-secondary', 'bg-white', 'text-dark', 'border');
+        }
+    });
+
+    // 3. Munculkan semua kartu produk tanpa filter
     const productCols = document.querySelectorAll('.product-item-col');
     productCols.forEach(col => col.classList.remove('d-none'));
 
-    // 3. Tutup dropdown rekomendasi pencarian
+    const emptyState = document.getElementById('noProductsFoundState');
+    if (emptyState) emptyState.classList.add('d-none');
+
+    // 4. Tutup dropdown rekomendasi pencarian
     const dDropdown = document.getElementById('searchSuggestionDropdown');
     const mDropdown = document.getElementById('mobileSearchSuggestionDropdown');
     if (dDropdown) dDropdown.classList.add('d-none');
     if (mDropdown) mDropdown.classList.add('d-none');
 
-    // 4. Smooth scroll ke bagian Semua Produk
+    // 5. Smooth scroll ke bagian Semua Produk
     const target = document.getElementById('allProductsSection') || document.getElementById('best-deals');
     if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -709,7 +1052,7 @@ window.showAllProducts = function (event) {
 };
 
 window.scrollToFirstProduct = function () {
-    const target = document.querySelector('.product-item-col:not(.d-none)') || document.getElementById('best-deals');
+    const target = document.querySelector('.product-item-col:not(.d-none)') || document.getElementById('allProductsSection');
     if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -717,5 +1060,27 @@ window.scrollToFirstProduct = function () {
 
 // Initial setup on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Jika belum login, pastikan keranjang di reset kosong
+    if (typeof window.isUserLoggedIn !== 'undefined' && !window.isUserLoggedIn) {
+        cart = [];
+        try {
+            sessionStorage.removeItem('koperasiku_cart');
+        } catch (e) {}
+    }
+
     updateCartUI();
+
+    // Buka keranjang otomatis jika pengguna baru saja login setelah klik keranjang
+    try {
+        if (sessionStorage.getItem('koperasiku_open_cart_after_login') === '1') {
+            sessionStorage.removeItem('koperasiku_open_cart_after_login');
+            setTimeout(() => {
+                const drawerEl = document.getElementById('cartDrawer');
+                if (drawerEl && window.bootstrap) {
+                    const bsDrawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+                    bsDrawer.show();
+                }
+            }, 300);
+        }
+    } catch (e) {}
 });

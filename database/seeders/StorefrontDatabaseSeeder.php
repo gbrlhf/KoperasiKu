@@ -468,12 +468,6 @@ class StorefrontDatabaseSeeder extends Seeder
                 'on_hand' => $p['stock'],
                 'reserved' => 0,
             ]);
-
-            // Alias untuk kompatibilitas SKU dan PRD-ID
-            InventoryBalance::updateOrCreate(['product_id' => $prdId], [
-                'on_hand' => $p['stock'],
-                'reserved' => 0,
-            ]);
         }
 
         // 7. Seed 1 Active Pickup Order (PKP-84920) untuk Ahmad Fauzi

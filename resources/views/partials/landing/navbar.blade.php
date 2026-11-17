@@ -105,21 +105,46 @@
                     </span>
                 </button>
 
-                <!-- Profile & Hutang Trigger Button (Ahmad Fauzi) -->
-                <button class="btn btn-outline-dark btn-sm px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs" type="button" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer" title="Buka Profil Anggota & Cek Hutang">
-                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 26px; height: 26px; font-size: 0.75rem;">
-                        <i class="bi bi-person-fill"></i>
+                @if(!empty($isLoggedIn) && !empty($member))
+                    <!-- Profile & Hutang Trigger Button (Anggota yang Sudah Login) -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-dark btn-sm px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs dropdown-toggle" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Menu Akun Anggota">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 26px; height: 26px; font-size: 0.75rem;">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <div class="d-flex flex-column text-start lh-1">
+                                <span class="fw-bold text-dark" style="font-size: 0.78rem;">{{ $member['name'] }}</span>
+                                <span class="text-muted" style="font-size: 0.65rem;">{{ $member['id'] }} &bull; Anggota</span>
+                            </div>
+                            @if(!empty($receivableStatus['has_debt']))
+                                <span class="badge bg-warning text-dark rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.65rem;" title="Ada Tagihan Aktif">
+                                    Tagihan: {{ $receivableStatus['days_remaining'] ?? 3 }}h
+                                </span>
+                            @endif
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userMenuDropdown">
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center gap-2 py-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
+                                    <i class="bi bi-person-vcard text-primary"></i>
+                                    <span>Profil & Tagihan Saya</span>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 text-danger py-2" href="{{ route('logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                    <span>Keluar (Logout)</span>
+                                </a>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="d-flex flex-column text-start lh-1">
-                        <span class="fw-bold text-dark" style="font-size: 0.78rem;">{{ $member['name'] ?? 'Ahmad Fauzi' }}</span>
-                        <span class="text-muted" style="font-size: 0.65rem;">{{ $member['id'] ?? 'EMP-001' }} &bull; Anggota</span>
-                    </div>
-                    @if(!empty($receivableStatus['has_debt']))
-                        <span class="badge bg-warning text-dark rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.65rem;" title="Ada Tagihan Aktif">
-                            Tagihan: {{ $receivableStatus['days_remaining'] ?? 3 }}h
-                        </span>
-                    @endif
-                </button>
+                @else
+                    <!-- Tombol Masuk Akun untuk Pengunjung / Guest -->
+                    <a href="{{ route('login') }}" class="btn btn-primary btn-sm px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs">
+                        <i class="bi bi-box-arrow-in-right fs-6"></i>
+                        <span>Masuk Akun</span>
+                    </a>
+                @endif
             </div>
 
         </div>
@@ -148,17 +173,29 @@
                     </div>
                 </div>
                 <div class="d-flex flex-column gap-1">
-                    <button type="button" class="btn btn-link subnav-link text-start text-primary fw-bold p-0 border-0 text-decoration-none" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
-                        <i class="bi bi-person-vcard text-primary me-1"></i>
-                        <span>Profil & Cek Tagihan Saya</span>
-                        @if(!empty($receivableStatus['has_debt']))
-                            <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Tempo 3h</span>
-                        @endif
-                    </button>
-                    <a href="#best-deals" class="subnav-link">Best Deals Hari Ini</a>
-                    <a href="#sembako-section" class="subnav-link">Sembako & Bumbu Dapur</a>
-                    <a href="#household-section" class="subnav-link">Sabun & Kebersihan Rumah</a>
-                    <a href="#snack-section" class="subnav-link">Snack & Minuman</a>
+                    @if(!empty($isLoggedIn) && !empty($member))
+                        <button type="button" class="btn btn-link subnav-link text-start text-primary fw-bold p-0 border-0 text-decoration-none" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
+                            <i class="bi bi-person-vcard text-primary me-1"></i>
+                            <span>Profil & Tagihan ({{ $member['name'] }})</span>
+                            @if(!empty($receivableStatus['has_debt']))
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Tempo 3h</span>
+                            @endif
+                        </button>
+                        <a href="{{ route('logout') }}" class="subnav-link text-danger">
+                            <i class="bi bi-box-arrow-right me-1"></i>
+                            <span>Keluar (Logout)</span>
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}" class="subnav-link text-primary fw-bold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                            <span>Masuk Akun Anggota</span>
+                        </a>
+                    @endif
+                    <a href="#allProductsSection" class="subnav-link" onclick="showAllProducts(event)">Semua Produk Koperasi</a>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Sembako & Beras')">Sembako & Beras</a>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Minyak & Bumbu')">Minyak & Bumbu</a>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Sabun & Cuci')">Sabun & Kebersihan</a>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Snack & Biskuit')">Snack & Minuman</a>
                     <a href="#alur-pesan" class="subnav-link">Alur Pickup (Bebas Ongkir)</a>
                     <a href="#faq" class="subnav-link">FAQ & Bantuan</a>
                 </div>
@@ -169,20 +206,19 @@
                 <div class="d-flex align-items-center gap-1">
                     <a href="#allProductsSection" class="subnav-link active" onclick="showAllProducts(event)">
                         <i class="bi bi-grid-fill text-primary" aria-hidden="true"></i>
-                        <span>Semua Kategori</span>
+                        <span>Semua Produk</span>
                     </a>
-                    <a href="#best-deals" class="subnav-link">
-                        <i class="bi bi-fire text-danger" aria-hidden="true"></i>
-                        <span>Best Deals</span>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Sembako & Beras')">
+                        <span>Sembako & Beras</span>
                     </a>
-                    <a href="#sembako-section" class="subnav-link">
-                        <span>Sembako & Dapur</span>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Minyak & Bumbu')">
+                        <span>Minyak & Bumbu</span>
                     </a>
-                    <a href="#household-section" class="subnav-link">
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Sabun & Cuci')">
                         <span>Kebersihan Rumah</span>
                     </a>
-                    <a href="#snack-section" class="subnav-link">
-                        <span>Snack & Minuman</span>
+                    <a href="#allProductsSection" class="subnav-link" onclick="filterStorefrontCategory('Snack & Biskuit')">
+                        <span>Snack & Biskuit</span>
                     </a>
                     <a href="#alur-pesan" class="subnav-link">
                         <i class="bi bi-bag-check text-success" aria-hidden="true"></i>

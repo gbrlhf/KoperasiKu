@@ -31,19 +31,32 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-// // TODO: integrasi langsung dengan auth API backend saat endpoint /api/v1/auth/login siap
 Route::post('/login', function (Request $request) {
     $role = $request->input('role', 'MEMBER');
+    $username = $request->input('username', 'EMP-001');
 
     session([
         'user' => [
-            'id' => 'EMP-001',
-            'name' => 'Ahmad Fauzi',
-            'username' => $request->input('username', 'EMP-001'),
+            'id' => $username === 'EMP-001' ? 'EMP-001' : $username,
+            'name' => $username === 'EMP-001' ? 'Ahmad Fauzi' : 'Anggota Koperasi',
+            'username' => $username,
         ],
         'active_role' => $role,
         'available_roles' => ['MEMBER', 'CASHIER', 'MANAGER'],
     ]);
+
+    if ($request->wantsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil masuk.',
+            'user' => session('user'),
+            'role' => $role,
+        ]);
+    }
+
+    if ($redirectUrl = $request->input('redirect_url')) {
+        return redirect($redirectUrl)->with('success', 'Berhasil masuk.');
+    }
 
     return match ($role) {
         'CASHIER' => redirect()->route('cashier.pos')->with('success', 'Masuk ke Portal Kasir & Stok.'),
@@ -51,6 +64,11 @@ Route::post('/login', function (Request $request) {
         default => redirect()->route('landing')->with('success', 'Masuk sebagai Anggota Koperasi (Ahmad Fauzi). Cek tagihan di menu Profil.'),
     };
 })->name('login.submit');
+
+Route::match(['GET', 'POST'], '/logout', function (Request $request) {
+    session()->forget(['user', 'active_role', 'available_roles']);
+    return redirect()->route('landing')->with('info', 'Anda telah keluar dari akun.');
+})->name('logout');
 
 // Switch Role Context (Memudahkan review UI 3 Halaman Berbeda)
 Route::post('/mock-switch-role', function (Request $request) {

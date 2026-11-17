@@ -1,257 +1,72 @@
 {{-- ==============================================================================
-   storefront-sections.blade.php - Multi-Aisle E-Commerce Sections (Inspirasi e-mox)
-   1. Todays Best Deals For You (5 Kolom Grid)
-   2. Triple Promo Banner Cards
-   3. Bestseller in Grocery (Sembako & Bumbu Dapur - 5 Kolom Grid)
-   4. Fullwidth Cooperative Piutang Banner
-   5. Bestsellers in Household (Sabun & Kebersihan - 5 Kolom Grid)
-   6. Bestsellers in Snacks & Minuman (5 Kolom Grid)
+   storefront-sections.blade.php - Katalog Tunggal Semua Produk KoperasiKu
+   Menggantikan seksi terpisah (Best Deals, Bestseller dll) menjadi satu etalase
+   terpadu dengan tab filter kategori interaktif dan pencarian real-time.
    ============================================================================== --}}
 
-<!-- 1. TODAYS BEST DEALS FOR YOU (5-COLUMN AISLE) -->
-<section id="best-deals" class="py-4 bg-light border-bottom">
+<!-- Anchor aliases untuk backward-compatibility -->
+<div id="best-deals" class="visually-hidden"></div>
+<div id="sembako-section" class="visually-hidden"></div>
+<div id="household-section" class="visually-hidden"></div>
+<div id="snack-section" class="visually-hidden"></div>
+
+<section id="allProductsSection" class="py-4 py-lg-5 bg-light border-bottom">
     <div class="container px-3 px-lg-4">
         
-        <!-- Header Strip -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- Section Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-2">
             <div>
-                <div class="d-flex align-items-center gap-2">
-                    <h3 class="fw-bold text-dark mb-0 fs-5">Todays Best Deals For You!</h3>
-                    <span class="badge bg-danger text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.65rem;">
-                        HOT DEALS
-                    </span>
-                </div>
-                <small class="text-secondary" style="font-size: 0.78rem;">Produk kebutuhan pokok paling banyak dipesan anggota hari ini</small>
-            </div>
-            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
-                <span>Lihat Semua</span>
-                <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </button>
-        </div>
-
-        <!-- 5-Column Product Grid -->
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
-            @foreach($bestDeals as $item)
-                <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    @include('partials.landing.product-card', ['item' => $item])
-                </div>
-            @endforeach
-        </div>
-
-    </div>
-</section>
-
-<!-- 2. TRIPLE PROMO BANNER CARDS (Inspirasi e-mox Page 1 Bottom) -->
-<section class="py-4 bg-white border-bottom">
-    <div class="container px-3 px-lg-4">
-        <div class="row g-3 g-lg-4 row-cols-1 row-cols-md-3">
-            
-            <!-- Tile 1: Sayur Segar (Red / Magenta Gradient) -->
-            <div class="col">
-                <div class="promo-tile" style="background: linear-gradient(135deg, #9f1239 0%, #be123c 100%);">
-                    <div>
-                        <span class="badge bg-white text-danger px-2.5 py-1 fw-bold rounded-pill mb-2" style="font-size: 0.7rem;">
-                            PASOKAN PAGI
-                        </span>
-                        <h4 class="fw-bold mb-1 fs-5">Sayur & Bahan Segar</h4>
-                        <p class="small text-white text-opacity-90 mb-0 lh-sm">
-                            Beras kualitas terjamin dan produk segar mitra petani anggota koperasi.
-                        </p>
-                    </div>
-                    <div class="pt-3">
-                        <a href="#sembako-section" class="btn btn-light btn-sm text-danger fw-bold px-3 py-2">
-                            <span>Cek Produk</span>
-                            <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tile 2: Paket Hemat Sembako (Blue Gradient) -->
-            <div class="col">
-                <div class="promo-tile" style="background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);">
-                    <div>
-                        <span class="badge bg-warning text-dark px-2.5 py-1 fw-bold rounded-pill mb-2" style="font-size: 0.7rem;">
-                            PAKET HEMAT
-                        </span>
-                        <h4 class="fw-bold mb-1 fs-5">Sembako Awal Bulan</h4>
-                        <p class="small text-white text-opacity-90 mb-0 lh-sm">
-                            Beras ramos 5kg + Minyak goreng 2L + Gula kristal harga subsidi anggota.
-                        </p>
-                    </div>
-                    <div class="pt-3">
-                        <a href="#sembako-section" class="btn btn-warning text-dark btn-sm fw-bold px-3 py-2">
-                            <span>Beli Paket</span>
-                            <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tile 3: Bebas Antre Pickup Gerai (Teal / Emerald Gradient) -->
-            <div class="col">
-                <div class="promo-tile" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%);">
-                    <div>
-                        <span class="badge bg-white text-success px-2.5 py-1 fw-bold rounded-pill mb-2" style="font-size: 0.7rem;">
-                            BEBAS ANTRE
-                        </span>
-                        <h4 class="fw-bold mb-1 fs-5">Ambil Cepat di Gerai</h4>
-                        <p class="small text-white text-opacity-90 mb-0 lh-sm">
-                            Pesan online, ambil langsung di kasir Gerai KOPEG Mart Jl. Kanayakan No. A11 Dago.
-                        </p>
-                    </div>
-                    <div class="pt-3">
-                        <a href="#alur-pesan" class="btn btn-light text-success btn-sm fw-bold px-3 py-2">
-                            <span>Alur Pickup</span>
-                            <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-</section>
-
-<!-- 3. BESTSELLER IN GROCERY: SEMBAKO & BUMBU DAPUR (5-COLUMN AISLE) -->
-<section id="sembako-section" class="py-4 bg-light border-bottom">
-    <div class="container px-3 px-lg-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h3 class="fw-bold text-dark mb-0 fs-5">Bestseller In Grocery (Sembako & Bumbu Dapur)</h3>
-                <small class="text-secondary" style="font-size: 0.78rem;">Komoditas pokok keluarga dengan jaminan kualitas dan pasokan stabil</small>
-            </div>
-            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
-                <span>Lihat Semua</span>
-                <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </button>
-        </div>
-
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
-            @foreach($groceryProducts as $item)
-                <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    @include('partials.landing.product-card', ['item' => $item])
-                </div>
-            @endforeach
-        </div>
-
-    </div>
-</section>
-
-<!-- 4. FULLWIDTH COOPERATIVE PROMO BANNER (Inspirasi e-mox Green Banner) -->
-<section class="py-4 bg-white border-bottom">
-    <div class="container px-3 px-lg-4">
-        <div class="promo-fullwidth-banner">
-            <div class="row align-items-center g-4">
-                <div class="col-12 col-lg-8">
-                    <span class="badge bg-warning text-dark fw-bold px-3 py-1.5 rounded-pill mb-3" style="font-size: 0.75rem;">
-                        <i class="bi bi-star-fill me-1"></i> FASILITAS RESMI ANGGOTA KOPEG
-                    </span>
-                    <h3 class="display-6 fw-extrabold text-white mb-2 lh-sm">
-                        Belanja Kebutuhan Keluarga Lebih Tenang, <br class="d-none d-sm-inline">
-                        Bayar Tempo 7 Hari Bunga 0%
-                    </h3>
-                    <p class="text-white text-opacity-90 fs-6 mb-0 pe-lg-4 lh-base">
-                        Khusus anggota terdaftar Koperasi Konsumen Pegawai Polman Bandung. Bebas biaya uang muka, batas jatuh tempo tepat <strong>7 hari kalender</strong> terhitung sejak barang fisik diserahkan di kasir gerai.
-                    </p>
-                </div>
-                <div class="col-12 col-lg-4 text-lg-end">
-                    <div class="d-flex flex-column flex-sm-row flex-lg-column gap-2 justify-content-lg-end">
-                        <button type="button" class="btn btn-warning text-dark fw-bold px-4 py-2.5 shadow-sm d-inline-flex align-items-center justify-content-center" data-bs-toggle="offcanvas" data-bs-target="#cartDrawer">
-                            <i class="bi bi-cart-check-fill me-2"></i>
-                            <span>Buka Keranjang</span>
-                        </button>
-                        <a href="#faq" class="btn btn-outline-light px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center">
-                            <span>Syarat & Ketentuan Piutang</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- 5. BESTSELLERS IN HOUSEHOLD (SABUN & KEBERSIHAN RUMAH TANGGA - 5 KOLOM) -->
-<section id="household-section" class="py-4 bg-light border-bottom">
-    <div class="container px-3 px-lg-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h3 class="fw-bold text-dark mb-0 fs-5">Bestsellers in Household (Sabun & Kebersihan)</h3>
-                <small class="text-secondary" style="font-size: 0.78rem;">Deterjen, sabun cuci, pembersih lantai, dan kebutuhan sanitasi rumah</small>
-            </div>
-            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
-                <span>Lihat Semua</span>
-                <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </button>
-        </div>
-
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
-            @foreach($householdProducts as $item)
-                <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    @include('partials.landing.product-card', ['item' => $item])
-                </div>
-            @endforeach
-        </div>
-
-    </div>
-</section>
-
-<!-- 6. BESTSELLERS IN SNACKS & MINUMAN (5-COLUMN AISLE) -->
-<section id="snack-section" class="py-4 bg-white border-bottom">
-    <div class="container px-3 px-lg-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h3 class="fw-bold text-dark mb-0 fs-5">Bestsellers in Snacks & Minuman Segar</h3>
-                <small class="text-secondary" style="font-size: 0.78rem;">Kopi khas Bandung, biskuit camilan kerja, teh celup, dan olahan produk anggota</small>
-            </div>
-            <button type="button" class="btn btn-link text-primary text-decoration-none fw-semibold small p-0 d-inline-flex align-items-center gap-1" onclick="showAllProducts(event)">
-                <span>Lihat Semua</span>
-                <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
-            </button>
-        </div>
-
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
-            @foreach($snackBeverages as $item)
-                <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
-                    @include('partials.landing.product-card', ['item' => $item])
-                </div>
-            @endforeach
-        </div>
-
-    </div>
-</section>
-
-<!-- 7. KATALOG LENGKAP SEMUA PRODUK KOPERASI (SEMUA 20 KOMODITAS) -->
-<section id="allProductsSection" class="py-5 bg-light border-bottom">
-    <div class="container px-3 px-lg-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div>
-                <div class="d-flex align-items-center gap-2">
-                    <h3 class="fw-extrabold text-dark mb-0 fs-4">Semua Produk & Komoditas Koperasi</h3>
-                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.7rem;">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <h2 class="fw-extrabold text-dark mb-0 fs-4">Semua Produk Koperasi</h2>
+                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
                         {{ count($allProducts ?? $allProductsMap) }} PRODUK TERSEDIA
                     </span>
                 </div>
-                <small class="text-secondary" style="font-size: 0.8rem;">Katalog lengkap sembako, bumbu dapur, perlengkapan rumah tangga, dan aneka camilan anggota</small>
+                <p class="text-secondary small mb-0">
+                    Katalog lengkap komoditas pokok, sembako, bumbu dapur, perlengkapan rumah tangga, dan aneka camilan anggota.
+                </p>
             </div>
+            
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 small fw-semibold">
-                    <i class="bi bi-shop me-1"></i> Pengambilan Gerai Kanayakan A11
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 fw-semibold small rounded-pill">
+                    <i class="bi bi-shop me-1.5"></i> Pickup Gerai Kanayakan A11
                 </span>
             </div>
         </div>
 
-        <!-- 5-Column Grid with all 20 products -->
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid">
+        <!-- Filter Kategori Cepat (Horizontal Pills) -->
+        <div class="category-filter-pills-wrapper mb-4">
+            <div class="d-flex align-items-center gap-2 overflow-x-auto pb-2" id="storefrontCategoryPills" style="scrollbar-width: thin;">
+                <button type="button" class="btn btn-sm btn-primary rounded-pill fw-semibold px-3 category-pill active text-nowrap" onclick="filterByPill(this, '')">
+                    <i class="bi bi-grid-fill me-1"></i> Semua Produk ({{ count($allProducts ?? $allProductsMap) }})
+                </button>
+                @foreach($categories as $cat)
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fw-semibold px-3 bg-white text-dark border category-pill text-nowrap" onclick="filterByPill(this, '{{ addslashes($cat['name']) }}')">
+                        <i class="bi {{ $cat['icon'] }} me-1 text-primary"></i> {{ $cat['name'] }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+
+        <!-- 5-Column Product Grid (Semua 20 Produk Komoditas Koperasi) -->
+        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 storefront-grid" id="mainProductGrid">
             @foreach(($allProducts ?? array_values($allProductsMap)) as $item)
                 <div class="col product-item-col" data-name="{{ strtolower($item['name']) }}" data-category="{{ strtolower($item['category']) }}">
                     @include('partials.landing.product-card', ['item' => $item])
                 </div>
             @endforeach
+        </div>
+
+        <!-- Empty State Jika Filter/Pencarian Nihil -->
+        <div id="noProductsFoundState" class="text-center py-5 d-none">
+            <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle p-4 shadow-xs mb-3" style="width: 80px; height: 80px;">
+                <i class="bi bi-search fs-2 text-muted"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-1">Produk Tidak Ditemukan</h5>
+            <p class="text-secondary small mb-3">Tidak ada produk yang cocok dengan kata kunci atau kategori yang Anda pilih.</p>
+            <button type="button" class="btn btn-primary btn-sm px-4 py-2 rounded-pill fw-semibold" onclick="showAllProducts(event)">
+                <i class="bi bi-arrow-repeat me-1"></i> Tampilkan Semua Produk
+            </button>
         </div>
 
     </div>

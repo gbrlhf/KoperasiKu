@@ -23,6 +23,7 @@
     @include('partials.landing.cart-drawer')
     @include('partials.landing.checkout-modal')
     @include('partials.landing.product-detail-modal')
+    @include('partials.landing.login-required-modal')
     @include('partials.landing.member-profile-drawer')
     @include('partials.landing.mobile-cart-bar')
 
@@ -31,6 +32,8 @@
 @push('scripts')
 <script>
     window.allProducts = @json($allProductsMap ?? []);
+    window.isUserLoggedIn = @json($isLoggedIn ?? false);
+    window.currentUser = @json($member ?? null);
 
     window.copyMemberPickupCode = function (text, btn) {
         navigator.clipboard.writeText(text).then(() => {

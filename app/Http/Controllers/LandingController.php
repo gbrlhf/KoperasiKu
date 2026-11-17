@@ -608,92 +608,102 @@ class LandingController extends Controller
             ],
         ];
 
-        // 9. Profil & Fasilitas Piutang Anggota (Dapat Dilihat di Modal/Drawer Profil)
-        $member = [
-            'id' => 'EMP-001',
-            'name' => 'Ahmad Fauzi',
-            'unit' => 'Teknik Mesin & Manufaktur POLMAN',
-            'join_date' => '12 Maret 2021',
-            'membership_tier' => 'Anggota Aktif',
-            'status' => 'TERVERIFIKASI',
-            'phone' => '0812-8821-9042',
-            'email' => 'ahmad.fauzi@polman-bandung.ac.id',
-            'simpanan_pokok' => 500000,
-            'simpanan_wajib' => 950000,
-            'total_simpanan' => 1450000,
-            'shu_estimasi' => 84500,
-            'poin_belanja' => 420,
-            'monthly_spend' => 420000,
-            'savings_earned' => 46500,
-        ];
+        // 9. Status Autentikasi Pengunjung (Default: Belum Login)
+        $isLoggedIn = session()->has('user');
+        $sessionUser = session('user');
 
-        $receivableStatus = [
-            'has_debt' => true,
-            'total_debt' => 148000,
-            'due_date' => '19 November 2026',
-            'days_remaining' => 3,
-            'is_overdue' => false,
-            'credit_limit' => 1000000,
-            'available_limit' => 852000,
-            'limit_used_percent' => 14.8,
-            'active_invoices' => [
+        $member = null;
+        $receivableStatus = null;
+        $activeOrders = [];
+        $orderHistory = [];
+
+        if ($isLoggedIn) {
+            $member = [
+                'id' => $sessionUser['id'] ?? 'EMP-001',
+                'name' => $sessionUser['name'] ?? 'Ahmad Fauzi',
+                'unit' => 'Teknik Mesin & Manufaktur POLMAN',
+                'join_date' => '12 Maret 2021',
+                'membership_tier' => 'Anggota Aktif',
+                'status' => 'TERVERIFIKASI',
+                'phone' => '0812-8821-9042',
+                'email' => 'ahmad.fauzi@polman-bandung.ac.id',
+                'simpanan_pokok' => 500000,
+                'simpanan_wajib' => 950000,
+                'total_simpanan' => 1450000,
+                'shu_estimasi' => 84500,
+                'poin_belanja' => 420,
+                'monthly_spend' => 420000,
+                'savings_earned' => 46500,
+            ];
+
+            $receivableStatus = [
+                'has_debt' => true,
+                'total_debt' => 148000,
+                'due_date' => '19 November 2026',
+                'days_remaining' => 3,
+                'is_overdue' => false,
+                'credit_limit' => 1000000,
+                'available_limit' => 852000,
+                'limit_used_percent' => 14.8,
+                'active_invoices' => [
+                    [
+                        'invoice_no' => 'INV-2026-1108',
+                        'date' => '12 Nov 2026',
+                        'items_summary' => 'Beras Ramos 5kg, Minyak Goreng 2L',
+                        'amount' => 110500,
+                        'due_date' => '19 Nov 2026',
+                        'status' => 'UNPAID',
+                        'days_left' => 3,
+                    ],
+                    [
+                        'invoice_no' => 'INV-2026-1110',
+                        'date' => '14 Nov 2026',
+                        'items_summary' => 'Gula Pasir 1kg, Kopi Robusta 250gr',
+                        'amount' => 37500,
+                        'due_date' => '21 Nov 2026',
+                        'status' => 'UNPAID',
+                        'days_left' => 5,
+                    ],
+                ],
+            ];
+
+            $activeOrders = [
                 [
-                    'invoice_no' => 'INV-2026-1108',
-                    'date' => '12 Nov 2026',
-                    'items_summary' => 'Beras Ramos 5kg, Minyak Goreng 2L',
-                    'amount' => 110500,
-                    'due_date' => '19 Nov 2026',
-                    'status' => 'UNPAID',
-                    'days_left' => 3,
+                    'pickup_code' => 'PKP-84920',
+                    'order_no' => 'ORD-2026-1116-01',
+                    'date' => '16 Nov 2026 • 09:15 WIB',
+                    'status' => 'READY_FOR_PICKUP',
+                    'status_label' => 'Siap Diambil di Kasir',
+                    'status_step' => 3,
+                    'payment_method' => 'CASH',
+                    'payment_label' => 'Bayar Tunai di Kasir',
+                    'total_amount' => 110500,
+                    'items_count' => 2,
+                    'store_location' => 'Gerai KOPEG Mart Jl. Kanayakan No. A11 Dago',
+                    'store_hours' => 'Senin – Sabtu 07.00 – 18.00 WIB',
+                    'items' => [
+                        ['name' => 'Beras Premium Ramos 5 Kg', 'qty' => 1, 'unit' => 'Sak', 'price' => 74500],
+                        ['name' => 'Minyak Goreng Pouch 2 Liter', 'qty' => 1, 'unit' => 'Pouch', 'price' => 36000],
+                    ],
                 ],
+            ];
+
+            $orderHistory = [
                 [
-                    'invoice_no' => 'INV-2026-1110',
-                    'date' => '14 Nov 2026',
-                    'items_summary' => 'Gula Pasir 1kg, Kopi Robusta 250gr',
-                    'amount' => 37500,
-                    'due_date' => '21 Nov 2026',
-                    'status' => 'UNPAID',
-                    'days_left' => 5,
+                    'pickup_code' => 'PKP-77210',
+                    'order_no' => 'ORD-2026-1105-02',
+                    'date' => '05 Nov 2026 • 14:20 WIB',
+                    'status' => 'COMPLETED',
+                    'status_label' => 'Selesai Diambil',
+                    'payment_method' => 'TEMPO_7_HARI',
+                    'payment_label' => 'Piutang Anggota',
+                    'total_amount' => 87000,
+                    'items_summary' => 'Deterjen Bubuk 800gr, Susu UHT 1L, Telur Ayam 1kg',
+                    'items_count' => 3,
+                    'picked_up_at' => '05 Nov 2026, 16:40 WIB',
                 ],
-            ],
-        ];
-
-        $activeOrders = [
-            [
-                'pickup_code' => 'PKP-84920',
-                'order_no' => 'ORD-2026-1116-01',
-                'date' => '16 Nov 2026 • 09:15 WIB',
-                'status' => 'READY_FOR_PICKUP',
-                'status_label' => 'Siap Diambil di Kasir',
-                'status_step' => 3,
-                'payment_method' => 'CASH',
-                'payment_label' => 'Bayar Tunai di Kasir',
-                'total_amount' => 110500,
-                'items_count' => 2,
-                'store_location' => 'Gerai KOPEG Mart Jl. Kanayakan No. A11 Dago',
-                'store_hours' => 'Senin – Sabtu 07.00 – 18.00 WIB',
-                'items' => [
-                    ['name' => 'Beras Premium Ramos 5 Kg', 'qty' => 1, 'unit' => 'Sak', 'price' => 74500],
-                    ['name' => 'Minyak Goreng Pouch 2 Liter', 'qty' => 1, 'unit' => 'Pouch', 'price' => 36000],
-                ],
-            ],
-        ];
-
-        $orderHistory = [
-            [
-                'pickup_code' => 'PKP-77210',
-                'order_no' => 'ORD-2026-1105-02',
-                'date' => '05 Nov 2026 • 14:20 WIB',
-                'status' => 'COMPLETED',
-                'status_label' => 'Selesai Diambil',
-                'payment_method' => 'TEMPO_7_HARI',
-                'payment_label' => 'Piutang Anggota',
-                'total_amount' => 87000,
-                'items_summary' => 'Deterjen Bubuk 800gr, Susu UHT 1L, Telur Ayam 1kg',
-                'items_count' => 3,
-                'picked_up_at' => '05 Nov 2026, 16:40 WIB',
-            ],
-        ];
+            ];
+        }
 
         // Master lookup map & daftar lengkap semua produk koperasi
         $allProducts = array_merge($bestDeals, $groceryProducts, $householdProducts, $snackBeverages);
@@ -714,6 +724,7 @@ class LandingController extends Controller
             'statistics',
             'faqs',
             'allProductsMap',
+            'isLoggedIn',
             'member',
             'receivableStatus',
             'activeOrders',

@@ -22,7 +22,7 @@
                 <label for="username" class="form-label fw-semibold small text-secondary">Nomor Anggota / ID Karyawan</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0 px-3"><i class="bi bi-person" aria-hidden="true"></i></span>
-                    <input type="text" class="form-control border-start-0 ps-1" id="username" name="username" placeholder="Contoh: EMP-001" required value="EMP-001">
+                    <input type="text" class="form-control border-start-0 ps-1" id="username" name="username" placeholder="Contoh: EMP-001" required value="">
                 </div>
             </div>
 
@@ -35,7 +35,7 @@
                 </div>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0 px-3"><i class="bi bi-lock" aria-hidden="true"></i></span>
-                    <input type="password" class="form-control border-start-0 ps-1" id="password" name="password" placeholder="••••••••" required value="password">
+                    <input type="password" class="form-control border-start-0 ps-1" id="password" name="password" placeholder="••••••••" required value="">
                 </div>
             </div>
 
@@ -49,32 +49,37 @@
                 <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">Peran dapat dialihkan kapan saja via pemilih konteks di navbar atas.</div>
             </div>
 
-            <!-- Demo Quick Presets with generous spacing & clean role badges -->
-            <div class="p-3 rounded-3 bg-light border mb-4 shadow-xs">
+            <!-- Kotak Akun Terakhir yang Pernah Login di Perangkat Ini (Hanya Muncul Jika Pernah Login) -->
+            <div id="rememberedAccountBox" class="p-3 rounded-3 bg-light border mb-4 shadow-xs d-none">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <small class="text-secondary fw-bold text-uppercase d-inline-flex align-items-center gap-1.5" style="font-size: 0.72rem; letter-spacing: 0.04em;">
-                        <i class="bi bi-person-gear text-primary"></i>
-                        <span>Pilih Akun Cepat Pengujian:</span>
+                        <i class="bi bi-clock-history text-primary"></i>
+                        <span>Akun Terakhir di Perangkat Ini:</span>
                     </small>
-                    <span class="badge bg-secondary-subtle text-secondary small" style="font-size: 0.65rem;">Klik untuk Isi</span>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" style="font-size: 0.68rem;" onclick="forgetLoginAccount()">
+                        Hapus
+                    </button>
                 </div>
-                <div class="d-grid d-sm-flex gap-2">
-                    <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-1.5 px-2.5 d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="setRole('EMP-001', 'MEMBER')">
-                        <i class="bi bi-person-fill" aria-hidden="true"></i>
-                        <span class="fw-semibold">Anggota</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-success btn-sm flex-fill py-1.5 px-2.5 d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="setRole('CSH-001', 'CASHIER')">
-                        <i class="bi bi-shop" aria-hidden="true"></i>
-                        <span class="fw-semibold">Kasir</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-sm flex-fill py-1.5 px-2.5 d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="setRole('MGR-001', 'MANAGER')">
-                        <i class="bi bi-briefcase-fill" aria-hidden="true"></i>
-                        <span class="fw-semibold">Manajer</span>
+                <div class="d-flex align-items-center justify-content-between p-2 rounded-2 bg-white border">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0 fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                            AF
+                        </div>
+                        <div class="lh-sm">
+                            <div class="fw-bold text-dark small" id="loginRememberedName">Ahmad Fauzi</div>
+                            <small class="text-muted" style="font-size: 0.7rem;" id="loginRememberedId">EMP-001</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm px-2.5 py-1 fw-semibold" onclick="applyRememberedAccount()">
+                        Gunakan
                     </button>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center">
+            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center" onclick="saveLoginRemembered()">
+                <i class="bi bi-box-arrow-in-right me-2 fs-5" aria-hidden="true"></i>
+                <span>Masuk ke Sistem</span>
+            </button>
                 <i class="bi bi-box-arrow-in-right me-2 fs-5" aria-hidden="true"></i>
                 <span>Masuk ke Sistem</span>
             </button>
@@ -90,9 +95,51 @@
 </div>
 
 <script>
-function setRole(username, role) {
-    document.getElementById('username').value = username;
-    document.getElementById('role').value = role;
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const saved = localStorage.getItem('koperasiku_remembered_member');
+        if (saved) {
+            const member = JSON.parse(saved);
+            const box = document.getElementById('rememberedAccountBox');
+            const nameEl = document.getElementById('loginRememberedName');
+            const idEl = document.getElementById('loginRememberedId');
+            if (box && nameEl && idEl && member.name) {
+                nameEl.textContent = member.name;
+                idEl.textContent = (member.id || 'EMP-001') + ' • Pernah Masuk';
+                box.classList.remove('d-none');
+            }
+        }
+    } catch (e) {}
+});
+
+function applyRememberedAccount() {
+    try {
+        const saved = localStorage.getItem('koperasiku_remembered_member');
+        if (saved) {
+            const member = JSON.parse(saved);
+            document.getElementById('username').value = member.id || 'EMP-001';
+            document.getElementById('password').value = 'password';
+            document.getElementById('role').value = 'MEMBER';
+        }
+    } catch (e) {}
+}
+
+function forgetLoginAccount() {
+    try {
+        localStorage.removeItem('koperasiku_remembered_member');
+        const box = document.getElementById('rememberedAccountBox');
+        if (box) box.classList.add('d-none');
+    } catch (e) {}
+}
+
+function saveLoginRemembered() {
+    const username = document.getElementById('username')?.value || 'EMP-001';
+    try {
+        localStorage.setItem('koperasiku_remembered_member', JSON.stringify({
+            id: username,
+            name: username === 'EMP-001' ? 'Ahmad Fauzi' : username
+        }));
+    } catch (e) {}
 }
 </script>
 @endsection

@@ -34,8 +34,29 @@
 
     <!-- Drawer Body -->
     <div class="offcanvas-body p-3 p-md-4">
-        
-        <!-- 1. KARTU FASILITAS LIMIT BELANJA (1 Kartu Terpadu & Scannable) -->
+        @if(empty($isLoggedIn) || empty($member))
+            <!-- Guest / Not Logged In View -->
+            <div class="text-center py-5">
+                <div class="d-inline-flex p-3 rounded-circle bg-light text-primary mb-3 shadow-xs" style="width: 72px; height: 72px; align-items: center; justify-content: center;">
+                    <i class="bi bi-person-lock" style="font-size: 2.2rem;"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Akses Profil Anggota</h5>
+                <p class="text-secondary small mb-4">
+                    Silakan masuk untuk melihat limit piutang belanja tempo 7 hari, riwayat faktur, dan tiket pengambilan pesanan Anda.
+                </p>
+                <div class="d-flex flex-column gap-2 max-w-xs mx-auto">
+                    <button type="button" class="btn btn-primary py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-2 shadow-xs" onclick="openLoginModalFromProfile()">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Masuk Akun Anggota</span>
+                    </button>
+                    <a href="{{ route('login') }}" class="btn btn-outline-secondary py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Halaman Login Lengkap</span>
+                    </a>
+                </div>
+            </div>
+        @else
+        <!-- 1. KARTU FASILITAS LIMIT BELANJA (1 KartU Terpadu & Scannable) -->
         <div class="card border rounded-3 p-3 mb-3 bg-white shadow-xs">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-secondary fw-bold text-uppercase small" style="font-size: 0.72rem; letter-spacing: 0.04em;">
@@ -216,6 +237,7 @@
             </div>
         </div>
 
+        @endif
     </div>
 
     <!-- Drawer Footer -->
