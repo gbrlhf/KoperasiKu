@@ -11,9 +11,9 @@
     @stack('styles')
 <link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118">
 </head>
-<body class="ui-polished bg-light">
+@php $uiRole = request()->is('cashier*') ? 'CASHIER' : (request()->is('manager*') ? 'MANAGER' : session('active_role', 'MEMBER')); @endphp
+<body class="ui-polished bg-light role-{{ strtolower($uiRole) }}">
 
-    @php $uiRole = request()->is('cashier*') ? 'CASHIER' : (request()->is('manager*') ? 'MANAGER' : session('active_role', 'MEMBER')); @endphp
 <a class="skip-content" href="#main-content">Lewati ke konten</a>
 {{-- Top Navbar --}}
     @include('partials.navbar')

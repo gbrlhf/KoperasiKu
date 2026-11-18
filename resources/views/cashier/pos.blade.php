@@ -216,34 +216,54 @@
 
 @section('content')
 
-<!-- RINGKASAN STATUS STOK GERAI -->
-<div class="row g-2 g-md-3 mb-4">
+<!-- RINGKASAN STATUS STOK GERAI (Tokopedia Seller Stat Cards) -->
+<div class="row g-3 mb-3">
     <div class="col-6 col-md-3">
-        <div class="p-2.5 p-md-3 rounded-2 bg-white border shadow-xs h-100">
-            <small class="text-secondary text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem;">Total SKU Barang</small>
-            <h4 class="fw-extrabold text-dark mb-0 fs-5 fs-md-4">{{ $stockSummary['total_sku'] }} Item</h4>
-            <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;">Komoditas aktif gerai</small>
+        <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-w-0">
+                <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Total SKU Barang</small>
+                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price">{{ $stockSummary['total_sku'] }} Item</h4>
+                <small class="text-muted d-block text-truncate mt-1" style="font-size: 0.7rem;">Komoditas aktif gerai</small>
+            </div>
+            <span class="tokped-stat-icon bg-light text-secondary border">
+                <i class="bi bi-box-seam"></i>
+            </span>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="p-2.5 p-md-3 rounded-2 bg-white border shadow-xs h-100">
-            <small class="text-secondary text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem;">Stok Aman</small>
-            <h4 class="fw-extrabold text-success mb-0 fs-5 fs-md-4">{{ $stockSummary['safe_stock_count'] }} SKU</h4>
-            <small class="text-success d-block text-truncate" style="font-size: 0.7rem;"><i class="bi bi-check-circle me-1"></i>Pasokan cukup</small>
+        <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-w-0">
+                <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Stok Aman</small>
+                <h4 class="fw-bold text-success mb-0 fs-5 tokped-price">{{ $stockSummary['safe_stock_count'] }} SKU</h4>
+                <small class="text-success d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-check-circle-fill me-1"></i>Pasokan cukup</small>
+            </div>
+            <span class="tokped-stat-icon" style="background: #E6F7EF; color: #00AA5B;">
+                <i class="bi bi-check2-all"></i>
+            </span>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="p-2.5 p-md-3 rounded-2 bg-white border shadow-xs h-100">
-            <small class="text-secondary text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem;">Stok Kritis / Menipis</small>
-            <h4 class="fw-extrabold text-danger mb-0 fs-5 fs-md-4">{{ $stockSummary['low_stock_count'] }} SKU</h4>
-            <small class="text-danger d-block text-truncate" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle me-1"></i>Perlu restock</small>
+        <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-w-0">
+                <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Stok Menipis</small>
+                <h4 class="fw-bold text-danger mb-0 fs-5 tokped-price">{{ $stockSummary['low_stock_count'] }} SKU</h4>
+                <small class="text-danger d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill me-1"></i>Perlu restock</small>
+            </div>
+            <span class="tokped-stat-icon" style="background: #FFEAEA; color: #EF144A;">
+                <i class="bi bi-exclamation-circle"></i>
+            </span>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="p-2.5 p-md-3 rounded-2 bg-white border shadow-xs h-100">
-            <small class="text-secondary text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem;">Reservasi Pickup Online</small>
-            <h4 class="fw-extrabold text-primary mb-0 fs-5 fs-md-4">{{ $stockSummary['total_reserved_items'] }} Barang</h4>
-            <small class="text-primary d-block text-truncate" style="font-size: 0.7rem;"><i class="bi bi-bag-check me-1"></i>Menunggu diambil</small>
+        <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-w-0">
+                <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Antrian Pickup</small>
+                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price">{{ $stockSummary['total_reserved_items'] }} Barang</h4>
+                <small class="text-primary d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-bag-check-fill me-1"></i>Siap diserahkan</small>
+            </div>
+            <span class="tokped-stat-icon" style="background: #FFF5E6; color: #FA591D;">
+                <i class="bi bi-bag-check"></i>
+            </span>
         </div>
     </div>
 </div>
@@ -405,33 +425,40 @@
                     </div>
                 </div>
 
-                <!-- Quick Pick Sembako Populer (Grid 8 Item Cepat) -->
+                <!-- Katalog Cepat Kasir (Gaya Kartu Produk Tokopedia) -->
                 <div class="card border-0 shadow-sm bg-white p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2.5">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
                         <div>
-                            <h6 class="fw-bold text-dark mb-0 small"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Pilihan Cepat Sembako (1-Click Tambah)</h6>
-                            <small class="text-muted" style="font-size: 0.72rem;">Klik kartu barang untuk langsung memasukkan ke keranjang kasir</small>
+                            <h6 class="fw-bold text-dark mb-0 small d-flex align-items-center gap-1.5">
+                                <i class="bi bi-grid-fill text-success"></i>
+                                <span>Katalog Cepat Sembako</span>
+                            </h6>
+                            <small class="text-muted" style="font-size: 0.72rem;">Klik produk untuk langsung masuk ke keranjang kasir</small>
                         </div>
-                        <span class="badge bg-light text-secondary border small">Stok Gerai Kanayakan</span>
+                        <div class="input-group input-group-sm" style="max-width: 240px;">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" placeholder="Cari produk cepat..." oninput="const q=this.value.toLowerCase();document.querySelectorAll('.quick-pick-col').forEach(el=>el.classList.toggle('d-none', q && !el.dataset.search.includes(q)));">
+                        </div>
                     </div>
-                    <div class="row g-2">
-                        @foreach(array_slice($stockItems, 0, 8) as $item)
-                            <div class="col-6 col-sm-4 col-md-3">
-                                <div class="p-2.5 rounded-3 bg-light border text-start h-100 d-flex flex-column justify-content-between cursor-pointer quick-pick-card" 
+                    <div class="row g-2.5">
+                        @foreach($stockItems as $item)
+                            <div class="col-6 col-sm-4 col-xl-3 quick-pick-col" data-search="{{ strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['category']) }}">
+                                <div class="tokped-product-card h-100 d-flex flex-column justify-content-between"
                                      onclick="posAddToCart('{{ addslashes($item['name']) }}', {{ $item['sell_price'] }}, '{{ $item['sku'] }}')"
+                                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
                                      role="button" tabindex="0" title="Tambah {{ $item['name'] }}">
                                     <div>
-                                        <div class="d-flex justify-content-between align-items-baseline mb-1">
-                                            <span class="font-monospace text-primary fw-bold" style="font-size: 0.68rem;">{{ $item['sku'] }}</span>
-                                            <span class="badge bg-white text-dark border py-0.5 px-1 font-monospace" style="font-size: 0.62rem;">{{ $item['available'] }} {{ $item['unit'] }}</span>
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.64rem;">{{ $item['sku'] }}</span>
+                                            <span class="small fw-semibold {{ $item['available'] <= 10 ? 'text-danger' : 'text-muted' }}" style="font-size: 0.68rem;">Stok {{ $item['available'] }}</span>
                                         </div>
-                                        <div class="fw-semibold text-dark text-truncate small mb-1" style="font-size: 0.78rem;" title="{{ $item['name'] }}">
+                                        <div class="fw-semibold text-dark mb-2" style="font-size: 0.8rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.15rem;">
                                             {{ $item['name'] }}
                                         </div>
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary-subtle">
-                                        <span class="fw-bold text-dark font-monospace" style="font-size: 0.75rem;">Rp {{ number_format($item['sell_price'], 0, ',', '.') }}</span>
-                                        <span class="badge bg-success text-white rounded-circle p-1" style="font-size: 0.6rem;"><i class="bi bi-plus"></i></span>
+                                    <div class="pt-2 border-top d-flex justify-content-between align-items-center gap-1">
+                                        <span class="fw-bold tokped-price" style="font-size: 0.84rem;">Rp{{ number_format($item['sell_price'], 0, ',', '.') }}</span>
+                                        <span class="btn btn-outline-success btn-sm py-0 px-2 tokped-add-btn" style="min-height: 26px; font-size: 0.72rem; border-radius: 6px;">+</span>
                                     </div>
                                 </div>
                             </div>
@@ -448,23 +475,23 @@
                             <i class="bi bi-receipt text-primary"></i>
                             <span>Keranjang Meja Kasir</span>
                         </span>
-                        <div class="d-flex align-items-center gap-1">
+                        <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
                             <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">#POS-9421</span>
-                            <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1.5" style="font-size: 0.68rem;" onclick="clearPosCart()" title="Kosongkan Keranjang Kasir">
+                            <button type="button" class="btn btn-outline-danger btn-sm pos-btn-compact" onclick="clearPosCart()" title="Kosongkan Keranjang Kasir">
                                 Reset
                             </button>
                         </div>
                     </h6>
 
                     <!-- Dynamic Cart Item List -->
-                    <div id="posCartList" class="mb-3" style="min-height: 120px; max-height: 240px; overflow-y: auto;">
+                    <div id="posCartList" class="mb-3" style="min-height: 120px; max-height: 280px; overflow-y: auto; scrollbar-width: thin;">
                         <!-- Injected via JavaScript renderPosCart() -->
                     </div>
 
                     <div class="border-top pt-2.5 mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="text-secondary small fw-semibold">Total Tagihan Kasir:</span>
-                            <span class="fs-4 fw-extrabold text-primary font-monospace" id="posTotalDisplay">Rp 0</span>
+                            <span class="fs-4 fw-bold text-primary tokped-price" id="posTotalDisplay">Rp 0</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
                             <span id="posItemsCountDisplay">0 item</span>
@@ -487,12 +514,12 @@
                                 <span class="input-group-text bg-light small">Diterima Rp</span>
                                 <input type="number" class="form-control fw-bold font-monospace" id="posCashReceived" value="120000" oninput="calculatePosChange()">
                             </div>
-                            <div class="d-flex gap-1 mb-2">
-                                <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" onclick="setExactCash()">Uang Pas</button>
-                                <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" onclick="setCashAmount(50000)">Rp 50k</button>
-                                <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" onclick="setCashAmount(100000)">Rp 100k</button>
-                                <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" onclick="setCashAmount(150000)">Rp 150k</button>
-                                <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" onclick="setCashAmount(200000)">Rp 200k</button>
+                            <div class="d-flex gap-1.5 flex-wrap mb-2">
+                                <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setExactCash()">Uang Pas</button>
+                                <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(50000)">Rp 50k</button>
+                                <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(100000)">Rp 100k</button>
+                                <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(150000)">Rp 150k</button>
+                                <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(200000)">Rp 200k</button>
                             </div>
                             <div class="d-flex justify-content-between align-items-center p-2 rounded-2 bg-light border small">
                                 <span class="text-secondary fw-semibold">Uang Kembalian:</span>
@@ -1529,22 +1556,22 @@ function renderPosCart() {
         totalItems += item.qty;
 
         html += `
-            <div class="d-flex justify-content-between align-items-center py-2 border-bottom small">
-                <div class="lh-sm pe-2">
-                    <span class="fw-semibold text-dark d-block">${item.name}</span>
-                    <small class="text-muted font-monospace">${item.sku} &bull; Rp ${item.price.toLocaleString('id-ID')}</small>
+            <div class="d-flex justify-content-between align-items-center gap-2 py-2.5 border-bottom small">
+                <div class="lh-sm min-w-0 flex-grow-1">
+                    <span class="fw-semibold text-dark d-block text-truncate" title="${item.name}">${item.name}</span>
+                    <small class="text-muted tokped-price" style="font-size: 0.72rem;">${item.sku} &bull; Rp ${item.price.toLocaleString('id-ID')}</small>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="input-group input-group-sm" style="width: 82px;">
-                        <button type="button" class="btn btn-outline-secondary px-1.5 py-0" onclick="updatePosQty(${index}, -1)">-</button>
-                        <span class="input-group-text bg-white px-2 py-0 fw-bold">${item.qty}</span>
-                        <button type="button" class="btn btn-outline-secondary px-1.5 py-0" onclick="updatePosQty(${index}, 1)">+</button>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <div class="pos-qty-stepper">
+                        <button type="button" onclick="updatePosQty(${index}, -1)" aria-label="Kurangi jumlah">&minus;</button>
+                        <span>${item.qty}</span>
+                        <button type="button" onclick="updatePosQty(${index}, 1)" aria-label="Tambah jumlah">+</button>
                     </div>
-                    <span class="fw-bold text-dark font-monospace" style="min-width: 70px; text-align: right;">
+                    <span class="fw-bold text-dark tokped-price text-end text-nowrap" style="min-width: 84px; font-size: 0.82rem;">
                         Rp ${subtotal.toLocaleString('id-ID')}
                     </span>
-                    <button type="button" class="btn btn-link text-danger p-0 ms-1" onclick="removePosItem(${index})" title="Hapus">
-                        <i class="bi bi-trash"></i>
+                    <button type="button" class="btn btn-link pos-trash-btn d-inline-flex align-items-center justify-content-center" onclick="removePosItem(${index})" title="Hapus" aria-label="Hapus item">
+                        <i class="bi bi-trash3"></i>
                     </button>
                 </div>
             </div>

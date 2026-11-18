@@ -120,4 +120,57 @@
  .manager-v2 .md{padding:10px}
  .manager-v2 .ts{bottom:92px}
 }
+/* Tokopedia-Inspired Clean Cashier Dashboard Theme */
+.ui-polished.role-cashier{
+ --bs-primary:#00AA5B;--bs-primary-rgb:0,170,91;
+ --bs-success:#00AA5B;--bs-success-rgb:0,170,91;
+ --bs-link-color:#00AA5B;--bs-link-hover-color:#00944F;
+ --bs-body-color:#212121;--bs-border-color:#E5E7E9;
+ --tokped-green:#00AA5B;--tokped-green-hover:#00944F;--tokped-green-soft:#E6F7EF;--tokped-green-border:#B5E8CF;
+ --tokped-ink:#212121;--tokped-muted:#6D7588;--tokped-bg:#F0F3F7;--tokped-line:#E5E7E9;
+ background:var(--tokped-bg)!important;color:var(--tokped-ink);
+}
+.ui-polished.role-cashier .text-dark{color:var(--tokped-ink)!important}
+.ui-polished.role-cashier .text-secondary,.ui-polished.role-cashier .text-muted{color:var(--tokped-muted)!important}
+.ui-polished.role-cashier .text-primary,.ui-polished.role-cashier .text-success{color:var(--tokped-green)!important}
+.ui-polished.role-cashier>.navbar{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;box-shadow:0 1px 6px rgba(49,53,59,.06)!important;padding-block:10px!important}
+.ui-polished.role-cashier>.navbar .bg-primary{background:var(--tokped-green)!important;border-radius:10px!important}
+.ui-polished.role-cashier .sidebar{background:#fff!important;border-right:1px solid var(--tokped-line)!important;padding:18px 12px!important;width:236px!important;flex:0 0 236px!important}
+.ui-polished.role-cashier .sidebar .nav-link{color:#4B5563!important;border-radius:8px!important;padding:10px 12px!important;font-size:.84rem!important;font-weight:500!important;border-left:3px solid transparent!important;margin-bottom:4px!important}
+.ui-polished.role-cashier .sidebar .nav-link:hover:not(.active){background:#F5F7F9!important;color:var(--tokped-ink)!important}
+.ui-polished.role-cashier .sidebar .nav-link.active{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;font-weight:700!important;border-left:3px solid var(--tokped-green)!important;box-shadow:none!important}
+.ui-polished.role-cashier .main-content{background:transparent!important;border:none!important;box-shadow:none!important;padding:20px 24px!important;width:calc(100% - 236px)!important}
+.ui-polished.role-cashier .card{border:1px solid var(--tokped-line)!important;border-radius:12px!important;box-shadow:0 1px 4px rgba(49,53,59,.06)!important;background:#fff}
+.ui-polished.role-cashier .card-header{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;border-radius:12px 12px 0 0!important}
+.ui-polished.role-cashier .btn-primary,.ui-polished.role-cashier .btn-success{--bs-btn-bg:#00AA5B;--bs-btn-border-color:#00AA5B;--bs-btn-hover-bg:#00944F;--bs-btn-hover-border-color:#00944F;--bs-btn-active-bg:#008245;box-shadow:none!important;border-radius:8px!important;font-weight:700}
+.ui-polished.role-cashier .btn-outline-primary,.ui-polished.role-cashier .btn-outline-success{--bs-btn-color:#00AA5B;--bs-btn-border-color:#00AA5B;--bs-btn-hover-bg:#00AA5B;--bs-btn-hover-border-color:#00AA5B;--bs-btn-active-bg:#00944F;border-radius:8px!important;font-weight:600}
+.ui-polished.role-cashier .form-control,.ui-polished.role-cashier .form-select{border-color:#D6DCE3;border-radius:8px;min-height:40px;color:var(--tokped-ink)}
+.ui-polished.role-cashier .form-control:focus,.ui-polished.role-cashier .form-select:focus{border-color:var(--tokped-green)!important;box-shadow:0 0 0 3px rgba(0,170,91,.14)!important}
+.ui-polished.role-cashier .input-group-text{background:#F8F9FA;border-color:#D6DCE3;color:var(--tokped-muted)}
+.ui-polished.role-cashier #cashierTab{background:#fff;border:1px solid var(--tokped-line);border-radius:12px;padding:0 16px!important;gap:24px!important;border-bottom:1px solid var(--tokped-line)!important;box-shadow:0 1px 3px rgba(49,53,59,.04)}
+.ui-polished.role-cashier #cashierTab .nav-link{background:transparent!important;color:var(--tokped-muted)!important;border-radius:0!important;border-bottom:3px solid transparent;padding:14px 4px!important;min-height:auto!important;box-shadow:none!important;font-weight:600;font-size:.88rem}
+.ui-polished.role-cashier #cashierTab .nav-link:hover{color:var(--tokped-ink)!important}
+.ui-polished.role-cashier #cashierTab .nav-link.active{color:var(--tokped-green)!important;border-bottom-color:var(--tokped-green)!important;font-weight:700}
+.ui-polished.role-cashier .tokped-stat-card{background:#fff;border:1px solid var(--tokped-line);border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(49,53,59,.05);transition:border-color .15s ease}
+.ui-polished.role-cashier .tokped-stat-card:hover{border-color:var(--tokped-green-border)}
+.ui-polished.role-cashier .tokped-stat-icon{width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.ui-polished.role-cashier .tokped-product-card{background:#fff;border:1px solid var(--tokped-line);border-radius:10px;padding:12px;transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;cursor:pointer}
+.ui-polished.role-cashier .tokped-product-card:hover{transform:translateY(-2px);border-color:var(--tokped-green)!important;box-shadow:0 6px 16px rgba(0,170,91,.12)!important}
+.ui-polished.role-cashier .tokped-product-card:hover .tokped-add-btn{background:var(--tokped-green)!important;color:#fff!important;border-color:var(--tokped-green)!important}
+.ui-polished.role-cashier .tokped-price{font-variant-numeric:tabular-nums;color:var(--tokped-ink)}
+.ui-polished.role-cashier .table th{background:#F8F9FA!important;color:var(--tokped-muted)!important;font-weight:700;text-transform:uppercase;font-size:.72rem;border-bottom:1px solid var(--tokped-line)}
+.ui-polished.role-cashier .table td{border-color:var(--tokped-line);font-variant-numeric:tabular-nums}
+.ui-polished.role-cashier .badge.bg-primary-subtle{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;border-color:var(--tokped-green-border)!important}
+.ui-polished.role-cashier .pos-btn-compact{min-height:28px!important;padding:3px 10px!important;font-size:.74rem!important;border-radius:6px!important}
+.ui-polished.role-cashier .pos-qty-stepper{display:inline-flex;align-items:center;flex-wrap:nowrap;border:1px solid #D6DCE3;border-radius:8px;overflow:hidden;background:#fff;height:30px;flex-shrink:0}
+.ui-polished.role-cashier .pos-qty-stepper button{border:none!important;background:transparent;color:#00AA5B;min-height:28px!important;width:28px;height:28px;padding:0!important;font-weight:700;font-size:.95rem;line-height:1;border-radius:0!important}
+.ui-polished.role-cashier .pos-qty-stepper button:hover{background:#E6F7EF}
+.ui-polished.role-cashier .pos-qty-stepper span{min-width:28px;padding:0 6px;text-align:center;font-weight:700;font-size:.8rem;color:#212121;font-variant-numeric:tabular-nums;border-left:1px solid #E5E7E9;border-right:1px solid #E5E7E9;line-height:28px}
+.ui-polished.role-cashier .pos-trash-btn{min-height:28px!important;width:28px;height:28px;padding:0!important;border-radius:6px!important;color:#9CA3AF!important;flex-shrink:0}
+.ui-polished.role-cashier .pos-trash-btn:hover{color:#EF144A!important;background:#FFEAEA!important}
+@media(max-width:767px){
+ .ui-polished.role-cashier .main-content{padding:14px 10px!important;width:100%!important}
+ .ui-polished.role-cashier #cashierTab{display:flex!important;padding:0 10px!important;gap:14px!important}
+ .ui-polished.role-cashier #cashierTab .nav-link{width:auto!important;white-space:nowrap!important;padding:12px 2px!important}
+}
 @media(prefers-reduced-motion:reduce){.ui-polished *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
