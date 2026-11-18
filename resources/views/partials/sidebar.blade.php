@@ -2,12 +2,13 @@
     $currentRole = $uiRole ?? session('active_role', 'MEMBER');
 @endphp
 
-<div class="sidebar p-3 d-none d-md-block sidebar-{{ strtolower($currentRole) }}">
+<aside class="sidebar p-0 d-none d-md-block sidebar-{{ strtolower($currentRole) }}" aria-label="Navigasi Portal">
+    <div class="sidebar-sticky-inner position-sticky p-3" style="top: 80px; max-height: calc(100vh - 96px); overflow-y: auto; scrollbar-width: thin;">
     <div class="mb-3 px-2">
         <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
             Portal {{ match($currentRole) {
                 'CASHIER' => 'Petugas Kasir',
-                'MANAGER' => 'Manajer Eksekutif',
+                'MANAGER' => 'Manajer',
                 default => 'Pelanggan / Anggota',
             } }}
         </small>
@@ -41,7 +42,7 @@
             </li>
         @elseif($currentRole === 'CASHIER')
             <li class="nav-item">
-                <a href="{{ route('cashier.pos') }}" class="nav-link {{ (request()->routeIs('cashier.pos') || (request()->routeIs('cashier.index') && !request()->routeIs('cashier.stok') && !request()->routeIs('cashier.antrian'))) ? 'active' : '' }}">
+                <a href="{{ route('cashier.pos') }}" class="nav-link {{ (request()->routeIs('cashier.pos') || request()->routeIs('cashier.index')) ? 'active' : '' }}">
                     <i class="bi bi-upc-scan fs-5 me-1"></i>
                     <span>POS Kasir Langsung</span>
                 </a>
@@ -66,52 +67,42 @@
             </li>
         @elseif($currentRole === 'MANAGER')
             <li class="nav-item">
-                <a href="{{ route('manager.dashboard') }}" class="nav-link {{ request()->routeIs('manager.dashboard') || request()->routeIs('manager.index') ? 'active' : '' }}">
+                <a href="{{ route('manager.dashboard') }}" data-mgr-page="home" class="nav-link {{ request()->routeIs('manager.dashboard') || request()->routeIs('manager.index') ? 'active' : '' }}">
                     <i class="bi bi-speedometer2 fs-5 me-1"></i>
-                    <span>Dashboard Eksekutif</span>
+                    <span>Beranda &amp; Ringkasan</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ route('manager.piutang') }}" class="nav-link {{ request()->routeIs('manager.piutang') ? 'active' : '' }}">
+                <a href="{{ route('manager.transaksi') }}" data-mgr-page="ops" class="nav-link {{ request()->routeIs('manager.transaksi') ? 'active' : '' }}">
+                    <i class="bi bi-receipt fs-5 me-1"></i>
+                    <span>Transaksi &amp; Operasional</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ route('manager.piutang') }}" data-mgr-page="ar" class="nav-link {{ request()->routeIs('manager.piutang') || request()->routeIs('manager.kredit') ? 'active' : '' }}">
+                    <i class="bi bi-wallet2 fs-5 me-1"></i>
+                    <span>Piutang &amp; Kebijakan Kredit</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ route('manager.produk') }}" data-mgr-page="data" class="nav-link {{ request()->routeIs('manager.produk') || request()->routeIs('manager.import') ? 'active' : '' }}">
+                    <i class="bi bi-boxes fs-5 me-1"></i>
+                    <span>Master Data &amp; Stok</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ route('manager.laporan') }}" data-mgr-page="rep" class="nav-link {{ request()->routeIs('manager.laporan') ? 'active' : '' }}">
                     <i class="bi bi-graph-up-arrow fs-5 me-1"></i>
-                    <span>Monitoring Risiko Piutang</span>
+                    <span>Laporan &amp; Analitik</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ route('manager.kredit') }}" class="nav-link {{ request()->routeIs('manager.kredit') ? 'active' : '' }}">
-                    <i class="bi bi-sliders fs-5 me-1"></i>
-                    <span>Kebijakan Limit Kredit</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('manager.produk') }}" class="nav-link {{ request()->routeIs('manager.produk') ? 'active' : '' }}">
-                    <i class="bi bi-tags fs-5 me-1"></i>
-                    <span>Master Produk & HPP</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('manager.import') }}" class="nav-link {{ request()->routeIs('manager.import') ? 'active' : '' }}">
-                    <i class="bi bi-file-earmark-spreadsheet fs-5 me-1"></i>
-                    <span>Impor Data Excel/CSV</span>
+                <a href="{{ route('manager.sistem') }}" data-mgr-page="sys" class="nav-link {{ request()->routeIs('manager.sistem') ? 'active' : '' }}">
+                    <i class="bi bi-gear fs-5 me-1"></i>
+                    <span>Sistem &amp; Pengaturan</span>
                 </a>
             </li>
         @endif
     </ul>
-
-    <!-- Quick role badge reminder in sidebar -->
-    <div class="mt-4 pt-3 border-top px-2">
-        <div class="p-3 rounded-3 bg-light border">
-            <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-secondary-subtle text-secondary small">Konteks Aktif</span>
-            </div>
-            <div class="small fw-bold text-dark">
-                {{ match($currentRole) {
-                    'CASHIER' => 'Kasir / Petugas (CASHIER)',
-                    'MANAGER' => 'Manajer (MANAGER)',
-                    default => 'Pelanggan / Anggota (MEMBER)',
-                } }}
-            </div>
-            <p class="text-muted mb-0 mt-1" style="font-size: 0.72rem;">Ganti halaman via menu di pojok kanan atas.</p>
-        </div>
     </div>
-</div>
+</aside>

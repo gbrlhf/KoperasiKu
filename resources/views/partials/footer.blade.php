@@ -1,5 +1,5 @@
-<footer class="footer bg-white border-top py-3 mt-auto">
-    <div class="container-fluid px-3 px-lg-4 d-flex flex-column flex-sm-row justify-content-between align-items-center text-muted small">
+<footer class="footer bg-white border-top py-3 mt-auto position-static flex-shrink-0 w-100" style="position: static !important;">
+    <div class="container-fluid w-100 px-3 px-lg-4 d-flex flex-column flex-sm-row justify-content-between align-items-center text-muted small">
         <div>
             &copy; {{ date('Y') }} <span class="fw-semibold text-dark">{{ config('koperasi.brand_name', 'KoperasiKu') }}</span> &bull; {{ config('koperasi.full_name', 'Koperasi Konsumen Pegawai Polman Bandung') }}.
         </div>

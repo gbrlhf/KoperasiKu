@@ -29,14 +29,17 @@
 .ui-polished:not(.manager-v2)>.navbar .btn-outline-light{color:#1b2150;border-color:#eceefa;background:#f7f8ff}
 .ui-polished:not(.manager-v2)>.navbar .btn-dark{background:#eef0ff;border-color:#e0e4ff;color:#1b2150}
 .ui-polished:not(.manager-v2)>.navbar .navbar-toggler-icon{filter:brightness(.35)}
-.ui-polished:not(.manager-v2) .sidebar{position:sticky!important;top:56px!important;height:calc(100vh - 56px)!important;max-height:calc(100vh - 56px)!important;overflow-y:auto!important;align-self:flex-start!important;scrollbar-width:thin;background:#fff;border-right:1px solid #e2e8f0;padding:20px 12px!important;width:230px;flex:0 0 230px;z-index:100}
-.ui-polished:not(.manager-v2) .sidebar .nav-link{display:flex;flex-direction:row;align-items:center;gap:10px;text-align:left;font-size:13px;font-weight:500;padding:11px 12px;margin-bottom:6px;border-radius:10px;color:#475569;min-height:42px;transition:all .15s ease}
+html{scroll-behavior:smooth}
+html,body{overflow-x:clip}
+.ui-polished:not(.manager-v2) .sidebar{position:static!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;align-self:stretch!important;background:#fff;border-right:1px solid #e2e8f0;padding:0!important;width:230px;flex:0 0 230px;z-index:100}
+.ui-polished:not(.manager-v2) .sidebar .sidebar-sticky-inner{position:sticky!important;top:80px!important;max-height:calc(100vh - 96px)!important;overflow-y:auto!important;scrollbar-width:thin}
+.ui-polished:not(.manager-v2) .sidebar .nav-link{display:flex;flex-direction:row;align-items:center;gap:10px;text-align:left;font-size:13px;font-weight:500;padding:11px 12px;margin-bottom:6px;border-radius:10px;color:#475569;min-height:42px;transition:background-color 180ms ease,color 180ms ease,transform 150ms ease}
 .ui-polished:not(.manager-v2) .sidebar .nav-link i{margin:0!important;font-size:18px!important;flex-shrink:0}
 .ui-polished:not(.manager-v2) .sidebar .nav-link:hover:not(.active){background:#f1f5f9;color:#0f172a}
 .ui-polished:not(.manager-v2) .sidebar .nav-link.active{background:#198754!important;color:#fff!important;box-shadow:0 4px 12px rgba(25,135,84,.22)}
 .ui-polished:not(.manager-v2) .sidebar-manager .nav-link.active{background:#dc3545!important;color:#fff!important;box-shadow:0 4px 12px rgba(220,53,69,.22)}
 .ui-polished:not(.manager-v2) .sidebar-member .nav-link.active{background:#4353e8!important;color:#fff!important;box-shadow:0 4px 12px rgba(67,83,232,.22)}
-.ui-polished:not(.manager-v2) .main-content{background:#f8fafc;border:none;border-radius:0;margin:0;padding:24px 28px!important;min-height:calc(100vh - 56px);width:calc(100% - 230px);max-width:none}
+.ui-polished:not(.manager-v2) .main-content{background:#f8fafc;border:none;border-radius:0;margin:0;padding:24px 28px!important;min-height:0;width:calc(100% - 230px);max-width:none}
 .ui-polished:not(.manager-v2) .dropdown-menu{border:1px solid #eceefa;border-radius:16px;padding:8px;box-shadow:0 12px 35px #1b21501a}
 .ui-polished:not(.manager-v2) .dropdown-item{border-radius:9px;padding:10px 12px}
 .ui-polished:not(.manager-v2) .modal-content,.ui-polished:not(.manager-v2) .offcanvas{border-color:#eceefa;box-shadow:0 20px 70px #1b215021}
@@ -54,7 +57,7 @@
 .ui-polished.landing-page .product-thumbnail-box{background:#f7f8ff;border-radius:20px 20px 0 0}
 .ui-polished.landing-page .product-card:hover{border-color:#b7bfff!important;box-shadow:0 10px 28px #4353e81a!important}
 .ui-polished.landing-page .subnav-link.active{color:#4353e8;background:#eef0ff;border-radius:10px}
-@media(min-width:1600px){.ui-polished:not(.manager-v2)>.container-fluid{max-width:1600px}}
+.ui-polished:not(.manager-v2)>.container-fluid,.ui-polished .navbar>.container-fluid,.ui-polished .footer>.container-fluid{max-width:none!important;width:100%!important;margin-inline:0!important}
 @media(max-width:767px){
  .ui-polished:not(.manager-v2) .main-content{margin:12px 8px;border-radius:20px;padding:18px 12px!important}
  .ui-polished:not(.manager-v2)>.navbar{padding-block:10px!important}
@@ -71,10 +74,11 @@
 .ui-polished .table th{font-size:.75rem;letter-spacing:.025em;padding:14px 12px;background:#f7f8ff;white-space:nowrap}
 .ui-polished .table td{padding:13px 12px;vertical-align:middle}
 .ui-polished .table-responsive,.ui-polished .tw{overscroll-behavior-x:contain;max-width:100%;overflow-x:auto}
-.ui-polished .main-content{flex:1 1 0%;min-width:0;max-width:1800px;margin-inline:auto}
+.ui-polished .main-content{flex:1 1 0%;min-width:0;max-width:none;margin-inline:0}
 .ui-polished .main-content .badge{white-space:normal;line-height:1.4}
 .ui-polished .main-content .d-flex>*{min-width:0}
-.ui-polished .sidebar{position:sticky!important;top:56px!important;height:calc(100vh - 56px)!important;max-height:calc(100vh - 56px)!important;overflow-y:auto!important;align-self:flex-start!important;scrollbar-width:thin;width:230px;flex:0 0 230px}
+.ui-polished .sidebar{position:static!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;align-self:stretch!important;width:230px;flex:0 0 230px}
+.ui-polished .sidebar .sidebar-sticky-inner{position:sticky!important;top:80px!important;max-height:calc(100vh - 96px)!important;overflow-y:auto!important;scrollbar-width:thin}
 .ui-polished .sidebar .nav-link{min-height:42px;line-height:1.45}
 .pos-receipt-sticky{position:sticky;top:76px;z-index:10}
 .ui-polished .modal-content{border-radius:18px}
@@ -120,47 +124,48 @@
  .manager-v2 .md{padding:10px}
  .manager-v2 .ts{bottom:92px}
 }
-/* Tokopedia-Inspired Clean Cashier Dashboard Theme */
-.ui-polished.role-cashier{
- --bs-primary:#00AA5B;--bs-primary-rgb:0,170,91;
- --bs-success:#00AA5B;--bs-success-rgb:0,170,91;
- --bs-link-color:#00AA5B;--bs-link-hover-color:#00944F;
+/* Tokopedia-Inspired Clean Cashier & Manager Dashboard Theme (Emerald Green) */
+.ui-polished.role-cashier,.ui-polished.role-manager{
+ --bs-primary:#059669;--bs-primary-rgb:5,150,105;
+ --bs-success:#10b981;--bs-success-rgb:16,185,129;
+ --bs-link-color:#059669;--bs-link-hover-color:#047857;
  --bs-body-color:#212121;--bs-border-color:#E5E7E9;
- --tokped-green:#00AA5B;--tokped-green-hover:#00944F;--tokped-green-soft:#E6F7EF;--tokped-green-border:#B5E8CF;
+ --tokped-green:#059669;--tokped-green-hover:#047857;--tokped-green-soft:#ecfdf5;--tokped-green-border:#a7f3d0;
  --tokped-ink:#212121;--tokped-muted:#6D7588;--tokped-bg:#F0F3F7;--tokped-line:#E5E7E9;
  background:var(--tokped-bg)!important;color:var(--tokped-ink);
 }
-.ui-polished.role-cashier .text-dark{color:var(--tokped-ink)!important}
-.ui-polished.role-cashier .text-secondary,.ui-polished.role-cashier .text-muted{color:var(--tokped-muted)!important}
-.ui-polished.role-cashier .text-primary,.ui-polished.role-cashier .text-success{color:var(--tokped-green)!important}
-.ui-polished.role-cashier>.navbar{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;box-shadow:0 1px 6px rgba(49,53,59,.06)!important;padding-block:10px!important}
-.ui-polished.role-cashier>.navbar .bg-primary{background:var(--tokped-green)!important;border-radius:10px!important}
-.ui-polished.role-cashier .sidebar{background:#fff!important;border-right:1px solid var(--tokped-line)!important;padding:18px 12px!important;width:236px!important;flex:0 0 236px!important}
-.ui-polished.role-cashier .sidebar .nav-link{color:#4B5563!important;border-radius:8px!important;padding:10px 12px!important;font-size:.84rem!important;font-weight:500!important;border-left:3px solid transparent!important;margin-bottom:4px!important}
-.ui-polished.role-cashier .sidebar .nav-link:hover:not(.active){background:#F5F7F9!important;color:var(--tokped-ink)!important}
-.ui-polished.role-cashier .sidebar .nav-link.active{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;font-weight:700!important;border-left:3px solid var(--tokped-green)!important;box-shadow:none!important}
-.ui-polished.role-cashier .main-content{background:transparent!important;border:none!important;box-shadow:none!important;padding:20px 24px!important;width:calc(100% - 236px)!important}
-.ui-polished.role-cashier .card{border:1px solid var(--tokped-line)!important;border-radius:12px!important;box-shadow:0 1px 4px rgba(49,53,59,.06)!important;background:#fff}
-.ui-polished.role-cashier .card-header{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;border-radius:12px 12px 0 0!important}
-.ui-polished.role-cashier .btn-primary,.ui-polished.role-cashier .btn-success{--bs-btn-bg:#00AA5B;--bs-btn-border-color:#00AA5B;--bs-btn-hover-bg:#00944F;--bs-btn-hover-border-color:#00944F;--bs-btn-active-bg:#008245;box-shadow:none!important;border-radius:8px!important;font-weight:700}
-.ui-polished.role-cashier .btn-outline-primary,.ui-polished.role-cashier .btn-outline-success{--bs-btn-color:#00AA5B;--bs-btn-border-color:#00AA5B;--bs-btn-hover-bg:#00AA5B;--bs-btn-hover-border-color:#00AA5B;--bs-btn-active-bg:#00944F;border-radius:8px!important;font-weight:600}
-.ui-polished.role-cashier .form-control,.ui-polished.role-cashier .form-select{border-color:#D6DCE3;border-radius:8px;min-height:40px;color:var(--tokped-ink)}
-.ui-polished.role-cashier .form-control:focus,.ui-polished.role-cashier .form-select:focus{border-color:var(--tokped-green)!important;box-shadow:0 0 0 3px rgba(0,170,91,.14)!important}
-.ui-polished.role-cashier .input-group-text{background:#F8F9FA;border-color:#D6DCE3;color:var(--tokped-muted)}
+.ui-polished.role-cashier .text-dark,.ui-polished.role-manager .text-dark{color:var(--tokped-ink)!important}
+.ui-polished.role-cashier .text-secondary,.ui-polished.role-cashier .text-muted,.ui-polished.role-manager .text-secondary,.ui-polished.role-manager .text-muted{color:var(--tokped-muted)!important}
+.ui-polished.role-cashier .text-primary,.ui-polished.role-cashier .text-success,.ui-polished.role-manager .text-primary,.ui-polished.role-manager .text-success{color:var(--tokped-green)!important}
+.ui-polished.role-cashier>.navbar,.ui-polished.role-manager>.navbar{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;box-shadow:0 1px 6px rgba(49,53,59,.06)!important;padding-block:10px!important}
+.ui-polished.role-cashier>.navbar .bg-primary,.ui-polished.role-manager>.navbar .bg-primary{background:#10b981!important;border-radius:10px!important}
+.ui-polished.role-cashier .sidebar,.ui-polished.role-manager .sidebar{background:#fff!important;border-right:1px solid var(--tokped-line)!important;padding:0!important;margin:0!important;width:246px!important;flex:0 0 246px!important}
+.ui-polished.role-cashier .sidebar .sidebar-sticky-inner,.ui-polished.role-manager .sidebar .sidebar-sticky-inner{padding:18px 12px!important}
+.ui-polished.role-cashier .sidebar .nav-link,.ui-polished.role-manager .sidebar .nav-link{color:#4B5563!important;border-radius:8px!important;padding:10px 12px!important;font-size:.84rem!important;font-weight:500!important;border-left:3px solid transparent!important;margin-bottom:4px!important}
+.ui-polished.role-cashier .sidebar .nav-link:hover:not(.active),.ui-polished.role-manager .sidebar .nav-link:hover:not(.active){background:#F5F7F9!important;color:var(--tokped-ink)!important}
+.ui-polished.role-cashier .sidebar .nav-link.active,.ui-polished.role-manager .sidebar .nav-link.active{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;font-weight:700!important;border-left:3px solid var(--tokped-green)!important;box-shadow:none!important}
+.ui-polished.role-cashier .main-content,.ui-polished.role-manager .main-content{background:transparent!important;border:none!important;box-shadow:none!important;padding:24px!important;width:calc(100% - 246px)!important;max-width:none!important;margin:0!important}
+.ui-polished.role-cashier .card,.ui-polished.role-manager .card{border:1px solid var(--tokped-line)!important;border-radius:12px!important;box-shadow:0 1px 4px rgba(49,53,59,.06)!important;background:#fff}
+.ui-polished.role-cashier .card-header,.ui-polished.role-manager .card-header{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;border-radius:12px 12px 0 0!important}
+.ui-polished.role-cashier .btn-primary,.ui-polished.role-cashier .btn-success,.ui-polished.role-manager .btn-primary,.ui-polished.role-manager .btn-success{--bs-btn-bg:#059669;--bs-btn-border-color:#059669;--bs-btn-hover-bg:#047857;--bs-btn-hover-border-color:#047857;--bs-btn-active-bg:#065f46;box-shadow:none!important;border-radius:8px!important;font-weight:700}
+.ui-polished.role-cashier .btn-outline-primary,.ui-polished.role-cashier .btn-outline-success,.ui-polished.role-manager .btn-outline-primary,.ui-polished.role-manager .btn-outline-success{--bs-btn-color:#059669;--bs-btn-border-color:#059669;--bs-btn-hover-bg:#059669;--bs-btn-hover-border-color:#059669;--bs-btn-active-bg:#047857;border-radius:8px!important;font-weight:600}
+.ui-polished.role-cashier .form-control,.ui-polished.role-cashier .form-select,.ui-polished.role-manager .form-control,.ui-polished.role-manager .form-select{border-color:#D6DCE3;border-radius:8px;min-height:40px;color:var(--tokped-ink)}
+.ui-polished.role-cashier .form-control:focus,.ui-polished.role-cashier .form-select:focus,.ui-polished.role-manager .form-control:focus,.ui-polished.role-manager .form-select:focus{border-color:var(--tokped-green)!important;box-shadow:0 0 0 3px rgba(16,185,129,.16)!important}
+.ui-polished.role-cashier .input-group-text,.ui-polished.role-manager .input-group-text{background:#F8F9FA;border-color:#D6DCE3;color:var(--tokped-muted)}
 .ui-polished.role-cashier #cashierTab{background:#fff;border:1px solid var(--tokped-line);border-radius:12px;padding:0 16px!important;gap:24px!important;border-bottom:1px solid var(--tokped-line)!important;box-shadow:0 1px 3px rgba(49,53,59,.04)}
 .ui-polished.role-cashier #cashierTab .nav-link{background:transparent!important;color:var(--tokped-muted)!important;border-radius:0!important;border-bottom:3px solid transparent;padding:14px 4px!important;min-height:auto!important;box-shadow:none!important;font-weight:600;font-size:.88rem}
 .ui-polished.role-cashier #cashierTab .nav-link:hover{color:var(--tokped-ink)!important}
 .ui-polished.role-cashier #cashierTab .nav-link.active{color:var(--tokped-green)!important;border-bottom-color:var(--tokped-green)!important;font-weight:700}
-.ui-polished.role-cashier .tokped-stat-card{background:#fff;border:1px solid var(--tokped-line);border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(49,53,59,.05);transition:border-color .15s ease}
-.ui-polished.role-cashier .tokped-stat-card:hover{border-color:var(--tokped-green-border)}
-.ui-polished.role-cashier .tokped-stat-icon{width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.ui-polished.role-cashier .tokped-stat-card,.ui-polished.role-manager .tokped-stat-card{background:#fff;border:1px solid var(--tokped-line);border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(49,53,59,.05);transition:border-color .15s ease}
+.ui-polished.role-cashier .tokped-stat-card:hover,.ui-polished.role-manager .tokped-stat-card:hover{border-color:var(--tokped-green-border)}
+.ui-polished.role-cashier .tokped-stat-icon,.ui-polished.role-manager .tokped-stat-icon{width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
 .ui-polished.role-cashier .tokped-product-card{background:#fff;border:1px solid var(--tokped-line);border-radius:10px;padding:12px;transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;cursor:pointer}
-.ui-polished.role-cashier .tokped-product-card:hover{transform:translateY(-2px);border-color:var(--tokped-green)!important;box-shadow:0 6px 16px rgba(0,170,91,.12)!important}
+.ui-polished.role-cashier .tokped-product-card:hover{transform:translateY(-2px);border-color:var(--tokped-green)!important;box-shadow:0 6px 16px rgba(16,185,129,.12)!important}
 .ui-polished.role-cashier .tokped-product-card:hover .tokped-add-btn{background:var(--tokped-green)!important;color:#fff!important;border-color:var(--tokped-green)!important}
-.ui-polished.role-cashier .tokped-price{font-variant-numeric:tabular-nums;color:var(--tokped-ink)}
-.ui-polished.role-cashier .table th{background:#F8F9FA!important;color:var(--tokped-muted)!important;font-weight:700;text-transform:uppercase;font-size:.72rem;border-bottom:1px solid var(--tokped-line)}
-.ui-polished.role-cashier .table td{border-color:var(--tokped-line);font-variant-numeric:tabular-nums}
-.ui-polished.role-cashier .badge.bg-primary-subtle{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;border-color:var(--tokped-green-border)!important}
+.ui-polished.role-cashier .tokped-price,.ui-polished.role-manager .tokped-price{font-variant-numeric:tabular-nums;color:var(--tokped-ink)}
+.ui-polished.role-cashier .table th,.ui-polished.role-manager .table th{background:#F8F9FA!important;color:var(--tokped-muted)!important;font-weight:700;text-transform:uppercase;font-size:.72rem;border-bottom:1px solid var(--tokped-line)}
+.ui-polished.role-cashier .table td,.ui-polished.role-manager .table td{border-color:var(--tokped-line);font-variant-numeric:tabular-nums}
+.ui-polished.role-cashier .badge.bg-primary-subtle,.ui-polished.role-manager .badge.bg-primary-subtle{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;border-color:var(--tokped-green-border)!important}
 .ui-polished.role-cashier .pos-btn-compact{min-height:28px!important;padding:3px 10px!important;font-size:.74rem!important;border-radius:6px!important}
 .ui-polished.role-cashier .pos-qty-stepper{display:inline-flex;align-items:center;flex-wrap:nowrap;border:1px solid #D6DCE3;border-radius:8px;overflow:hidden;background:#fff;height:30px;flex-shrink:0}
 .ui-polished.role-cashier .pos-qty-stepper button{border:none!important;background:transparent;color:#00AA5B;min-height:28px!important;width:28px;height:28px;padding:0!important;font-weight:700;font-size:.95rem;line-height:1;border-radius:0!important}
@@ -169,8 +174,13 @@
 .ui-polished.role-cashier .pos-trash-btn{min-height:28px!important;width:28px;height:28px;padding:0!important;border-radius:6px!important;color:#9CA3AF!important;flex-shrink:0}
 .ui-polished.role-cashier .pos-trash-btn:hover{color:#EF144A!important;background:#FFEAEA!important}
 @media(max-width:767px){
- .ui-polished.role-cashier .main-content{padding:14px 10px!important;width:100%!important}
+ .ui-polished.role-cashier .main-content,.ui-polished.role-manager .main-content{padding:14px 10px!important;width:100%!important;margin:0!important}
  .ui-polished.role-cashier #cashierTab{display:flex!important;padding:0 10px!important;gap:14px!important}
  .ui-polished.role-cashier #cashierTab .nav-link{width:auto!important;white-space:nowrap!important;padding:12px 2px!important}
 }
+.ui-polished .sidebar .nav-link,.ui-polished .mobile-role-nav .btn,.ui-polished .btn,.ui-polished #cashierTab .nav-link{transition:background-color 180ms ease,color 180ms ease,border-color 180ms ease,transform 150ms ease}
+.ui-polished .sidebar .nav-link:active,.ui-polished .mobile-role-nav .btn:active,.ui-polished .btn:active:not(:disabled){transform:scale(.985)}
+.ui-polished .tab-content>.tab-pane.fade{transition:opacity 180ms ease-out,transform 180ms ease-out}
+.ui-polished .tab-content>.tab-pane.fade:not(.show){transform:translateY(4px)}
+.ui-polished .tab-content>.tab-pane.fade.show{transform:translateY(0)}
 @media(prefers-reduced-motion:reduce){.ui-polished *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}

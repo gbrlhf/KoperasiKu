@@ -4,14 +4,11 @@
 
 @section('header')
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-            <h4 class="fw-bold mb-0 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
-            <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-                <i class="bi bi-wallet2 me-1"></i> Modul Kasir FR-08B
-            </span>
-        </div>
-        <p class="text-secondary small mb-0">Cari anggota, periksa faktur tempo 7 hari, catat penerimaan cicilan/pelunasan tunai atau transfer, dan pulihkan limit belanja anggota.</p>
+    <div class="d-flex align-items-center gap-2">
+        <h4 class="fw-bold mb-0 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
+        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
+            <i class="bi bi-wallet2 me-1"></i> Modul Kasir FR-08B
+        </span>
     </div>
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs">
@@ -22,56 +19,54 @@
 @endsection
 
 @section('content')
+@php
+    $cashierDisplayName = session('user.name', Auth::user()?->member?->full_name ?? Auth::user()?->email ?? 'Petugas Kasir');
+@endphp
 
-<!-- 1. PENCARIAN & PEMILIHAN ANGGOTA -->
-<div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-4">
-    <div class="row g-3 align-items-center">
-        <div class="col-12 col-md-5">
-            <label class="form-label small fw-bold text-secondary mb-1">
-                <i class="bi bi-person-search text-primary me-1"></i> Cari Nomor Anggota / ID Karyawan:
+<style>
+    .piutang-search-group > .form-control,
+    .piutang-search-group > .btn {
+        height: 42px;
+        min-height: 42px !important;
+        box-sizing: border-box;
+        border-radius: 8px !important;
+    }
+    .piutang-search-group > .form-control {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .piutang-search-group > .btn {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<!-- 1. PENCARIAN ANGGOTA YANG DILAYANI (Tanpa membocorkan daftar piutang anggota lain) -->
+<div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-3">
+    <div class="row g-3">
+        <div class="col-12">
+            <label for="memberSearchInput" class="form-label small fw-bold text-secondary mb-1">
+                <i class="bi bi-person-search text-primary me-1"></i> Cari Anggota yang Sedang Dilayani (NIK / No. Anggota / UUID):
             </label>
-            <select class="form-select form-select-sm fw-semibold" id="memberSelect" onchange="onSelectMember(this.value)">
-                <option value="">-- Pilih Anggota yang Dilayani di Kasir --</option>
-                @foreach($debtorMembers as $m)
-                    <option value="{{ $m['id'] }}">
-                        {{ $m['id'] }} | {{ $m['name'] }} — {{ $m['unit'] }} ({{ $m['total_debt'] > 0 ? 'Hutang: Rp ' . number_format($m['total_debt'], 0, ',', '.') : 'Lunas (Rp 0)' }})
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-12 col-md-7">
-            <small class="text-muted d-block" style="font-size: 0.72rem;">Uji Coba Cepat Kasir (Pilih Simulasi Anggota):</small>
-            <div class="d-flex gap-1.5 flex-wrap mt-1">
-                <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 0.75rem;" onclick="quickPickMember('EMP-001')">
-                    <i class="bi bi-person-check text-primary me-1"></i>Ahmad Fauzi (2 Faktur Normal)
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 0.75rem;" onclick="quickPickMember('EMP-028')">
-                    <i class="bi bi-clock-history text-warning-emphasis me-1"></i>Dewi Lestari (3 Faktur / Cicil)
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" style="font-size: 0.75rem;" onclick="quickPickMember('EMP-035')">
-                    <i class="bi bi-exclamation-octagon text-danger me-1"></i>Hendra Wijaya (OVERDUE >7 Hari)
-                </button>
-                <button type="button" class="btn btn-outline-success btn-sm py-1 px-2" style="font-size: 0.75rem;" onclick="quickPickMember('EMP-014')">
-                    <i class="bi bi-check-circle text-success me-1"></i>Siti Rahma (Saldo Rp 0)
+            <div class="d-flex align-items-stretch gap-2 piutang-search-group w-100">
+                <input type="text" class="form-control rounded-3 font-monospace" id="memberSearchInput" placeholder="Masukkan NIK Karyawan atau No. Anggota (contoh: EMP-001)" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupMemberReceivables();}">
+                <button type="button" class="btn btn-primary rounded-3 fw-semibold px-3 d-inline-flex align-items-center justify-content-center gap-2" id="btnLookupMember" onclick="lookupMemberReceivables()">
+                    <i class="bi bi-search"></i>
+                    <span>Cari Tagihan</span>
                 </button>
             </div>
+            <div id="memberLookupError" class="alert alert-danger py-1.5 px-2.5 small d-none mt-2 mb-0" role="alert"></div>
         </div>
     </div>
 </div>
 
-<!-- 2. EMPTY STATE SEBELUM ANGGOTA DIPILIH -->
-<div id="emptyMemberState" class="card border-0 shadow-sm bg-white p-5 text-center mb-4">
+<!-- 2. EMPTY STATE SEBELUM ANGGOTA DICARI -->
+<div id="emptyMemberState" class="card border-0 shadow-sm bg-white p-5 text-center mb-3">
     <div class="py-4">
         <div class="p-3.5 rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center mb-3" style="width: 72px; height: 72px;">
             <i class="bi bi-wallet2 fs-1"></i>
         </div>
-        <h5 class="fw-bold text-dark mb-2">Pilih Anggota Koperasi Terlebih Dahulu</h5>
-        <p class="text-secondary small mb-3 mx-auto" style="max-width: 480px;">
-            Gunakan kotak pencarian atau tombol simulasi di atas untuk memuat kartu plafon kredit, daftar faktur piutang yang belum lunas, dan form pencatatan cicilan kasir.
-        </p>
-        <span class="badge bg-light text-secondary border px-3 py-1.5 small">
-            <i class="bi bi-info-circle text-primary me-1"></i> Sesuai Aturan: Jatuh tempo seragam 7 hari kalender sejak pickup
-        </span>
+        <h5 class="fw-bold text-dark mb-0">Cari Anggota Koperasi Terlebih Dahulu</h5>
     </div>
 </div>
 
@@ -79,7 +74,7 @@
 <div id="memberServiceContent" class="d-none">
 
     <!-- A. KARTU INFORMASI PLAFON & STATUS KREDIT ANGGOTA -->
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-3">
         <div class="col-12 col-lg-8">
             <div class="card border-0 shadow-sm bg-white p-3 p-md-4 h-100">
                 <div class="d-flex justify-content-between align-items-start mb-3 pb-2 border-bottom flex-wrap gap-2">
@@ -99,7 +94,7 @@
                     <div class="col-6 col-sm-3">
                         <div class="p-2.5 rounded-2 bg-light border text-center h-100">
                             <small class="text-secondary d-block fw-semibold" style="font-size: 0.68rem;">Plafon Limit Global</small>
-                            <span class="fw-bold text-dark font-monospace fs-6">Rp 1.000.000</span>
+                            <span class="fw-bold text-dark font-monospace fs-6" id="cardGlobalLimit">Rp 0</span>
                             <small class="text-muted d-block" style="font-size: 0.65rem;">Limit seragam koperasi</small>
                         </div>
                     </div>
@@ -143,41 +138,41 @@
                     <i class="bi bi-journal-text text-primary me-1"></i> Ketentuan Pembukuan Kasir
                 </h6>
                 <ul class="list-unstyled d-flex flex-column gap-2 small text-secondary mb-3" style="font-size: 0.76rem;">
-                    <li class="d-flex align-items-start gap-1.5">
+                    <li class="d-flex align-items-start gap-2">
                         <i class="bi bi-check-circle-fill text-success mt-0.5"></i>
                         <span>Pelunasan piutang diakui sebagai <strong>Kas Masuk</strong>, BUKAN omzet baru (omzet telah diakui saat serah terima barang).</span>
                     </li>
-                    <li class="d-flex align-items-start gap-1.5">
+                    <li class="d-flex align-items-start gap-2">
                         <i class="bi bi-check-circle-fill text-success mt-0.5"></i>
                         <span>Alokasi otomatis memprioritaskan faktur dengan <strong>jatuh tempo terawal (FIFO)</strong>.</span>
                     </li>
-                    <li class="d-flex align-items-start gap-1.5">
+                    <li class="d-flex align-items-start gap-2">
                         <i class="bi bi-check-circle-fill text-success mt-0.5"></i>
                         <span>Setiap rupiah yang dilunasi langsung <strong>memulihkan sisa limit belanja</strong> anggota.</span>
                     </li>
                 </ul>
                 <div class="p-2 rounded bg-light border small text-muted" style="font-size: 0.72rem;">
-                    Kasir bertugas: <strong>Budi Santoso (Kasir 01 Gerai Kanayakan)</strong>
+                    Kasir bertugas: <strong>{{ $cashierDisplayName }}</strong>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- B. EMPTY STATE JIKA ANGGOTA TIDAK PUNYA HUTANG (SALDO = Rp 0) -->
-    <div id="zeroDebtState" class="card border-0 shadow-sm bg-white p-5 text-center mb-4 d-none">
+    <div id="zeroDebtState" class="card border-0 shadow-sm bg-white p-5 text-center mb-3 d-none">
         <div class="py-3">
             <div class="p-3 rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
                 <i class="bi bi-patch-check fs-2"></i>
             </div>
             <h6 class="fw-bold text-dark mb-1">Anggota Tidak Memiliki Tagihan Piutang</h6>
             <p class="text-secondary small mb-0">
-                Seluruh tagihan transaksi anggota telah lunas (Saldo Piutang: Rp 0). Plafon kredit belanja aktif penuh sebesar Rp 1.000.000.
+                Seluruh tagihan transaksi anggota telah lunas (Saldo Piutang: Rp 0). Sisa limit kredit tersedia: <strong id="zeroDebtLimitText">Rp 0</strong>.
             </p>
         </div>
     </div>
 
     <!-- C. DAFTAR FAKTUR & FORM CICILAN KASIR -->
-    <div id="debtDetailsContainer" class="row g-3 mb-4">
+    <div id="debtDetailsContainer" class="row g-3 mb-3">
         <!-- Tabel Faktur Piutang -->
         <div class="col-12 col-xl-7">
             <div class="card border-0 shadow-sm bg-white h-100">
@@ -226,7 +221,7 @@
         <div class="col-12 col-xl-5">
             <div class="card border-0 shadow-sm bg-white p-3 p-md-4 h-100">
                 <h6 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex justify-content-between align-items-center">
-                    <span class="d-flex align-items-center gap-1.5">
+                    <span class="d-flex align-items-center gap-2">
                         <i class="bi bi-cash-stack text-success"></i>
                         <span>Form Penerimaan Cicilan</span>
                     </span>
@@ -236,23 +231,23 @@
                 <!-- Input Nominal Pembayaran -->
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-secondary mb-1">Nominal Pembayaran Diterima (Rp):</label>
-                    <div class="input-group input-group-sm mb-1.5">
+                    <div class="input-group input-group-sm">
                         <span class="input-group-text bg-light fw-bold">Rp</span>
                         <input type="number" class="form-control form-control-sm fs-6 fw-bold font-monospace" id="paymentAmountInput" placeholder="Masukkan nominal..." oninput="onPaymentAmountInput(this.value)">
                     </div>
 
                     <!-- Tombol Cepat Nominal -->
-                    <div class="d-flex gap-1 mb-2 flex-wrap">
-                        <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 text-nowrap" style="font-size: 0.7rem;" onclick="setPayAllDebt()">
+                    <div class="d-flex flex-wrap gap-2 mt-2 mb-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm px-2.5 py-1 text-nowrap" style="font-size: 0.72rem; min-height: 32px;" onclick="setPayAllDebt()">
                             <i class="bi bi-check2-all me-1"></i>Lunasi Semua
                         </button>
-                        <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-nowrap" style="font-size: 0.7rem;" onclick="setPayEarliestInvoice()">
+                        <button type="button" class="btn btn-light border btn-sm px-2.5 py-1 text-nowrap" style="font-size: 0.72rem; min-height: 32px;" onclick="setPayEarliestInvoice()">
                             Faktur Terlama
                         </button>
-                        <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-nowrap" style="font-size: 0.7rem;" onclick="setPayAmount(50000)">
+                        <button type="button" class="btn btn-light border btn-sm px-2.5 py-1 text-nowrap" style="font-size: 0.72rem; min-height: 32px;" onclick="setPayAmount(50000)">
                             Rp 50k
                         </button>
-                        <button type="button" class="btn btn-light border btn-sm py-0.5 px-2 text-nowrap" style="font-size: 0.7rem;" onclick="setPayAmount(100000)">
+                        <button type="button" class="btn btn-light border btn-sm px-2.5 py-1 text-nowrap" style="font-size: 0.72rem; min-height: 32px;" onclick="setPayAmount(100000)">
                             Rp 100k
                         </button>
                     </div>
@@ -327,8 +322,10 @@
                     </div>
                 </div>
 
+                <div id="repayErrorAlert" class="alert alert-danger py-2 px-2.5 small d-none mb-3" role="alert"></div>
+
                 <!-- Tombol Submit Simpan Pembayaran Cicilan -->
-                <button type="button" class="btn btn-success w-100 py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" id="btnSubmitRepayment" onclick="openRepaymentReceiptModal()">
+                <button type="button" class="btn btn-success w-100 py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-2 shadow-xs" id="btnSubmitRepayment" onclick="openRepaymentReceiptModal()">
                     <i class="bi bi-check2-circle fs-6"></i>
                     <span>Simpan Pembayaran & Terbitkan Struk Kas Masuk</span>
                 </button>
@@ -367,7 +364,7 @@
                     <div class="mb-2 pb-2 border-bottom border-dashed">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Kasir Penerima:</span>
-                            <span class="fw-bold text-dark">Budi Santoso (01)</span>
+                            <span class="fw-bold text-dark">{{ $cashierDisplayName }}</span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Anggota:</span>
@@ -418,13 +415,13 @@
                     </div>
                 </div>
 
-                <div class="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-0">
+                <div class="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-0" id="modalReceiptStatusBanner">
                     <i class="bi bi-printer-fill fs-5"></i>
-                    <span>Tanda terima resmi telah diterbitkan. Limit belanja anggota telah dipulihkan.</span>
+                    <span id="modalReceiptStatusText">Tanda terima resmi telah diterbitkan.</span>
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2 px-3 justify-content-between">
-                <button type="button" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1.5" onclick="window.print()">
+            <div class="modal-footer bg-light py-2.5 px-3 px-md-4 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-2" onclick="window.print()">
                     <i class="bi bi-printer"></i>
                     <span>Cetak Tanda Terima</span>
                 </button>
@@ -437,43 +434,185 @@
 </div>
 
 <script>
-// ==============================================================================
-// 1. DATA MASTER & STATE PELAYANAN PIUTANG
-// ==============================================================================
-const debtorCatalogue = @json($debtorMembers);
 let currentMember = null;
-let allocationMode = 'auto'; // 'auto' (FIFO) or 'manual'
-let invoiceAllocations = {}; // invoice_id -> allocated_amount
+let lastSearchedMemberQuery = '';
+let allocationMode = 'auto';
+let invoiceAllocations = {};
+let currentRepayIdempotencyKey = null;
 
-function onSelectMember(memberId) {
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function generateIdemKey(prefix) {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return `${prefix}-${window.crypto.randomUUID()}`;
+    }
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+async function apiRequest(url, method = 'GET', payload = null) {
+    const options = {
+        method,
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+    };
+    if (payload !== null) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(payload);
+    }
+
+    const res = await fetch(url, options);
+    let data = {};
+    try {
+        data = await res.json();
+    } catch (_) {
+        throw new Error(`Respons server tidak valid (HTTP ${res.status}).`);
+    }
+
+    if (!res.ok || data.success === false) {
+        throw new Error(data.message || `Permintaan ditolak oleh server (HTTP ${res.status}).`);
+    }
+
+    return data;
+}
+
+function showInlineError(elId, msg) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('d-none');
+}
+
+function hideInlineError(elId) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = '';
+    el.classList.add('d-none');
+}
+
+function daysBetweenTodayJakarta(dueDateStr) {
+    if (!dueDateStr) return 0;
+    const due = new Date(`${dueDateStr}T00:00:00+07:00`);
+    const now = new Date();
+    const diffMs = due.setHours(0, 0, 0, 0) - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return Math.round(diffMs / 86400000);
+}
+
+async function lookupMemberReceivables(overrideQuery = null) {
+    const inputEl = document.getElementById('memberSearchInput');
+    const query = (overrideQuery !== null ? overrideQuery : (inputEl?.value || '')).trim();
+    const btn = document.getElementById('btnLookupMember');
+
+    hideInlineError('memberLookupError');
+    hideInlineError('repayErrorAlert');
+
+    if (!query) {
+        showInlineError('memberLookupError', 'Masukkan Nomor Pegawai, Nomor Anggota, atau UUID anggota.');
+        return;
+    }
+
+    lastSearchedMemberQuery = query;
+    currentRepayIdempotencyKey = null;
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await apiRequest(`/api/v1/cashier/receivables?member_id=${encodeURIComponent(query)}`);
+        const payload = res.data || {};
+        const m = payload.member || {};
+        const summary = payload.credit_summary || {};
+        const rawInvoices = Array.isArray(payload.receivables) ? payload.receivables : [];
+
+        const invoices = rawInvoices.map(r => {
+            const outstanding = Number(r.outstanding_amount || 0);
+            const original = Number(r.original_amount || outstanding);
+            const dueDate = r.due_date ? String(r.due_date).slice(0, 10) : '-';
+            const daysLeft = daysBetweenTodayJakarta(dueDate);
+            const completedAt = r.order?.completed_at ? new Date(r.order.completed_at).toLocaleDateString('id-ID') : '-';
+
+            return {
+                id: r.id,
+                order_no: r.order?.order_no || r.order_id,
+                pickup_date: completedAt,
+                due_date: dueDate,
+                days_left: daysLeft,
+                items_summary: r.order?.order_no ? `Order ${r.order.order_no}` : 'Tagihan Koperasi',
+                original_amount: original,
+                remaining_amount: outstanding,
+                status: r.effective_status || r.status || 'OPEN',
+            };
+        });
+
+        currentMember = {
+            id: m.id,
+            code: m.employee_number || m.member_number || m.id,
+            name: m.full_name || '-',
+            unit: m.department || 'Anggota Koperasi',
+            credit_account_status: summary.credit_account_status || 'BLOCKED',
+            has_overdue: Boolean(summary.has_overdue),
+            global_limit: Number(summary.global_limit || 0),
+            total_debt: Number(summary.outstanding_receivable || 0),
+            available_limit: Number(summary.available_limit || 0),
+            earliest_due_date: invoices.length > 0 ? invoices[0].due_date : '-',
+            days_remaining: invoices.length > 0 ? invoices[0].days_left : 0,
+            invoices,
+        };
+
+        renderSelectedMember();
+    } catch (err) {
+        currentMember = null;
+        document.getElementById('emptyMemberState')?.classList.remove('d-none');
+        document.getElementById('memberServiceContent')?.classList.add('d-none');
+        showInlineError('memberLookupError', err.message || 'Gagal memuat data piutang anggota.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function renderSelectedMember() {
     const emptyState = document.getElementById('emptyMemberState');
     const content = document.getElementById('memberServiceContent');
     const zeroDebt = document.getElementById('zeroDebtState');
     const debtDetails = document.getElementById('debtDetailsContainer');
 
-    if (!memberId) {
+    if (!currentMember) {
         emptyState.classList.remove('d-none');
         content.classList.add('d-none');
-        currentMember = null;
         return;
     }
-
-    currentMember = debtorCatalogue.find(m => m.id === memberId);
-    if (!currentMember) return;
 
     emptyState.classList.add('d-none');
     content.classList.remove('d-none');
 
-    // Populate Member Info Card
     document.getElementById('cardMemberName').textContent = currentMember.name;
-    document.getElementById('cardMemberIdBadge').textContent = currentMember.id;
-    document.getElementById('cardMemberUnit').textContent = currentMember.unit + ' • Telp: ' + currentMember.phone;
+    document.getElementById('cardMemberIdBadge').textContent = currentMember.code;
+    document.getElementById('cardMemberUnit').textContent = currentMember.unit;
+    document.getElementById('cardGlobalLimit').textContent = `Rp ${currentMember.global_limit.toLocaleString('id-ID')}`;
 
-    // Status Badge
+    const zeroDebtLimitEl = document.getElementById('zeroDebtLimitText');
+    if (zeroDebtLimitEl) {
+        zeroDebtLimitEl.textContent = `Rp ${currentMember.available_limit.toLocaleString('id-ID')}`;
+    }
+
     const statusBadge = document.getElementById('cardCreditStatusBadge');
     const overdueAlert = document.getElementById('overdueAlertBanner');
 
-    if (currentMember.has_overdue) {
+    if (currentMember.credit_account_status !== 'ACTIVE') {
+        statusBadge.className = 'badge bg-danger text-white px-2.5 py-1.5';
+        statusBadge.innerHTML = '<i class="bi bi-lock-fill me-1"></i> FASILITAS KREDIT DIBEKUKAN';
+        overdueAlert.classList.add('d-none');
+    } else if (currentMember.has_overdue) {
         statusBadge.className = 'badge bg-danger text-white px-2.5 py-1.5';
         statusBadge.innerHTML = '<i class="bi bi-exclamation-octagon-fill me-1"></i> DIBLOKIR SEMENTARA (OVERDUE)';
         overdueAlert.classList.remove('d-none');
@@ -489,18 +628,17 @@ function onSelectMember(memberId) {
     document.getElementById('cardEarliestDueDate').textContent = currentMember.earliest_due_date || '-';
 
     const dueNotice = document.getElementById('cardDueNotice');
-    if (currentMember.has_overdue) {
-        dueNotice.className = 'd-block text-danger fw-bold';
-        dueNotice.textContent = `Lewat ${Math.abs(currentMember.days_remaining)} Hari`;
-    } else if (currentMember.days_remaining > 0) {
-        dueNotice.className = 'd-block text-warning-emphasis fw-bold';
-        dueNotice.textContent = `${currentMember.days_remaining} Hari Lagi`;
-    } else {
+    if (currentMember.invoices.length === 0) {
         dueNotice.className = 'd-block text-muted';
         dueNotice.textContent = 'Tidak Ada Tagihan';
+    } else if (currentMember.days_remaining < 0) {
+        dueNotice.className = 'd-block text-danger fw-bold';
+        dueNotice.textContent = `Lewat ${Math.abs(currentMember.days_remaining)} Hari`;
+    } else {
+        dueNotice.className = 'd-block text-warning-emphasis fw-bold';
+        dueNotice.textContent = `${currentMember.days_remaining} Hari Lagi`;
     }
 
-    // Check if zero debt
     if (currentMember.total_debt === 0 || currentMember.invoices.length === 0) {
         zeroDebt.classList.remove('d-none');
         debtDetails.classList.add('d-none');
@@ -508,7 +646,6 @@ function onSelectMember(memberId) {
         zeroDebt.classList.add('d-none');
         debtDetails.classList.remove('d-none');
 
-        // Reset input nominal to 0 and render table
         document.getElementById('paymentAmountInput').value = '';
         document.getElementById('paymentAmountInput').max = currentMember.total_debt;
         document.getElementById('tableInvoiceBadge').textContent = `${currentMember.invoices.length} Faktur`;
@@ -520,20 +657,12 @@ function onSelectMember(memberId) {
     }
 }
 
-function quickPickMember(id) {
-    document.getElementById('memberSelect').value = id;
-    onSelectMember(id);
-}
-
-// ==============================================================================
-// 2. RENDERING TABEL FAKTUR & ALOKASI PEMBAYARAN
-// ==============================================================================
 function renderInvoicesTable() {
     if (!currentMember) return;
     const tbody = document.getElementById('invoicesTableBody');
     let html = '';
 
-    currentMember.invoices.forEach((inv, index) => {
+    currentMember.invoices.forEach(inv => {
         let badgeHtml = '';
         if (inv.status === 'OVERDUE') {
             badgeHtml = `<span class="badge bg-danger text-white">OVERDUE</span>`;
@@ -544,18 +673,18 @@ function renderInvoicesTable() {
         }
 
         const allocated = invoiceAllocations[inv.id] || 0;
-        const newBalance = inv.remaining_amount - allocated;
+        const newBalance = Math.max(0, inv.remaining_amount - allocated);
 
         html += `
-            <tr id="invRow-${inv.id}">
+            <tr id="invRow-${escapeHtml(inv.id)}">
                 <td>
-                    <span class="fw-bold text-dark font-monospace">${inv.id}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">${inv.items_summary}</small>
+                    <span class="fw-bold text-dark font-monospace">${escapeHtml(inv.order_no)}</span>
+                    <small class="text-muted d-block font-monospace" style="font-size: 0.68rem;">${escapeHtml(String(inv.id).slice(0, 8))}...</small>
                 </td>
-                <td>${inv.pickup_date}</td>
+                <td>${escapeHtml(inv.pickup_date)}</td>
                 <td>
                     <span class="${inv.days_left < 0 ? 'text-danger fw-bold' : (inv.days_left <= 2 ? 'text-warning-emphasis fw-bold' : 'text-dark')}">
-                        ${inv.due_date}
+                        ${escapeHtml(inv.due_date)}
                     </span>
                     <small class="text-muted d-block" style="font-size: 0.68rem;">
                         ${inv.days_left < 0 ? 'Lewat ' + Math.abs(inv.days_left) + ' hari' : inv.days_left + ' hari lagi'}
@@ -573,7 +702,7 @@ function renderInvoicesTable() {
                         </span>
                         ${allocated >= inv.remaining_amount ? '<small class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size: 0.62rem;">LUNAS</small>' : ''}
                     ` : `
-                        <input type="number" class="form-control form-control-sm text-end font-monospace py-0.5 px-1.5" style="font-size: 0.78rem;" value="${allocated}" max="${inv.remaining_amount}" min="0" oninput="onManualAllocationChange('${inv.id}', this.value)">
+                        <input type="number" class="form-control form-control-sm text-end font-monospace py-0.5 px-1.5" style="font-size: 0.78rem;" value="${allocated}" max="${inv.remaining_amount}" min="0" oninput="onManualAllocationChange('${escapeHtml(inv.id)}', this.value)">
                     `}
                 </td>
             </tr>
@@ -582,13 +711,10 @@ function renderInvoicesTable() {
 
     tbody.innerHTML = html;
 
-    // Total Allocated Display
     const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
     document.getElementById('tableTotalAllocated').textContent = `Rp ${totalAlloc.toLocaleString('id-ID')}`;
 
-    // Update Live Impact Preview
-    const currentDebt = currentMember.total_debt;
-    const newDebt = Math.max(0, currentDebt - totalAlloc);
+    const newDebt = Math.max(0, currentMember.total_debt - totalAlloc);
     const newLimit = currentMember.available_limit + totalAlloc;
 
     document.getElementById('previewNewDebt').textContent = `Rp ${newDebt.toLocaleString('id-ID')}`;
@@ -602,7 +728,6 @@ function recalculateFifoAllocation(totalPay) {
     invoiceAllocations = {};
     let unallocated = Math.max(0, totalPay);
 
-    // Urutkan faktur berdasarkan due_date terlama (FIFO)
     currentMember.invoices.forEach(inv => {
         if (unallocated <= 0) {
             invoiceAllocations[inv.id] = 0;
@@ -619,10 +744,13 @@ function recalculateFifoAllocation(totalPay) {
 }
 
 function onPaymentAmountInput(val) {
-    const pay = parseInt(val, 10) || 0;
+    currentRepayIdempotencyKey = null;
+    hideInlineError('repayErrorAlert');
+
+    const pay = parseFloat(val) || 0;
     const errEl = document.getElementById('paymentAmountError');
 
-    if (pay < 0 || (currentMember && pay > currentMember.total_debt)) {
+    if (pay < 0 || (currentMember && pay > currentMember.total_debt + 0.001)) {
         errEl.classList.remove('d-none');
         errEl.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>Nominal tidak boleh melebihi total saldo piutang (Rp ${currentMember.total_debt.toLocaleString('id-ID')}).`;
     } else {
@@ -657,11 +785,12 @@ function setPayAmount(amt) {
 }
 
 function toggleAllocationMode(mode) {
+    currentRepayIdempotencyKey = null;
     allocationMode = mode;
     const help = document.getElementById('allocModeHelp');
     if (mode === 'auto') {
         help.textContent = "Sistem memprioritaskan pembayaran ke faktur yang memiliki tanggal jatuh tempo terawal terlebih dahulu (FIFO).";
-        const pay = parseInt(document.getElementById('paymentAmountInput').value, 10) || 0;
+        const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
         recalculateFifoAllocation(pay);
     } else {
         help.textContent = "Mode Manual: Anda dapat menyesuaikan alokasi pembayaran rupiah per masing-masing faktur.";
@@ -670,22 +799,21 @@ function toggleAllocationMode(mode) {
 }
 
 function onManualAllocationChange(invId, val) {
-    const amt = parseInt(val, 10) || 0;
+    currentRepayIdempotencyKey = null;
+    const amt = Math.max(0, parseFloat(val) || 0);
     const inv = currentMember.invoices.find(i => i.id === invId);
     if (!inv) return;
 
     invoiceAllocations[invId] = Math.min(amt, inv.remaining_amount);
 
-    // Sum manual
     const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
     document.getElementById('paymentAmountInput').value = totalAlloc;
     renderInvoicesTable();
 }
 
-// ==============================================================================
-// 3. VALIDASI METODE BAYAR & FORM
-// ==============================================================================
 function onRepaymentMethodChanged(method) {
+    currentRepayIdempotencyKey = null;
+    hideInlineError('repayErrorAlert');
     const cashBox = document.getElementById('repayCashBox');
     const transferBox = document.getElementById('repayTransferBox');
 
@@ -701,18 +829,17 @@ function onRepaymentMethodChanged(method) {
 
 function validateRepaymentForm() {
     const btn = document.getElementById('btnSubmitRepayment');
-    if (!currentMember || currentMember.total_debt === 0) {
+    if (!currentMember || currentMember.total_debt <= 0) {
         btn.disabled = true;
         return;
     }
 
-    const pay = parseInt(document.getElementById('paymentAmountInput').value, 10) || 0;
+    const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
     const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
     const method = document.getElementById('repaymentMethod').value;
     const matchBadge = document.getElementById('allocationMatchBadge');
 
-    // Check allocation match
-    if (pay > 0 && pay === totalAlloc) {
+    if (pay > 0 && Math.abs(pay - totalAlloc) < 0.01) {
         matchBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
         matchBadge.textContent = 'Alokasi Pas';
     } else {
@@ -720,7 +847,7 @@ function validateRepaymentForm() {
         matchBadge.textContent = 'Alokasi Belum Pas';
     }
 
-    if (pay <= 0 || pay > currentMember.total_debt || pay !== totalAlloc) {
+    if (pay <= 0 || pay > currentMember.total_debt + 0.001 || Math.abs(pay - totalAlloc) >= 0.01) {
         btn.disabled = true;
         btn.title = "Nominal pembayaran belum valid atau alokasi belum pas";
         return;
@@ -740,97 +867,115 @@ function validateRepaymentForm() {
     btn.title = "Klik untuk menyimpan pembayaran cicilan";
 }
 
-// ==============================================================================
-// 4. STRUK PELUNASAN / CICILAN MODAL (FR-08B & PRD AC-09)
-// ==============================================================================
-function openRepaymentReceiptModal() {
-    const pay = parseInt(document.getElementById('paymentAmountInput').value, 10) || 0;
+async function openRepaymentReceiptModal() {
+    const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
     if (pay <= 0 || !currentMember) return;
 
     const method = document.getElementById('repaymentMethod').value;
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    const receiptNo = '#KAS-REC-' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + '-' + Math.floor(1000 + Math.random() * 9000);
+    const ref = document.getElementById('repayTransferRef')?.value.trim() || null;
+    const btn = document.getElementById('btnSubmitRepayment');
 
-    document.getElementById('modalReceiptNo').textContent = receiptNo;
-    document.getElementById('modalReceiptDate').textContent = dateStr;
-    document.getElementById('modalReceiptMemberName').textContent = currentMember.name;
-    document.getElementById('modalReceiptMemberId').textContent = currentMember.id + ' (' + currentMember.unit + ')';
-    document.getElementById('modalReceiptTotalPaid').textContent = `Rp ${pay.toLocaleString('id-ID')}`;
+    const allocations = currentMember.invoices
+        .map(inv => ({
+            receivable_id: inv.id,
+            amount: Number(invoiceAllocations[inv.id] || 0),
+        }))
+        .filter(a => a.amount > 0);
 
-    const methodBadge = document.getElementById('modalReceiptPaymentMethod');
-    const transferRow = document.getElementById('modalReceiptTransferRefRow');
-
-    if (method === 'CASH') {
-        methodBadge.className = 'badge bg-success';
-        methodBadge.textContent = 'TUNAI (CASH)';
-        transferRow.classList.add('d-none');
-    } else {
-        methodBadge.className = 'badge bg-primary';
-        methodBadge.textContent = 'TRANSFER / QRIS';
-        transferRow.classList.remove('d-none');
-        document.getElementById('modalReceiptTransferRef').textContent = document.getElementById('repayTransferRef').value.trim();
+    if (allocations.length === 0) {
+        showInlineError('repayErrorAlert', 'Minimal satu faktur harus dialokasikan.');
+        return;
     }
 
-    // Populate Allocations
-    const allocContainer = document.getElementById('modalReceiptAllocationsContainer');
-    let allocHtml = '';
-    currentMember.invoices.forEach(inv => {
-        const amt = invoiceAllocations[inv.id] || 0;
-        if (amt > 0) {
-            const isFull = (amt >= inv.remaining_amount);
-            allocHtml += `
-                <div class="d-flex justify-content-between mb-1">
-                    <span>${inv.id} ${isFull ? '<strong class="text-success">[LUNAS]</strong>' : '<span class="text-warning-emphasis">[SEBAGIAN]</span>'}</span>
-                    <span class="fw-bold">Rp ${amt.toLocaleString('id-ID')}</span>
-                </div>
-            `;
+    hideInlineError('repayErrorAlert');
+    if (!currentRepayIdempotencyKey) {
+        currentRepayIdempotencyKey = generateIdemKey('recpay');
+    }
+
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...`;
+
+    try {
+        const res = await apiRequest('/api/v1/receivables/payments', 'POST', {
+            member_id: currentMember.id,
+            method,
+            amount: pay,
+            external_reference: method === 'BANK_TRANSFER' ? ref : null,
+            idempotency_key: currentRepayIdempotencyKey,
+            allocations,
+        });
+
+        const payData = res.data || {};
+        currentRepayIdempotencyKey = null;
+
+        const now = new Date();
+        document.getElementById('modalReceiptNo').textContent = payData.payment_id ? `#PAY-${String(payData.payment_id).slice(0, 8).toUpperCase()}` : '#KAS-REC';
+        document.getElementById('modalReceiptDate').textContent = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        document.getElementById('modalReceiptMemberName').textContent = currentMember.name;
+        document.getElementById('modalReceiptMemberId').textContent = `${currentMember.code} (${currentMember.unit})`;
+        document.getElementById('modalReceiptTotalPaid').textContent = `Rp ${pay.toLocaleString('id-ID')}`;
+
+        const methodBadge = document.getElementById('modalReceiptPaymentMethod');
+        const transferRow = document.getElementById('modalReceiptTransferRefRow');
+        const statusBanner = document.getElementById('modalReceiptStatusBanner');
+        const statusText = document.getElementById('modalReceiptStatusText');
+
+        if (method === 'CASH') {
+            methodBadge.className = 'badge bg-success';
+            methodBadge.textContent = 'TUNAI (VERIFIED)';
+            transferRow.classList.add('d-none');
+            statusBanner.className = 'alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-0';
+            statusText.textContent = res.message || 'Pembayaran tunai tercatat dan saldo piutang telah dipotong.';
+        } else {
+            methodBadge.className = 'badge bg-warning text-dark';
+            methodBadge.textContent = payData.status === 'VERIFIED' ? 'TRANSFER (VERIFIED)' : 'TRANSFER (PENDING VERIFICATION)';
+            transferRow.classList.remove('d-none');
+            document.getElementById('modalReceiptTransferRef').textContent = ref || '-';
+            statusBanner.className = payData.status === 'VERIFIED'
+                ? 'alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-0'
+                : 'alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-0';
+            statusText.textContent = res.message || 'Pembayaran transfer tercatat dan menunggu verifikasi sebelum memotong piutang.';
         }
-    });
-    allocContainer.innerHTML = allocHtml;
 
-    // Remaining debt & restored limit
-    const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
-    const newDebt = Math.max(0, currentMember.total_debt - totalAlloc);
-    const newLimit = currentMember.available_limit + totalAlloc;
+        const allocContainer = document.getElementById('modalReceiptAllocationsContainer');
+        allocContainer.innerHTML = currentMember.invoices
+            .filter(inv => (invoiceAllocations[inv.id] || 0) > 0)
+            .map(inv => {
+                const amt = invoiceAllocations[inv.id];
+                const isFull = amt >= inv.remaining_amount;
+                return `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>${escapeHtml(inv.order_no)} ${isFull ? '<strong class="text-success">[LUNAS]</strong>' : '<span class="text-warning-emphasis">[SEBAGIAN]</span>'}</span>
+                        <span class="fw-bold">Rp ${amt.toLocaleString('id-ID')}</span>
+                    </div>
+                `;
+            }).join('');
 
-    document.getElementById('modalReceiptRemainingDebt').textContent = `Rp ${newDebt.toLocaleString('id-ID')}`;
-    document.getElementById('modalReceiptRestoredLimit').textContent = `Rp ${newLimit.toLocaleString('id-ID')} (+Rp ${totalAlloc.toLocaleString('id-ID')})`;
+        const totalAlloc = allocations.reduce((s, a) => s + a.amount, 0);
+        if (payData.status === 'VERIFIED') {
+            document.getElementById('modalReceiptRemainingDebt').textContent = `Rp ${Math.max(0, currentMember.total_debt - totalAlloc).toLocaleString('id-ID')}`;
+            document.getElementById('modalReceiptRestoredLimit').textContent = `Rp ${(currentMember.available_limit + totalAlloc).toLocaleString('id-ID')} (+Rp ${totalAlloc.toLocaleString('id-ID')})`;
+        } else {
+            document.getElementById('modalReceiptRemainingDebt').textContent = `Rp ${currentMember.total_debt.toLocaleString('id-ID')} (Menunggu verifikasi)`;
+            document.getElementById('modalReceiptRestoredLimit').textContent = `Rp ${currentMember.available_limit.toLocaleString('id-ID')} (Pulih saat VERIFY)`;
+        }
 
-    const modal = new bootstrap.Modal(document.getElementById('receiptCicilanModal'));
-    modal.show();
+        new bootstrap.Modal(document.getElementById('receiptCicilanModal')).show();
+    } catch (err) {
+        showInlineError('repayErrorAlert', err.message || 'Gagal mencatat pembayaran piutang.');
+    } finally {
+        btn.innerHTML = origHtml;
+        validateRepaymentForm();
+    }
 }
 
 function onCloseReceiptModal() {
-    if (!currentMember) return;
-    const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
-
-    // Apply payment to mock data in memory
-    currentMember.invoices.forEach(inv => {
-        const amt = invoiceAllocations[inv.id] || 0;
-        if (amt > 0) {
-            inv.remaining_amount -= amt;
-            inv.paid_amount += amt;
-            if (inv.remaining_amount <= 0) {
-                inv.status = 'PAID';
-            } else {
-                inv.status = 'PARTIALLY_PAID';
-            }
-        }
-    });
-
-    // Remove paid invoices
-    currentMember.invoices = currentMember.invoices.filter(i => i.remaining_amount > 0);
-    currentMember.total_debt = currentMember.invoices.reduce((sum, i) => sum + i.remaining_amount, 0);
-    currentMember.available_limit = 1000000 - currentMember.total_debt;
-    currentMember.has_overdue = currentMember.invoices.some(i => i.status === 'OVERDUE');
-
-    // Reset inputs
     document.getElementById('repayTransferRef').value = '';
     document.getElementById('repayTransferCheck').checked = false;
-
-    // Refresh view
-    onSelectMember(currentMember.id);
+    if (lastSearchedMemberQuery) {
+        lookupMemberReceivables(lastSearchedMemberQuery);
+    }
 }
 </script>
 @endsection

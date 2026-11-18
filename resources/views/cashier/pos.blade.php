@@ -11,10 +11,10 @@
     }
     #qr-reader video {
         width: 100% !important;
-        height: auto !important;
+        height: 280px !important;
         max-height: 280px !important;
         object-fit: cover !important;
-        border-radius: 8px !important;
+        border-radius: 12px !important;
     }
     #qr-reader__scan_region {
         background: transparent !important;
@@ -38,10 +38,11 @@
     .scanner-viewport-box {
         position: relative;
         background-color: #090d16;
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
         border: 2px solid #1e293b;
-        min-height: 240px;
+        min-height: 220px;
+        max-height: 280px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -192,37 +193,224 @@
         from { transform: scaleX(1); }
         to { transform: scaleX(0); }
     }
+    .pos-barcode-group {
+        display: flex;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+    .pos-barcode-group > .btn,
+    .pos-barcode-group > .form-control {
+        height: 42px;
+        min-height: 42px;
+        line-height: 1.25;
+        box-sizing: border-box;
+        margin: 0;
+        border-radius: 8px !important;
+    }
+    .pos-barcode-group > .btn {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .pos-barcode-group > .form-control {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .tokped-product-card {
+        border-radius: 10px;
+    }
+    .pos-search-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: #ffffff;
+        border: 1px solid #d6dce3;
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .pos-search-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        padding: 10px 14px;
+        border: 0;
+        border-bottom: 1px solid #f1f5f9;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+    }
+    .pos-search-item:last-child {
+        border-bottom: 0;
+    }
+    .pos-search-item:hover,
+    .pos-search-item.active {
+        background: #e6f7ef;
+    }
+    .pos-table-qty-wrap {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #d6dce3;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+        height: 32px;
+    }
+    .pos-table-qty-wrap button {
+        border: 0 !important;
+        background: transparent;
+        color: #00aa5b;
+        width: 30px;
+        height: 30px;
+        min-height: 30px !important;
+        padding: 0 !important;
+        font-weight: 700;
+        line-height: 1;
+        border-radius: 0 !important;
+    }
+    .pos-table-qty-wrap button:hover {
+        background: #e6f7ef;
+    }
+    .pos-table-qty-wrap input {
+        width: 44px;
+        height: 30px;
+        min-height: 30px !important;
+        border: 0 !important;
+        border-left: 1px solid #e5e7e9 !important;
+        border-right: 1px solid #e5e7e9 !important;
+        border-radius: 0 !important;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.82rem;
+        padding: 0 4px !important;
+        -moz-appearance: textfield;
+    }
+    .pos-table-qty-wrap input::-webkit-outer-spin-button,
+    .pos-table-qty-wrap input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .pos-total-hero {
+        background: #e6f7ef;
+        border: 1px solid #b5e8cf;
+        border-radius: 10px;
+        padding: 14px 16px;
+    }
+    .stock-header-controls .btn,
+    .stock-header-controls .input-group,
+    .stock-header-controls .input-group-text,
+    .stock-header-controls .form-control,
+    .pickup-header-controls .form-select,
+    .pickup-header-controls .input-group,
+    .pickup-header-controls .input-group-text,
+    .pickup-header-controls .form-control,
+    .pickup-header-controls .btn {
+        height: 38px;
+        min-height: 38px !important;
+        box-sizing: border-box;
+    }
+    .stock-header-controls .input-group-text,
+    .pickup-header-controls .input-group-text {
+        border-radius: 8px 0 0 8px !important;
+    }
+    .stock-header-controls .form-control,
+    .pickup-header-controls .form-control {
+        border-radius: 0 8px 8px 0 !important;
+    }
+    .ui-polished .table.stock-monitor-table th {
+        padding: 0.6rem 0.75rem !important;
+        font-size: 0.72rem;
+    }
+    .ui-polished .table.stock-monitor-table td {
+        padding: 0.5rem 0.75rem !important;
+        vertical-align: middle;
+    }
+    @media (min-width: 992px) {
+        .pos-receipt-sticky {
+            position: sticky;
+            top: 76px;
+            max-height: calc(100vh - 96px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+    }
 </style>
 @endpush
 
 @section('header')
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-            <h4 class="fw-bold mb-0 text-dark">Portal Kasir & Operasional Gerai</h4>
-            <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-                <i class="bi bi-shop me-1"></i> Gerai Kanayakan Dago
-            </span>
-        </div>
-        <p class="text-secondary small mb-0">Kelola stok barang, transaksi POS kasir langsung, dan verifikasi antrean pickup pesanan anggota.</p>
-    </div>
     <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs">
-            <i class="bi bi-clock me-1 text-success"></i> Buka Gerai: 07.00 - 18.00 WIB
+        <h4 class="fw-bold mb-0 text-dark">Portal Kasir & Operasional Gerai</h4>
+        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
+            <i class="bi bi-shop me-1"></i> Gerai Kanayakan Dago
         </span>
     </div>
 </div>
 @endsection
 
 @section('content')
+@php
+    // Muat katalog produk aktif langsung dari DB tanpa menyertakan kolom HPP (current_cost).
+    $safeStockItems = [];
+    if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+        $dbProducts = \App\Models\Product::query()
+            ->select(['id', 'sku', 'barcode', 'name', 'category', 'selling_price', 'unit'])
+            ->with('inventory:product_id,on_hand,reserved')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        if ($dbProducts->isNotEmpty()) {
+            $safeStockItems = $dbProducts->map(function ($p) {
+                $onHand = (int) ($p->inventory?->on_hand ?? 0);
+                $reserved = (int) ($p->inventory?->reserved ?? 0);
+                $available = max(0, $onHand - $reserved);
+
+                return [
+                    'id' => (string) $p->id,
+                    'sku' => (string) $p->sku,
+                    'barcode' => (string) ($p->barcode ?? ''),
+                    'name' => (string) $p->name,
+                    'category' => (string) ($p->category ?? 'Umum'),
+                    'sell_price' => (float) $p->selling_price,
+                    'on_hand' => $onHand,
+                    'reserved' => $reserved,
+                    'available' => $available,
+                    'unit' => (string) ($p->unit ?? 'Pcs'),
+                    'status' => $available > 10 ? 'SAFE' : 'LOW',
+                ];
+            })->values()->all();
+        }
+    }
+
+    if (empty($safeStockItems)) {
+        $safeStockItems = collect($stockItems ?? [])
+            ->map(fn ($item) => \Illuminate\Support\Arr::except((array) $item, ['cost_price', 'current_cost', 'hpp_snapshot']))
+            ->values()
+            ->all();
+    }
+
+    $realStockSummary = [
+        'total_sku' => count($safeStockItems),
+        'safe_stock_count' => collect($safeStockItems)->where('status', 'SAFE')->count(),
+        'low_stock_count' => collect($safeStockItems)->where('status', 'LOW')->count(),
+    ];
+    $cashierDisplayName = session('user.name', Auth::user()?->member?->full_name ?? Auth::user()?->email ?? 'Petugas Kasir');
+@endphp
 
 <!-- RINGKASAN STATUS STOK GERAI (Tokopedia Seller Stat Cards) -->
-<div class="row g-3 mb-3">
+<div class="row g-3 g-xl-4 mb-4">
     <div class="col-6 col-md-3">
         <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
             <div class="min-w-0">
                 <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Total SKU Barang</small>
-                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price">{{ $stockSummary['total_sku'] }} Item</h4>
+                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price">{{ $realStockSummary['total_sku'] }} Item</h4>
                 <small class="text-muted d-block text-truncate mt-1" style="font-size: 0.7rem;">Komoditas aktif gerai</small>
             </div>
             <span class="tokped-stat-icon bg-light text-secondary border">
@@ -234,7 +422,7 @@
         <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
             <div class="min-w-0">
                 <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Stok Aman</small>
-                <h4 class="fw-bold text-success mb-0 fs-5 tokped-price">{{ $stockSummary['safe_stock_count'] }} SKU</h4>
+                <h4 class="fw-bold text-success mb-0 fs-5 tokped-price">{{ $realStockSummary['safe_stock_count'] }} SKU</h4>
                 <small class="text-success d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-check-circle-fill me-1"></i>Pasokan cukup</small>
             </div>
             <span class="tokped-stat-icon" style="background: #E6F7EF; color: #00AA5B;">
@@ -246,7 +434,7 @@
         <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
             <div class="min-w-0">
                 <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Stok Menipis</small>
-                <h4 class="fw-bold text-danger mb-0 fs-5 tokped-price">{{ $stockSummary['low_stock_count'] }} SKU</h4>
+                <h4 class="fw-bold text-danger mb-0 fs-5 tokped-price">{{ $realStockSummary['low_stock_count'] }} SKU</h4>
                 <small class="text-danger d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill me-1"></i>Perlu restock</small>
             </div>
             <span class="tokped-stat-icon" style="background: #FFEAEA; color: #EF144A;">
@@ -258,8 +446,8 @@
         <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
             <div class="min-w-0">
                 <small class="text-muted fw-semibold d-block mb-1" style="font-size: 0.74rem;">Antrian Pickup</small>
-                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price">{{ $stockSummary['total_reserved_items'] }} Barang</h4>
-                <small class="text-primary d-block text-truncate mt-1" style="font-size: 0.7rem;"><i class="bi bi-bag-check-fill me-1"></i>Siap diserahkan</small>
+                <h4 class="fw-bold text-dark mb-0 fs-5 tokped-price" id="statPickupOrdersCount">0 Pesanan</h4>
+                <small class="text-primary d-block text-truncate mt-1" id="statPickupOrdersSub" style="font-size: 0.7rem;"><i class="bi bi-bag-check-fill me-1"></i>Memuat antrian...</small>
             </div>
             <span class="tokped-stat-icon" style="background: #FFF5E6; color: #FA591D;">
                 <i class="bi bi-bag-check"></i>
@@ -282,54 +470,25 @@
     }
 @endphp
 
-<!-- TABS OPERASIONAL KASIR -->
-<ul class="nav nav-pills mb-3 gap-2 border-bottom pb-3 overflow-x-auto flex-nowrap text-nowrap" id="cashierTab" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link {{ $activeTab === 'pos' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="pos-tab" data-bs-toggle="pill" data-bs-target="#pos-pane" type="button" role="tab">
-            <i class="bi bi-upc-scan"></i>
-            <span>Point of Sale (POS) Kasir</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link {{ $activeTab === 'pickup' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup-pane" type="button" role="tab">
-            <i class="bi bi-qr-code-scan"></i>
-            <span>Antrian Pickup Pesanan ({{ count($pickupQueue) }})</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link {{ $activeTab === 'stock' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="stock-tab" data-bs-toggle="pill" data-bs-target="#stock-pane" type="button" role="tab">
-            <i class="bi bi-boxes"></i>
-            <span>Monitoring Stok Barang</span>
-        </button>
-    </li>
-</ul>
-
 <div class="tab-content" id="cashierTabContent">
     
-    <!-- TAB 1: MONITORING STOK BARANG REAL-TIME -->
+    <!-- MONITORING STOK BARANG REAL-TIME (Sidebar: Monitoring Stok Barang) -->
     <div class="tab-pane fade {{ $activeTab === 'stock' ? 'show active' : '' }}" id="stock-pane" role="tabpanel">
-        <div class="card border-0 shadow-sm bg-white">
-            <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
+        <div class="card border-0 shadow-sm bg-white mb-4 overflow-hidden">
+            <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="min-w-0">
                     <h5 class="card-title fw-bold text-dark mb-0 fs-6">Master Persediaan & Stok Barang Gerai</h5>
-                    <small class="text-muted" style="font-size: 0.75rem;">Stok tersedia = Stok fisik rak dikurangi barang ter-reservasi pesanan online</small>
                 </div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <button type="button" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1.5" onclick="openTestBarcodeGalleryModal()" title="Buka lembar katalog barcode siap dipindai kamera">
-                        <i class="bi bi-upc-scan text-primary"></i>
-                        <span>Katalog Barcode & QR</span>
-                    </button>
-                    <div style="max-width: 260px;" class="w-100">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
-                            <input type="text" id="stockSearchInput" class="form-control" placeholder="Cari SKU atau nama barang..." oninput="filterCashierStock(this.value)">
-                        </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap stock-header-controls">
+                    <div class="input-group input-group-sm" style="width: 240px; max-width: 100%;">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="stockSearchInput" class="form-control" placeholder="Cari SKU atau nama barang..." oninput="filterCashierStock(this.value)">
                     </div>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                <table class="table table-hover align-middle mb-0 stock-monitor-table" style="font-size: 0.82rem;">
                     <thead class="table-light">
                         <tr>
                             <th>SKU / Barcode</th>
@@ -343,34 +502,36 @@
                         </tr>
                     </thead>
                     <tbody id="stockTableBody">
-                        @foreach($stockItems as $item)
-                            <tr class="stock-item-row" data-name="{{ strtolower($item['name']) }}" data-sku="{{ strtolower($item['sku']) }}">
-                                <td>
+                        @foreach($safeStockItems as $item)
+                            <tr class="stock-item-row" data-name="{{ strtolower($item['name']) }}" data-sku="{{ strtolower($item['sku']) }}" data-barcode="{{ strtolower($item['barcode'] ?? '') }}">
+                                <td class="py-2">
                                     <div class="d-flex align-items-center gap-1.5">
                                         <span class="fw-bold font-monospace text-dark">{{ $item['sku'] }}</span>
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="showProductBarcodeModal('{{ $item['sku'] }}', '{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}', {{ $item['sell_price'] }})" title="Lihat Barcode Fisik & QR">
-                                            <i class="bi bi-upc-scan" style="font-size: 0.85rem;"></i>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" style="min-height: 22px;" onclick="showProductBarcodeModal('{{ $item['sku'] }}', '{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}', {{ $item['sell_price'] }})" title="Lihat Barcode Fisik & QR">
+                                            <i class="bi bi-upc-scan" style="font-size: 0.82rem;"></i>
                                         </button>
                                     </div>
-                                    <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">{{ $item['barcode'] }}</small>
+                                    @if(!empty($item['barcode']))
+                                        <small class="text-muted d-block font-monospace lh-1 mt-0.5" style="font-size: 0.7rem;">{{ $item['barcode'] }}</small>
+                                    @endif
                                 </td>
-                                <td>
+                                <td class="py-2">
                                     <span class="fw-semibold text-dark">{{ $item['name'] }}</span>
                                 </td>
-                                <td>
+                                <td class="py-2">
                                     <span class="badge bg-light text-secondary border">{{ $item['category'] }}</span>
                                 </td>
-                                <td class="text-center fw-bold">{{ $item['on_hand'] }} {{ $item['unit'] }}</td>
-                                <td class="text-center text-primary fw-bold">{{ $item['reserved'] }} {{ $item['unit'] }}</td>
-                                <td class="text-center">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-7 fw-bold">
+                                <td class="py-2 text-center fw-bold">{{ $item['on_hand'] }} {{ $item['unit'] }}</td>
+                                <td class="py-2 text-center text-primary fw-bold">{{ $item['reserved'] }} {{ $item['unit'] }}</td>
+                                <td class="py-2 text-center">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fw-bold" style="font-size: 0.75rem;">
                                         {{ $item['available'] }} {{ $item['unit'] }}
                                     </span>
                                 </td>
-                                <td class="text-end fw-bold text-dark">
+                                <td class="py-2 text-end fw-bold text-dark text-nowrap tokped-price">
                                     Rp {{ number_format($item['sell_price'], 0, ',', '.') }}
                                 </td>
-                                <td class="text-center">
+                                <td class="py-2 text-center">
                                     @if($item['status'] === 'SAFE')
                                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 small">
                                             Aman
@@ -395,113 +556,106 @@
         </div>
     </div>
 
-    <!-- TAB 2: POINT OF SALE (POS) TRANSAKSI KASIR -->
+    <!-- POINT OF SALE (POS) TRANSAKSI KASIR MINIMARKET -->
     <div class="tab-pane fade {{ $activeTab === 'pos' ? 'show active' : '' }}" id="pos-pane" role="tabpanel">
-        <div class="row g-3">
-            <!-- Left: POS Input & Item Selection -->
-            <div class="col-12 col-lg-7">
-                <div class="card border-0 shadow-sm bg-white p-3 mb-3">
+        <div class="row g-3 g-lg-4 align-items-start">
+            <!-- Left (col-lg-8): Area Scan Barcode & Daftar Belanjaan Kasir -->
+            <div class="col-12 col-lg-8">
+                <!-- Baris Atas: Card Scan Barcode & Pencarian Barang -->
+                <div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="fw-bold text-dark mb-0 small"><i class="bi bi-upc-scan text-primary me-1"></i> Scan Barcode & Pencarian SKU Sembako</h6>
+                        <h6 class="fw-bold text-dark mb-0 small">
+                            <i class="bi bi-upc-scan text-primary me-1"></i> Scan Barcode & Pencarian Barang
+                        </h6>
                         <span class="badge bg-light text-secondary border" style="font-size: 0.68rem;">
                             <i class="bi bi-shield-check text-success me-0.5"></i> Mode Kasir Langsung
                         </span>
                     </div>
 
-                    <div class="input-group mb-2">
-                        <!-- Tombol Buka Kamera Scanner Nyata (html5-qrcode) -->
-                        <button type="button" class="btn btn-outline-primary fw-semibold d-inline-flex align-items-center gap-1.5 px-3" onclick="openBarcodeScannerModal()" title="Buka Kamera Barcode Scanner">
-                            <i class="bi bi-camera-fill text-primary"></i>
-                            <span class="d-none d-sm-inline">Scan Kamera</span>
-                        </button>
-                        <input type="text" id="posBarcodeField" class="form-control" placeholder="Scan barcode atau ketik SKU (contoh: SEM-001 / 89999991001)..." onkeydown="if(event.key === 'Enter'){ submitManualBarcodeField(); }">
-                        <button type="button" class="btn btn-primary fw-semibold px-3" onclick="submitManualBarcodeField()">
-                            + Tambah
-                        </button>
+                    <div class="position-relative" id="posSearchContainer">
+                        <div class="d-flex align-items-stretch gap-2 pos-barcode-group mb-2">
+                            <!-- Tombol Buka Kamera Scanner Nyata (html5-qrcode) -->
+                            <button type="button" class="btn btn-outline-primary rounded-3 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 px-3" onclick="openBarcodeScannerModal()" title="Buka Kamera Barcode Scanner">
+                                <i class="bi bi-camera-fill"></i>
+                                <span class="d-none d-sm-inline">Scan Kamera</span>
+                            </button>
+                            <input type="text" id="posBarcodeField" class="form-control rounded-3" placeholder="Scan barcode, SKU, atau ketik nama barang..." autofocus autocomplete="off" oninput="onPosSearchInput(this.value)" onkeydown="onPosSearchKeydown(event)">
+                            <button type="button" class="btn btn-primary rounded-3 fw-semibold px-3 d-inline-flex align-items-center justify-content-center" onclick="submitManualBarcodeField()">
+                                + Tambah
+                            </button>
+                        </div>
+                        <div id="posSearchDropdown" class="pos-search-dropdown d-none" role="listbox" aria-label="Hasil pencarian cepat barang"></div>
                     </div>
+
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 text-muted" style="font-size: 0.72rem;">
-                        <span><i class="bi bi-info-circle me-1"></i>Tekan <strong>Enter</strong> atau klik <strong>Tambah</strong> setelah scan barcode.</span>
-                        <span class="text-primary fw-semibold">Scanner Kamera mendukung HP & Webcam</span>
+                        <span><i class="bi bi-info-circle me-1"></i>Scan barcode langsung, tekan <strong>Enter</strong>, atau ketik nama barang untuk memilih cepat.</span>
+                        <span class="text-primary fw-semibold">Support Scanner USB / Kamera</span>
                     </div>
                 </div>
 
-                <!-- Katalog Cepat Kasir (Gaya Kartu Produk Tokopedia) -->
-                <div class="card border-0 shadow-sm bg-white p-3">
-                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
-                        <div>
-                            <h6 class="fw-bold text-dark mb-0 small d-flex align-items-center gap-1.5">
-                                <i class="bi bi-grid-fill text-success"></i>
-                                <span>Katalog Cepat Sembako</span>
-                            </h6>
-                            <small class="text-muted" style="font-size: 0.72rem;">Klik produk untuk langsung masuk ke keranjang kasir</small>
+                <!-- Bagian Utama: Daftar Belanjaan Kasir (Tabel Transaksi) -->
+                <div class="card border-0 shadow-sm bg-white overflow-hidden">
+                    <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-cart-check-fill text-success fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0 small">Daftar Belanjaan Kasir</h6>
+                                <small class="text-muted" style="font-size: 0.72rem;">Daftar item transaksi aktif di meja kasir</small>
+                            </div>
                         </div>
-                        <div class="input-group input-group-sm" style="max-width: 240px;">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" placeholder="Cari produk cepat..." oninput="const q=this.value.toLowerCase();document.querySelectorAll('.quick-pick-col').forEach(el=>el.classList.toggle('d-none', q && !el.dataset.search.includes(q)));">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-light text-dark border font-monospace" id="posTableCountBadge">0 item</span>
+                            <button type="button" class="btn btn-outline-danger btn-sm pos-btn-compact" onclick="clearPosCart()" title="Kosongkan Daftar Belanjaan">
+                                <i class="bi bi-trash3 me-1"></i>Reset
+                            </button>
                         </div>
                     </div>
-                    <div class="row g-2.5">
-                        @foreach($stockItems as $item)
-                            <div class="col-6 col-sm-4 col-xl-3 quick-pick-col" data-search="{{ strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['category']) }}">
-                                <div class="tokped-product-card h-100 d-flex flex-column justify-content-between"
-                                     onclick="posAddToCart('{{ addslashes($item['name']) }}', {{ $item['sell_price'] }}, '{{ $item['sku'] }}')"
-                                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
-                                     role="button" tabindex="0" title="Tambah {{ $item['name'] }}">
-                                    <div>
-                                        <div class="d-flex justify-content-between align-items-center mb-1.5">
-                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.64rem;">{{ $item['sku'] }}</span>
-                                            <span class="small fw-semibold {{ $item['available'] <= 10 ? 'text-danger' : 'text-muted' }}" style="font-size: 0.68rem;">Stok {{ $item['available'] }}</span>
-                                        </div>
-                                        <div class="fw-semibold text-dark mb-2" style="font-size: 0.8rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.15rem;">
-                                            {{ $item['name'] }}
-                                        </div>
-                                    </div>
-                                    <div class="pt-2 border-top d-flex justify-content-between align-items-center gap-1">
-                                        <span class="fw-bold tokped-price" style="font-size: 0.84rem;">Rp{{ number_format($item['sell_price'], 0, ',', '.') }}</span>
-                                        <span class="btn btn-outline-success btn-sm py-0 px-2 tokped-add-btn" style="min-height: 26px; font-size: 0.72rem; border-radius: 6px;">+</span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="posCartTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3 text-center" style="width: 48px;">No</th>
+                                    <th style="width: 155px;">SKU / Barcode</th>
+                                    <th>Nama Barang</th>
+                                    <th class="text-end" style="width: 115px;">Harga</th>
+                                    <th class="text-center" style="width: 130px;">Qty</th>
+                                    <th class="text-end" style="width: 125px;">Subtotal</th>
+                                    <th class="text-center pe-3" style="width: 72px;">Hapus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="posCartTableBody">
+                                <!-- Injected via JavaScript renderPosCart() -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: POS Cart & Checkout Receipt (Sticky) -->
-            <div class="col-12 col-lg-5">
+            <!-- Right (col-lg-4): Panel Pembayaran & Ringkasan (Sticky) -->
+            <div class="col-12 col-lg-4">
                 <div class="card border-0 shadow-sm bg-white p-3 p-md-4 pos-receipt-sticky">
                     <h6 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex justify-content-between align-items-center">
                         <span class="d-flex align-items-center gap-1.5">
                             <i class="bi bi-receipt text-primary"></i>
                             <span>Keranjang Meja Kasir</span>
                         </span>
-                        <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
-                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">#POS-9421</span>
-                            <button type="button" class="btn btn-outline-danger btn-sm pos-btn-compact" onclick="clearPosCart()" title="Kosongkan Keranjang Kasir">
-                                Reset
-                            </button>
-                        </div>
+                        <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">#POS-9421</span>
                     </h6>
 
-                    <!-- Dynamic Cart Item List -->
-                    <div id="posCartList" class="mb-3" style="min-height: 120px; max-height: 280px; overflow-y: auto; scrollbar-width: thin;">
-                        <!-- Injected via JavaScript renderPosCart() -->
-                    </div>
-
-                    <div class="border-top pt-2.5 mb-3">
+                    <!-- Total Tagihan Box Besar -->
+                    <div class="pos-total-hero mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="text-secondary small fw-semibold">Total Tagihan Kasir:</span>
-                            <span class="fs-4 fw-bold text-primary tokped-price" id="posTotalDisplay">Rp 0</span>
+                            <span class="text-uppercase fw-bold text-success" style="font-size: 0.72rem; letter-spacing: 0.04em;">Total Tagihan</span>
+                            <span class="badge bg-white text-secondary border" style="font-size: 0.68rem;">PPN 0%</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
-                            <span id="posItemsCountDisplay">0 item</span>
-                            <span>PPN 0% (Bebas Pajak Koperasi)</span>
-                        </div>
+                        <div class="fs-2 fw-bold text-dark tokped-price lh-sm" id="posTotalDisplay">Rp 0</div>
+                        <div class="text-muted mt-1" style="font-size: 0.74rem;" id="posItemsCountDisplay">0 item</div>
                     </div>
 
                     <!-- Payment Method Selector -->
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary mb-1">Metode Bayar Pembeli:</label>
+                        <label class="form-label small fw-bold text-secondary mb-1">Metode Pembayaran:</label>
                         <select class="form-select form-select-sm mb-2 fw-semibold text-dark" id="posPaymentMethod" onchange="onPosPaymentMethodChanged(this.value)">
                             <option value="CASH">1. Tunai di Kasir (Cash)</option>
                             <option value="BANK_TRANSFER">2. Transfer Bank / QRIS Gerai</option>
@@ -510,20 +664,21 @@
 
                         <!-- A. CASH PAYMENT CONTAINER -->
                         <div id="posCashContainer">
-                            <div class="input-group input-group-sm mb-1.5">
+                            <label class="form-label text-muted d-block mb-1" style="font-size: 0.72rem;">Nominal Diterima dari Pembeli:</label>
+                            <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light small">Diterima Rp</span>
-                                <input type="number" class="form-control fw-bold font-monospace" id="posCashReceived" value="120000" oninput="calculatePosChange()">
+                                <input type="number" class="form-control fw-bold font-monospace" id="posCashReceived" value="0" min="0" oninput="calculatePosChange(); validatePosTransaction();">
                             </div>
-                            <div class="d-flex gap-1.5 flex-wrap mb-2">
+                            <div class="d-flex flex-wrap gap-2 mt-2 mb-2">
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setExactCash()">Uang Pas</button>
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(50000)">Rp 50k</button>
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(100000)">Rp 100k</button>
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(150000)">Rp 150k</button>
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setCashAmount(200000)">Rp 200k</button>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center p-2 rounded-2 bg-light border small">
-                                <span class="text-secondary fw-semibold">Uang Kembalian:</span>
-                                <span class="fw-bold text-success fs-6 font-monospace" id="posChangeDisplay">Rp 0</span>
+                            <div class="d-flex justify-content-between align-items-center p-2.5 rounded-2 bg-light border small">
+                                <span class="text-secondary fw-semibold">Kembalian:</span>
+                                <span class="fw-bold text-success fs-5 font-monospace" id="posChangeDisplay">Rp 0</span>
                             </div>
                         </div>
 
@@ -545,15 +700,15 @@
                         <!-- C. CREDIT PIUTANG ANGGOTA CONTAINER -->
                         <div id="posCreditContainer" class="d-none">
                             <div class="mb-2">
-                                <label class="form-label text-muted d-block mb-1" style="font-size: 0.72rem;">Pilih / Cari Anggota Koperasi:</label>
-                                <select class="form-select form-select-sm fw-semibold" id="posMemberSelect" onchange="onPosMemberSelected(this.value)">
-                                    <option value="">-- Cari Nomor Anggota / Nama Karyawan --</option>
-                                    <option value="EMP-001">EMP-001 | Ahmad Fauzi (Teknik Mesin POLMAN)</option>
-                                    <option value="EMP-014">EMP-014 | Siti Rahma (Logistik & Pengadaan)</option>
-                                    <option value="EMP-028">EMP-028 | Dewi Lestari (Admin Keuangan - Limit Tipis)</option>
-                                    <option value="EMP-035">EMP-035 | Dr. Hendra Gunawan (Dosen - Ada Overdue)</option>
-                                    <option value="EMP-042">EMP-042 | Bambang Sugianto (Staff Lab - Dibekukan)</option>
-                                </select>
+                                <label class="form-label text-muted d-block mb-1" style="font-size: 0.72rem;">Cari Anggota Koperasi (NIK / No. Anggota / UUID):</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control font-monospace text-uppercase" id="posMemberSearchInput" placeholder="Contoh: EMP-001 atau MEM-001" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupPosCreditMember();}">
+                                    <button type="button" class="btn btn-outline-primary fw-semibold" id="btnLookupPosMember" onclick="lookupPosCreditMember()">
+                                        Cek Limit
+                                    </button>
+                                </div>
+                                <input type="hidden" id="posMemberSelect" value="">
+                                <small id="posMemberLookupError" class="text-danger d-none mt-1" style="font-size: 0.7rem;"></small>
                             </div>
 
                             <!-- Mini Credit Status Card -->
@@ -588,6 +743,9 @@
                         </div>
                     </div>
 
+                    <!-- Alert Error POS -->
+                    <div id="posErrorAlert" class="alert alert-danger py-2 px-2.5 small d-none mb-2" role="alert"></div>
+
                     <!-- Button Selesaikan Transaksi -->
                     <button type="button" class="btn btn-success w-100 py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" id="btnCompletePosSale" onclick="openPosReceiptModal()">
                         <i class="bi bi-printer"></i>
@@ -598,106 +756,57 @@
         </div>
     </div>
 
-    <!-- TAB 3: VERIFIKASI ANTRIAN PICKUP ONLINE -->
+    <!-- VERIFIKASI ANTRIAN PICKUP ONLINE (Live API /api/v1/cashier/orders) -->
     <div class="tab-pane fade {{ $activeTab === 'pickup' ? 'show active' : '' }}" id="pickup-pane" role="tabpanel">
-        <div class="card border-0 shadow-sm bg-white">
-            <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
+        <div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 pb-3 border-bottom">
+                <div class="min-w-0">
                     <h5 class="card-title fw-bold text-dark mb-0 fs-6">Daftar Antrian Pengambilan Barang (Pickup)</h5>
-                    <small class="text-muted" style="font-size: 0.75rem;">Cocokkan kode pickup yang ditunjukkan pembeli lalu serahkan fisik barang</small>
+                    <small class="text-muted" style="font-size: 0.75rem;">Data langsung dari server. Cocokkan kode pickup sebelum menyerahkan barang.</small>
                 </div>
-                <div style="max-width: 300px;" class="w-100">
-                    <div class="input-group input-group-sm">
+                <div class="d-flex flex-wrap align-items-center gap-2 pickup-header-controls">
+                    <select id="pickupStatusFilter" class="form-select form-select-sm" style="width: auto; min-width: 175px;" onchange="loadCashierOrders()">
+                        <option value="">Semua Antrian Aktif</option>
+                        <option value="PENDING_PAYMENT">Menunggu Pembayaran</option>
+                        <option value="PENDING_PICKUP">Siap Diambil (Kredit)</option>
+                        <option value="READY_FOR_PICKUP">Siap Diambil (Lunas)</option>
+                    </select>
+                    <div class="input-group input-group-sm" style="width: 210px; max-width: 100%;">
                         <span class="input-group-text bg-light"><i class="bi bi-qr-code"></i></span>
-                        <input type="text" id="pickupFilterInput" class="form-control font-monospace text-uppercase" placeholder="Cari Kode PKP-XXXXX..." oninput="filterPickupQueue(this.value)">
+                        <input type="text" id="pickupFilterInput" class="form-control font-monospace text-uppercase" placeholder="Cari PKP- / ORD-..." oninput="filterPickupQueue(this.value)">
                     </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 text-nowrap flex-shrink-0 px-3" onclick="loadCashierOrders()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Muat Ulang</span>
+                    </button>
                 </div>
             </div>
+
+            <div id="pickupQueueErrorAlert" class="alert alert-danger mb-3 py-2 px-3 small d-none" role="alert"></div>
 
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
                     <thead class="table-light">
                         <tr>
                             <th>Kode Pickup</th>
-                            <th>ID & Nama Anggota</th>
+                            <th>Order & Anggota</th>
                             <th>Rincian Barang</th>
                             <th>Total Bayar</th>
-                            <th>Metode Bayar</th>
-                            <th class="text-center">Aksi Serah Terima</th>
+                            <th>Metode & Pembayaran</th>
+                            <th class="text-end">Aksi Serah Terima</th>
                         </tr>
                     </thead>
                     <tbody id="pickupQueueTableBody">
-                        @foreach($pickupQueue as $index => $q)
-                            @php
-                                $payStatus = $q['payment_status'] ?? ($q['payment_method'] === 'BANK_TRANSFER' ? 'PENDING_VERIFICATION' : ($q['payment_method'] === 'CREDIT' ? 'CREDIT_APPROVED' : 'PENDING_CASH'));
-                                $canHandover = !($q['payment_method'] === 'BANK_TRANSFER' && $payStatus !== 'VERIFIED');
-                            @endphp
-                            <tr id="pickupRow-{{ $q['pickup_code'] }}" data-code="{{ strtolower($q['pickup_code']) }}" data-member="{{ strtolower($q['member_name']) }}">
-                                <td>
-                                    <span class="badge bg-primary px-2.5 py-1 fs-7 font-monospace fw-bold">
-                                        {{ $q['pickup_code'] }}
-                                    </span>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;">{{ $q['created_at'] }}</small>
-                                </td>
-                                <td>
-                                    <span class="fw-bold text-dark">{{ $q['member_name'] }}</span>
-                                    <small class="text-muted d-block font-monospace">{{ $q['member_id'] }}</small>
-                                </td>
-                                <td>
-                                    <span class="text-secondary">{{ $q['items_summary'] }}</span>
-                                </td>
-                                <td class="fw-bold text-dark font-monospace">
-                                    Rp {{ number_format($q['total_amount'], 0, ',', '.') }}
-                                </td>
-                                <td>
-                                    <div class="d-flex flex-column gap-1">
-                                        @if($q['payment_method'] === 'CASH')
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Tunai di Kasir</span>
-                                            <small class="text-muted" style="font-size: 0.68rem;">Bayar saat serah terima</small>
-                                        @elseif($q['payment_method'] === 'CREDIT')
-                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Piutang 7 Hari</span>
-                                            <small class="text-success" style="font-size: 0.68rem;"><i class="bi bi-check-circle"></i> Plafon Disetujui</small>
-                                        @else
-                                            @if($payStatus === 'VERIFIED')
-                                                <span class="badge bg-success text-white" id="badgeTransfer-{{ $q['pickup_code'] }}">
-                                                    <i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi
-                                                </span>
-                                                <small class="text-muted font-monospace" style="font-size: 0.68rem;">{{ $q['transfer_ref'] ?? 'TRX-VERIFIED' }}</small>
-                                            @elseif($payStatus === 'PAYMENT_REJECTED')
-                                                <span class="badge bg-danger text-white" id="badgeTransfer-{{ $q['pickup_code'] }}">
-                                                    <i class="bi bi-x-circle-fill me-0.5"></i> Transfer Ditolak
-                                                </span>
-                                                <small class="text-danger" style="font-size: 0.68rem;">Mutasi tidak ditemukan</small>
-                                            @else
-                                                <span class="badge bg-warning text-dark" id="badgeTransfer-{{ $q['pickup_code'] }}">
-                                                    <i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi
-                                                </span>
-                                                <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 mt-0.5 d-inline-flex align-items-center gap-1" id="btnVerify-{{ $q['pickup_code'] }}" style="font-size: 0.7rem;" onclick="openVerifyTransferModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['member_id'] }}', {{ $q['total_amount'] }}, '{{ $q['transfer_ref'] ?? 'TRX-BCA-51922' }}')">
-                                                    <i class="bi bi-receipt-cutoff"></i>
-                                                    <span>Verifikasi Transfer</span>
-                                                </button>
-                                            @endif
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <div class="d-flex align-items-center justify-content-center gap-1.5 flex-wrap">
-                                        <button type="button" class="btn btn-sm {{ $canHandover ? 'btn-outline-success' : 'btn-outline-secondary opacity-50' }} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-{{ $q['pickup_code'] }}" {{ $canHandover ? '' : 'disabled' }} title="{{ $canHandover ? 'Serahkan barang ke pembeli' : 'Wajib verifikasi pembayaran transfer terlebih dahulu' }}" onclick="openPickupHandoverModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['member_id'] }}', '{{ $q['items_summary'] }}', {{ $q['total_amount'] }}, '{{ $q['payment_method'] }}')">
-                                            <i class="bi bi-check2-circle"></i>
-                                            <span>Serah Terima</span>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 cancel-btn" id="btnCancel-{{ $q['pickup_code'] }}" title="Batalkan Pesanan (Lepas Reservasi Stok & Credit Hold)" onclick="openCancelOrderModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['items_summary'] }}', {{ $q['total_amount'] }})">
-                                            <i class="bi bi-x-circle"></i>
-                                            <span class="d-none d-md-inline">Batal</span>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
+                        <tr id="pickupLoadingRow">
+                            <td colspan="6" class="text-center py-4 text-muted small">
+                                <span class="spinner-border spinner-border-sm me-1 text-primary" role="status"></span>
+                                Memuat antrian pesanan dari server...
+                            </td>
+                        </tr>
                         <tr id="pickupEmptyRow" class="d-none">
                             <td colspan="6" class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-3 d-block text-secondary opacity-50 mb-1"></i>
-                                <span class="small">Tidak ada antrean pesanan pickup yang cocok dengan pencarian.</span>
+                                <span class="small">Tidak ada antrean pesanan pickup yang aktif.</span>
                             </td>
                         </tr>
                     </tbody>
@@ -713,28 +822,28 @@
      ============================================================================== -->
 <div class="modal fade" id="barcodeScannerModal" tabindex="-1" aria-labelledby="barcodeScannerModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white py-3 px-3 px-md-4">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="p-1.5 rounded-2 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header bg-dark text-white py-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                    <div class="p-1.5 rounded-2 bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px;">
                         <i class="bi bi-upc-scan fs-6"></i>
                     </div>
-                    <div>
-                        <h6 class="modal-title fw-bold mb-0 fs-6" id="barcodeScannerModalLabel">Scanner Barcode Kamera Gerai KOPEG</h6>
-                        <small class="text-white-50" style="font-size: 0.72rem;">Mendukung EAN-13, EAN-8, Code-128, QR Code, dan File Gambar</small>
+                    <div class="min-w-0">
+                        <h6 class="modal-title fw-bold mb-0 fs-6 text-truncate" id="barcodeScannerModalLabel">Scanner Barcode Kamera Gerai KOPEG</h6>
+                        <small class="text-white-50 d-block text-truncate" style="font-size: 0.72rem;">Mendukung EAN-13, EAN-8, Code-128, QR Code, dan File Gambar</small>
                     </div>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span id="sessionScanCountBadge" class="badge bg-success-subtle text-success border border-success-subtle fw-bold" style="font-size: 0.72rem;">
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <span id="sessionScanCountBadge" class="badge bg-success-subtle text-success border border-success-subtle fw-bold text-nowrap" style="font-size: 0.72rem;">
                         0 Barang Ter-scan
                     </span>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" onclick="stopBarcodeScanner()"></button>
+                    <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Tutup" onclick="stopBarcodeScanner()"></button>
                 </div>
             </div>
 
             <div class="modal-body p-3 p-md-4">
                 <!-- 1. Scanner Viewport Container with Real-time Laser Line -->
-                <div class="scanner-viewport-box mb-3" id="scannerViewportBox">
+                <div class="scanner-viewport-box" id="scannerViewportBox">
                     <div id="qr-reader" style="width: 100%;"></div>
                     <!-- Animated Laser Beam -->
                     <div class="scanner-laser-line" id="scannerLaserBeam"></div>
@@ -745,24 +854,24 @@
                 </div>
 
                 <!-- 2. Status & Controls Row -->
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
                     <!-- Status Banner -->
-                    <div id="scannerStatusAlert" class="alert alert-info py-1.5 px-3 small d-flex align-items-center gap-2 mb-0 flex-grow-1">
+                    <div id="scannerStatusAlert" class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-0 flex-grow-1" style="min-width: 240px;">
                         <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" id="scannerSpinner" role="status"></div>
                         <span id="scannerStatusText">Mengaktifkan modul kamera... Arahkan barcode ke kotak bidik.</span>
                     </div>
 
                     <!-- Mode Scan Beruntun (Multi-Scan Switch) -->
-                    <div class="form-check form-switch small mb-0 px-2 py-1 bg-light rounded border flex-shrink-0" title="Secara default, scan barcode akan langsung keluar otomatis seperti di GoPay. Aktifkan jika ingin scan banyak barang tanpa menutup kamera.">
-                        <input class="form-check-input ms-0 me-2" type="checkbox" id="toggleMultiScan">
-                        <label class="form-check-label fw-semibold text-dark" for="toggleMultiScan" style="font-size: 0.74rem;">
+                    <div class="form-check form-switch small mb-0 px-3 py-2 bg-light rounded-3 border flex-shrink-0 d-flex align-items-center gap-2" title="Secara default, scan barcode akan langsung keluar otomatis. Aktifkan jika ingin scan banyak barang tanpa menutup kamera.">
+                        <input class="form-check-input m-0" type="checkbox" id="toggleMultiScan">
+                        <label class="form-check-label fw-semibold text-dark mb-0" for="toggleMultiScan" style="font-size: 0.76rem; cursor: pointer;">
                             Scan Beruntun (Tetap di Kamera)
                         </label>
                     </div>
                 </div>
 
                 <!-- 3. Error Banner: Ramah jika akses ditolak atau tidak ada kamera -->
-                <div id="scannerErrorAlert" class="alert alert-danger py-2.5 px-3 small d-none mb-3">
+                <div id="scannerErrorAlert" class="alert alert-danger py-2.5 px-3 small d-none mt-3 mb-0">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-octagon-fill fs-5 text-danger flex-shrink-0 mt-0.5"></i>
                         <div class="flex-grow-1">
@@ -782,62 +891,12 @@
                     </div>
                 </div>
 
-                <!-- 4. Pilihan Cepat Barcode Demo Instan (100% Berfungsi Kapan Saja) -->
-                <div class="p-2.5 rounded-3 bg-light border mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
-                        <small class="text-secondary fw-bold text-uppercase d-inline-flex align-items-center gap-1.5" style="font-size: 0.72rem;">
-                            <i class="bi bi-lightning-charge-fill text-warning"></i>
-                            <span>Pilihan Cepat & Uji Coba Barcode:</span>
-                        </small>
-                        <div class="d-flex gap-1.5 align-items-center">
-                            <button type="button" class="btn btn-warning btn-sm py-0.5 px-2.5 fw-bold text-dark shadow-xs" style="font-size: 0.72rem;" onclick="openTestBarcodeGalleryModal()">
-                                <i class="bi bi-grid-3x3-gap-fill me-1"></i> Buka Lembar Barcode Siap-Scan
-                            </button>
-                            <span class="badge bg-white text-primary border small" style="font-size: 0.65rem;">
-                                <i class="bi bi-hand-index-thumb me-1"></i> Klik untuk Scan Instan
-                            </span>
-                        </div>
-                    </div>
-                    <div class="d-flex flex-wrap gap-1.5">
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991001', 'Beras Premium Ramos 5 Kg')">
-                            <i class="bi bi-upc me-1"></i> 89999991001 (Beras Ramos)
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991002', 'Minyak Goreng Pouch 2L')">
-                            <i class="bi bi-upc me-1"></i> 89999991002 (Minyak 2L)
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991003', 'Gula Pasir Kristal 1kg')">
-                            <i class="bi bi-upc me-1"></i> 89999991003 (Gula 1kg)
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991005', 'Telur Ayam Fresh 1kg')">
-                            <i class="bi bi-upc me-1"></i> 89999991005 (Telur 1kg)
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991008', 'Kopi Arabika 250g')">
-                            <i class="bi bi-upc me-1"></i> 89999991008 (Kopi 250g)
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-2 py-1 font-monospace shadow-xs" style="font-size: 0.74rem;" onclick="simulateBarcodeScan('89999991011', 'Deterjen Bubuk 800g')">
-                            <i class="bi bi-upc me-1"></i> 89999991011 (Deterjen)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 5. Input Manual Barcode / SKU di Meja Kasir -->
-                <div class="p-2.5 rounded-2 bg-light border">
-                    <label class="form-label text-secondary fw-semibold d-block mb-1" style="font-size: 0.72rem;">Ketik Manual SKU / Barcode di Meja Kasir:</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white"><i class="bi bi-upc"></i></span>
-                        <input type="text" id="modalManualBarcodeInput" class="form-control font-monospace" placeholder="Ketik SKU atau nomor barcode (contoh: SEM-001 / 89999991001)..." onkeydown="if(event.key === 'Enter'){ submitModalManualBarcode(); }">
-                        <button type="button" class="btn btn-primary fw-semibold px-3" onclick="submitModalManualBarcode()">
-                            + Masukkan
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Hidden file input & temp reader untuk scan gambar barcode -->
                 <input type="file" id="barcodeFileInput" class="d-none" accept="image/*" onchange="handleBarcodeFile(this)">
                 <div id="qr-reader-file-temp" class="d-none"></div>
             </div>
 
-            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between flex-wrap gap-2">
+            <div class="modal-footer bg-light py-2.5 px-3 px-md-4 d-flex flex-wrap gap-2 justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1.5" id="btnSwitchCamera" onclick="switchScannerCamera()">
                         <i class="bi bi-arrow-repeat"></i>
@@ -847,14 +906,10 @@
                         <i class="bi bi-image"></i>
                         <span>Scan dari Gambar</span>
                     </button>
-                    <button type="button" class="btn btn-outline-warning text-dark fw-semibold btn-sm d-inline-flex align-items-center gap-1.5" onclick="openTestBarcodeGalleryModal()">
-                        <i class="bi bi-upc-scan text-dark"></i>
-                        <span>Lembar Barcode Siap-Scan</span>
-                    </button>
                 </div>
-                <small class="text-muted" style="font-size: 0.72rem;">
-                    <i class="bi bi-camera-video me-1"></i> Kamera aktif &bull; Arahkan ke barcode komoditas
-                </small>
+                <button type="button" class="btn btn-secondary btn-sm px-3 fw-semibold" data-bs-dismiss="modal" onclick="stopBarcodeScanner()">
+                    Tutup
+                </button>
             </div>
         </div>
     </div>
@@ -880,8 +935,8 @@
                         <small class="text-muted d-block">Koperasi Konsumen Pegawai POLMAN Bandung</small>
                         <small class="text-muted d-block">Jl. Kanayakan No. A11 Dago, Bandung</small>
                         <div class="d-flex justify-content-between text-muted mt-1 small">
-                            <span>No: <strong class="text-dark">#POS-9421</strong></span>
-                            <span id="receiptDate">16 Nov 2026</span>
+                            <span>No: <strong class="text-dark" id="receiptOrderNo">-</strong></span>
+                            <span id="receiptDate">-</span>
                         </div>
                     </div>
 
@@ -889,7 +944,7 @@
                     <div class="mb-2 pb-2 border-bottom border-dashed">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Kasir:</span>
-                            <span class="fw-bold text-dark">Budi Santoso (01)</span>
+                            <span class="fw-bold text-dark">{{ $cashierDisplayName }}</span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Pelanggan:</span>
@@ -1014,6 +1069,7 @@
                     </label>
                     <small class="text-muted d-block mt-0.5" style="font-size: 0.68rem;">Konfirmasi ini akan memotong stok fisik on-hand gerai secara permanen.</small>
                 </div>
+                <div id="pickupHandoverErrorAlert" class="alert alert-danger py-2 px-2.5 small d-none mb-0" role="alert"></div>
             </div>
             <div class="modal-footer bg-light py-2 px-3 justify-content-between">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
@@ -1120,6 +1176,8 @@
                     </label>
                 </div>
 
+                <div id="vtfErrorAlert" class="alert alert-danger py-2 px-2.5 small d-none mt-2 mb-2" role="alert"></div>
+
                 <!-- Box Alasan Penolakan (Collapse jika kasir ingin menolak) -->
                 <div id="vtfRejectBox" class="p-2.5 rounded-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 mt-2 d-none">
                     <label class="form-label small fw-bold text-danger mb-1">Alasan Penolakan Bukti Transfer:</label>
@@ -1129,7 +1187,7 @@
                         <option value="Bukti transfer tidak jelas / terindikasi palsu">Bukti transfer tidak jelas / terindikasi palsu</option>
                         <option value="Rekening tujuan salah (bukan rekening resmi koperasi)">Rekening tujuan salah (bukan rekening resmi koperasi)</option>
                     </select>
-                    <button type="button" class="btn btn-danger btn-sm w-100 fw-semibold" onclick="executeRejectTransfer()">
+                    <button type="button" class="btn btn-danger btn-sm w-100 fw-semibold" id="btnExecuteRejectTransfer" onclick="executeRejectTransfer()">
                         Konfirmasi Tolak Pembayaran Ini
                     </button>
                 </div>
@@ -1142,7 +1200,7 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
                         Batal
                     </button>
-                    <button type="button" class="btn btn-success btn-sm fw-semibold px-3" onclick="executeApproveTransfer()">
+                    <button type="button" class="btn btn-success btn-sm fw-semibold px-3" id="btnExecuteApproveTransfer" onclick="executeApproveTransfer()">
                         <i class="bi bi-check-circle me-1"></i> Setujui & Verifikasi Dana
                     </button>
                 </div>
@@ -1203,12 +1261,13 @@
                         <option value="Kesalahan pesanan sembako / stok rusak di rak">Kesalahan pesanan sembako / stok rusak di rak</option>
                     </select>
                 </div>
+                <div id="cancelOrderErrorAlert" class="alert alert-danger py-2 px-2.5 small d-none mb-0 mt-2" role="alert"></div>
             </div>
             <div class="modal-footer bg-light py-2 px-3 justify-content-between">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
                     Batal (Kembali)
                 </button>
-                <button type="button" class="btn btn-danger btn-sm fw-semibold px-3" onclick="executeCancelOrder()">
+                <button type="button" class="btn btn-danger btn-sm fw-semibold px-3" id="btnExecuteCancelOrder" onclick="executeCancelOrder()">
                     <i class="bi bi-trash3 me-1"></i> Ya, Batalkan Pesanan Ini
                 </button>
             </div>
@@ -1280,85 +1339,6 @@
                         <i class="bi bi-printer me-1"></i> Cetak Label
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ==============================================================================
-     MODAL 8: LEMBAR KATALOG BARCODE & QR PRODUK SIAP-SCAN
-     ============================================================================== -->
-<div class="modal fade" id="testBarcodeGalleryModal" tabindex="-1" aria-labelledby="testBarcodeGalleryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white py-3 px-3 px-md-4">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="p-1.5 rounded-2 bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="bi bi-qr-code-scan fs-6"></i>
-                    </div>
-                    <div>
-                        <h6 class="modal-title fw-bold mb-0 fs-6" id="testBarcodeGalleryModalLabel">Katalog Barcode & QR Siap-Scan Kamera Gerai</h6>
-                        <small class="text-white-50" style="font-size: 0.72rem;">Arahkan kamera HP atau webcam kasir ke barcode di bawah ini untuk menguji deteksi scan nyata</small>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm py-1 px-2.5" onclick="renderAllGalleryBarcodes()">
-                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Barcode
-                    </button>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
-                </div>
-            </div>
-            <div class="modal-body p-3 p-md-4 bg-light">
-                <div class="alert alert-primary py-2.5 px-3 small d-flex align-items-center gap-2 mb-3">
-                    <i class="bi bi-camera-video-fill fs-5 text-primary flex-shrink-0"></i>
-                    <div>
-                        <strong>Petunjuk Pengujian Barcode Kamera:</strong>
-                        Buka modal ini di layar kedua / smartphone, lalu arahkan kamera scanner kasir ke barcode atau QR code di bawah. Setiap barcode telah dikonfigurasi dengan standar Code-128 dan QR Code kontras tinggi.
-                    </div>
-                </div>
-
-                <div class="row g-3" id="galleryBarcodeListContainer">
-                    @foreach($stockItems as $idx => $item)
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <div class="card h-100 border shadow-xs rounded-3 bg-white">
-                                <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-light text-secondary border font-monospace">{{ $item['sku'] }}</span>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold">Rp {{ number_format($item['sell_price'], 0, ',', '.') }}</span>
-                                </div>
-                                <div class="card-body p-3 text-center">
-                                    <h6 class="fw-bold text-dark mb-1 text-truncate" title="{{ $item['name'] }}">{{ $item['name'] }}</h6>
-                                    <small class="text-muted d-block font-monospace mb-2" style="font-size: 0.72rem;">Barcode: {{ $item['barcode'] }}</small>
-                                    
-                                    <!-- Barcode SVG Container -->
-                                    <div class="p-2 bg-white border rounded mb-2 text-center" style="min-height: 85px;">
-                                        <svg class="gallery-barcode-svg" id="galleryBarcodeSvg_{{ $idx }}" data-barcode="{{ $item['barcode'] }}" style="max-width: 100%; height: auto;"></svg>
-                                    </div>
-
-                                    <!-- QR Code Canvas Container -->
-                                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2 p-1.5 bg-light rounded border">
-                                        <canvas class="gallery-qr-canvas" id="galleryQrCanvas_{{ $idx }}" data-barcode="{{ $item['barcode'] }}"></canvas>
-                                        <div class="text-start" style="font-size: 0.7rem;">
-                                            <span class="d-block fw-bold text-dark">Mode QR 2D</span>
-                                            <span class="text-muted">Alternatif scan cepat jika kamera webcam beresolusi rendah</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-semibold" onclick="simulateBarcodeScan('{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}')">
-                                        <i class="bi bi-cart-plus me-1"></i> Scan Masuk Keranjang
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between align-items-center">
-                <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i> Cetak Lembar Barcode
-                </button>
-                <small class="text-muted" style="font-size: 0.72rem;">
-                    <i class="bi bi-info-circle me-1"></i> Barcode siap diarahkan langsung ke scanner kamera gerai
-                </small>
             </div>
         </div>
     </div>
@@ -1455,90 +1435,219 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
-// ==============================================================================
-// 1. DATA MASTER & STATE KASIR
-// ==============================================================================
-const stockCatalogue = @json($stockItems);
-
-const membersDirectory = [
-    {
-        id: 'EMP-001',
-        name: 'Ahmad Fauzi',
-        unit: 'Teknik Mesin & Manufaktur POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 852000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 2
-    },
-    {
-        id: 'EMP-014',
-        name: 'Siti Rahma',
-        unit: 'Logistik & Pengadaan POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 950000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 1
-    },
-    {
-        id: 'EMP-028',
-        name: 'Dewi Lestari',
-        unit: 'Administrasi Keuangan POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 50000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 3
-    },
-    {
-        id: 'EMP-035',
-        name: 'Dr. Hendra Gunawan',
-        unit: 'Dosen Rekayasa Perancangan',
-        status: 'TERVERIFIKASI',
-        available_limit: 1000000,
-        total_limit: 1000000,
-        is_overdue: true,
-        overdue_days: 9,
-        unpaid_invoices: 1
-    },
-    {
-        id: 'EMP-042',
-        name: 'Bambang Sugianto',
-        unit: 'Staff Lab Bengkel Mesin',
-        status: 'DIBEKUKAN',
-        available_limit: 0,
-        total_limit: 1000000,
-        is_overdue: true,
-        overdue_days: 14,
-        unpaid_invoices: 4
-    }
-];
-
-let posCart = [
-    { sku: 'SEM-001', name: 'Beras Premium Ramos 5 Kg', price: 74500, qty: 1 },
-    { sku: 'MNY-001', name: 'Minyak Goreng Pouch 2 Liter', price: 36000, qty: 1 }
-];
-
+const stockCatalogue = @json($safeStockItems);
+let posCart = [];
+let selectedPosCreditMember = null;
+let currentPosIdempotencyKey = null;
+let liveCashierOrders = [];
 let selectedPickupOrder = null;
+let currentVerifyTransfer = null;
+let currentCancelOrder = null;
 
-// ==============================================================================
-// 2. KERANJANG KASIR & KALKULASI FINANSIAL
-// ==============================================================================
-function renderPosCart() {
-    const list = document.getElementById('posCartList');
-    if (!list) return;
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
-    if (posCart.length === 0) {
-        list.innerHTML = `
-            <div class="text-center py-4 text-muted">
-                <i class="bi bi-cart-x fs-3 d-block text-secondary opacity-50 mb-1"></i>
-                <span class="small">Keranjang kasir kosong.<br>Scan barcode atau pilih sembako di samping.</span>
+function generateIdemKey(prefix) {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return `${prefix}-${window.crypto.randomUUID()}`;
+    }
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+async function apiRequest(url, method = 'GET', payload = null) {
+    const options = {
+        method,
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+    };
+    if (payload !== null) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(payload);
+    }
+
+    const res = await fetch(url, options);
+    let data = {};
+    try {
+        data = await res.json();
+    } catch (_) {
+        throw new Error(`Respons server tidak valid (HTTP ${res.status}).`);
+    }
+
+    if (!res.ok || data.success === false) {
+        throw new Error(data.message || `Permintaan ditolak oleh server (HTTP ${res.status}).`);
+    }
+
+    return data;
+}
+
+function showInlineAlert(elementId, message) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('d-none');
+}
+
+function hideInlineAlert(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = '';
+    el.classList.add('d-none');
+}
+
+// Keranjang kasir minimarket (tabel transaksi) dan kalkulasi total
+let posSearchMatches = [];
+let posSearchActiveIndex = -1;
+
+function hidePosSearchDropdown() {
+    const dropdown = document.getElementById('posSearchDropdown');
+    if (dropdown) {
+        dropdown.classList.add('d-none');
+        dropdown.innerHTML = '';
+    }
+    posSearchMatches = [];
+    posSearchActiveIndex = -1;
+}
+
+function renderPosSearchDropdown() {
+    const dropdown = document.getElementById('posSearchDropdown');
+    if (!dropdown) return;
+
+    if (posSearchMatches.length === 0) {
+        dropdown.innerHTML = `
+            <div class="px-3 py-2.5 text-muted small">
+                <i class="bi bi-search me-1"></i> Tidak ada barang cocok di daftar cepat. Tekan <strong>Enter</strong> untuk lookup barcode ke server.
             </div>
         `;
+        dropdown.classList.remove('d-none');
+        return;
+    }
+
+    dropdown.innerHTML = posSearchMatches.map((item, idx) => {
+        const isActive = idx === posSearchActiveIndex ? 'active' : '';
+        const avail = Number(item.available || 0);
+        const stockClass = avail <= 0 ? 'text-danger' : (avail <= 10 ? 'text-warning' : 'text-success');
+        const codeLabel = item.barcode ? `${escapeHtml(item.sku)} &bull; ${escapeHtml(item.barcode)}` : escapeHtml(item.sku);
+        return `
+            <button type="button" class="pos-search-item ${isActive}" role="option" aria-selected="${idx === posSearchActiveIndex}" onmousedown="event.preventDefault(); selectPosSearchItem(${idx});">
+                <div class="min-w-0">
+                    <div class="fw-semibold text-dark small text-truncate">${escapeHtml(item.name)}</div>
+                    <div class="text-muted font-monospace" style="font-size: 0.72rem;">${codeLabel} &bull; <span class="${stockClass} fw-semibold">Stok ${avail}</span></div>
+                </div>
+                <span class="fw-bold text-dark tokped-price text-nowrap small">Rp ${Number(item.sell_price || 0).toLocaleString('id-ID')}</span>
+            </button>
+        `;
+    }).join('');
+    dropdown.classList.remove('d-none');
+}
+
+function onPosSearchInput(rawVal) {
+    const q = (rawVal || '').trim().toLowerCase();
+    if (!q) {
+        hidePosSearchDropdown();
+        return;
+    }
+
+    posSearchMatches = stockCatalogue.filter(item =>
+        (item.name && String(item.name).toLowerCase().includes(q)) ||
+        (item.sku && String(item.sku).toLowerCase().includes(q)) ||
+        (item.barcode && String(item.barcode).toLowerCase().includes(q))
+    ).slice(0, 8);
+    posSearchActiveIndex = posSearchMatches.length > 0 ? 0 : -1;
+    renderPosSearchDropdown();
+}
+
+function onPosSearchKeydown(event) {
+    const dropdown = document.getElementById('posSearchDropdown');
+    const isDropdownOpen = dropdown && !dropdown.classList.contains('d-none') && posSearchMatches.length > 0;
+
+    if (event.key === 'ArrowDown' && isDropdownOpen) {
+        event.preventDefault();
+        posSearchActiveIndex = (posSearchActiveIndex + 1) % posSearchMatches.length;
+        renderPosSearchDropdown();
+        return;
+    }
+    if (event.key === 'ArrowUp' && isDropdownOpen) {
+        event.preventDefault();
+        posSearchActiveIndex = (posSearchActiveIndex - 1 + posSearchMatches.length) % posSearchMatches.length;
+        renderPosSearchDropdown();
+        return;
+    }
+    if (event.key === 'Escape') {
+        hidePosSearchDropdown();
+        return;
+    }
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const inputVal = (document.getElementById('posBarcodeField')?.value || '').trim().toLowerCase();
+        const exactMatch = stockCatalogue.find(item =>
+            (item.barcode && String(item.barcode).toLowerCase() === inputVal) ||
+            (item.sku && String(item.sku).toLowerCase() === inputVal)
+        );
+        if (exactMatch || inputVal.startsWith('pkp-') || inputVal.startsWith('ord-')) {
+            submitManualBarcodeField();
+            return;
+        }
+        if (isDropdownOpen && posSearchActiveIndex >= 0 && posSearchMatches[posSearchActiveIndex]) {
+            selectPosSearchItem(posSearchActiveIndex);
+            return;
+        }
+        submitManualBarcodeField();
+    }
+}
+
+function selectPosSearchItem(index) {
+    const item = posSearchMatches[index];
+    if (!item) return;
+
+    const field = document.getElementById('posBarcodeField');
+    if (field) {
+        field.value = '';
+        field.focus();
+    }
+    hidePosSearchDropdown();
+    playGopayChime();
+    handleIncomingBarcode(item.barcode || item.sku, { source: 'dropdown', showGopaySheet: false });
+}
+
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('posSearchContainer');
+    if (container && !container.contains(e.target)) {
+        hidePosSearchDropdown();
+    }
+});
+
+function renderPosCart() {
+    const tbody = document.getElementById('posCartTableBody');
+    const tableBadge = document.getElementById('posTableCountBadge');
+    if (!tbody) return;
+
+    if (posCart.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light border mb-2" style="width: 56px; height: 56px;">
+                        <i class="bi bi-upc-scan fs-3 text-success"></i>
+                    </div>
+                    <div class="fw-semibold text-dark small mb-1">Belum ada barang yang di-scan</div>
+                    <div class="small text-muted mx-auto" style="max-width: 420px; font-size: 0.76rem;">
+                        Arahkan kursor ke kolom scan di atas, gunakan barcode scanner USB / <strong>Scan Kamera</strong>, atau ketik nama maupun SKU barang untuk menambahkan item ke tabel transaksi.
+                    </div>
+                </td>
+            </tr>
+        `;
+        if (tableBadge) tableBadge.textContent = '0 item';
         document.getElementById('posTotalDisplay').textContent = 'Rp 0';
         document.getElementById('posItemsCountDisplay').textContent = '0 item';
         calculatePosChange();
@@ -1554,50 +1663,95 @@ function renderPosCart() {
         const subtotal = item.price * item.qty;
         total += subtotal;
         totalItems += item.qty;
+        const barcodeLine = item.barcode
+            ? `<small class="text-muted font-monospace d-block" style="font-size: 0.68rem;">${escapeHtml(item.barcode)}</small>`
+            : '';
 
         html += `
-            <div class="d-flex justify-content-between align-items-center gap-2 py-2.5 border-bottom small">
-                <div class="lh-sm min-w-0 flex-grow-1">
-                    <span class="fw-semibold text-dark d-block text-truncate" title="${item.name}">${item.name}</span>
-                    <small class="text-muted tokped-price" style="font-size: 0.72rem;">${item.sku} &bull; Rp ${item.price.toLocaleString('id-ID')}</small>
-                </div>
-                <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                    <div class="pos-qty-stepper">
+            <tr>
+                <td class="ps-3 text-center text-muted fw-semibold small">${index + 1}</td>
+                <td>
+                    <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.72rem;">${escapeHtml(item.sku)}</span>
+                    ${barcodeLine}
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark small">${escapeHtml(item.name)}</div>
+                </td>
+                <td class="text-end text-nowrap tokped-price small">
+                    Rp ${item.price.toLocaleString('id-ID')}
+                </td>
+                <td class="text-center">
+                    <div class="pos-table-qty-wrap">
                         <button type="button" onclick="updatePosQty(${index}, -1)" aria-label="Kurangi jumlah">&minus;</button>
-                        <span>${item.qty}</span>
+                        <input type="number" min="1" value="${item.qty}" aria-label="Jumlah ${escapeHtml(item.name)}" onchange="setPosQty(${index}, this.value)">
                         <button type="button" onclick="updatePosQty(${index}, 1)" aria-label="Tambah jumlah">+</button>
                     </div>
-                    <span class="fw-bold text-dark tokped-price text-end text-nowrap" style="min-width: 84px; font-size: 0.82rem;">
-                        Rp ${subtotal.toLocaleString('id-ID')}
-                    </span>
-                    <button type="button" class="btn btn-link pos-trash-btn d-inline-flex align-items-center justify-content-center" onclick="removePosItem(${index})" title="Hapus" aria-label="Hapus item">
+                </td>
+                <td class="text-end fw-bold text-dark text-nowrap tokped-price small">
+                    Rp ${subtotal.toLocaleString('id-ID')}
+                </td>
+                <td class="text-center pe-3">
+                    <button type="button" class="btn btn-link pos-trash-btn d-inline-flex align-items-center justify-content-center" onclick="removePosItem(${index})" title="Hapus item" aria-label="Hapus item">
                         <i class="bi bi-trash3"></i>
                     </button>
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
     });
 
-    list.innerHTML = html;
+    tbody.innerHTML = html;
+    if (tableBadge) tableBadge.textContent = `${totalItems} item (${posCart.length} SKU)`;
     document.getElementById('posTotalDisplay').textContent = `Rp ${total.toLocaleString('id-ID')}`;
     document.getElementById('posItemsCountDisplay').textContent = `${totalItems} barang (${posCart.length} SKU)`;
 
+    if (selectedPosCreditMember) {
+        renderPosCreditMemberCard();
+    }
     calculatePosChange();
     validatePosTransaction();
 }
 
-function posAddToCart(name, price, sku = 'SKU-CUSTOM') {
-    const existing = posCart.find(i => i.name === name || i.sku === sku);
+function posAddToCart(name, price, sku = 'SKU-CUSTOM', productId = null, barcode = '') {
+    currentPosIdempotencyKey = null;
+    hideInlineAlert('posErrorAlert');
+
+    let resolvedBarcode = barcode || '';
+    if (!resolvedBarcode && Array.isArray(stockCatalogue)) {
+        const found = stockCatalogue.find(i => (productId && i.id === productId) || i.sku === sku);
+        if (found && found.barcode) {
+            resolvedBarcode = String(found.barcode);
+        }
+    }
+
+    const existing = posCart.find(i => (productId && i.productId === productId) || i.sku === sku);
     if (existing) {
         existing.qty += 1;
+        if (!existing.barcode && resolvedBarcode) {
+            existing.barcode = resolvedBarcode;
+        }
     } else {
-        posCart.push({ sku, name, price, qty: 1 });
+        posCart.push({ productId, sku, barcode: resolvedBarcode, name, price: Number(price), qty: 1 });
+    }
+    renderPosCart();
+}
+
+function setPosQty(index, rawValue) {
+    if (!posCart[index]) return;
+    currentPosIdempotencyKey = null;
+    hideInlineAlert('posErrorAlert');
+    const parsed = parseInt(rawValue, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+        posCart.splice(index, 1);
+    } else {
+        posCart[index].qty = parsed;
     }
     renderPosCart();
 }
 
 function updatePosQty(index, delta) {
     if (posCart[index]) {
+        currentPosIdempotencyKey = null;
+        hideInlineAlert('posErrorAlert');
         posCart[index].qty += delta;
         if (posCart[index].qty <= 0) {
             posCart.splice(index, 1);
@@ -1608,6 +1762,8 @@ function updatePosQty(index, delta) {
 
 function removePosItem(index) {
     if (posCart[index]) {
+        currentPosIdempotencyKey = null;
+        hideInlineAlert('posErrorAlert');
         posCart.splice(index, 1);
         renderPosCart();
     }
@@ -1615,7 +1771,10 @@ function removePosItem(index) {
 
 function clearPosCart() {
     posCart = [];
+    currentPosIdempotencyKey = null;
+    hideInlineAlert('posErrorAlert');
     renderPosCart();
+    document.getElementById('posBarcodeField')?.focus();
 }
 
 function getPosTotal() {
@@ -1655,10 +1814,10 @@ function setCashAmount(amt) {
     validatePosTransaction();
 }
 
-// ==============================================================================
-// 3. DINAMIKA METODE PEMBAYARAN & KELAYAKAN PIUTANG ANGGOTA
-// ==============================================================================
+// Dinamika metode pembayaran & cek kelayakan piutang anggota via API
 function onPosPaymentMethodChanged(method) {
+    currentPosIdempotencyKey = null;
+    hideInlineAlert('posErrorAlert');
     const cashBox = document.getElementById('posCashContainer');
     const transferBox = document.getElementById('posTransferContainer');
     const creditBox = document.getElementById('posCreditContainer');
@@ -1674,37 +1833,85 @@ function onPosPaymentMethodChanged(method) {
         transferBox.classList.remove('d-none');
     } else if (method === 'CREDIT') {
         creditBox.classList.remove('d-none');
-        const sel = document.getElementById('posMemberSelect').value;
-        if (sel) onPosMemberSelected(sel);
+        if (selectedPosCreditMember) {
+            renderPosCreditMemberCard();
+        }
     }
 
     validatePosTransaction();
 }
 
-function onPosMemberSelected(memberId) {
+async function lookupPosCreditMember() {
+    const input = document.getElementById('posMemberSearchInput');
+    const query = (input?.value || '').trim();
+    const errEl = document.getElementById('posMemberLookupError');
+    const hiddenMember = document.getElementById('posMemberSelect');
     const card = document.getElementById('posMemberCreditCard');
-    const alertBox = document.getElementById('cardCreditAlert');
+    const btn = document.getElementById('btnLookupPosMember');
 
-    if (!memberId) {
-        card.classList.add('d-none');
+    if (errEl) {
+        errEl.textContent = '';
+        errEl.classList.add('d-none');
+    }
+
+    if (!query) {
+        selectedPosCreditMember = null;
+        if (hiddenMember) hiddenMember.value = '';
+        if (card) card.classList.add('d-none');
         validatePosTransaction();
         return;
     }
 
-    const member = membersDirectory.find(m => m.id === memberId);
-    if (!member) {
-        card.classList.add('d-none');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await apiRequest(`/api/v1/cashier/receivables?member_id=${encodeURIComponent(query)}`);
+        const member = res.data.member;
+        const summary = res.data.credit_summary;
+
+        selectedPosCreditMember = {
+            id: member.id,
+            code: member.employee_number || member.member_number || member.id,
+            name: member.full_name,
+            unit: member.department || 'Anggota Koperasi',
+            credit_account_status: summary.credit_account_status,
+            available_limit: Number(summary.available_limit || 0),
+            has_overdue: Boolean(summary.has_overdue),
+            eligible_for_credit: Boolean(summary.eligible_for_credit),
+        };
+
+        if (hiddenMember) hiddenMember.value = member.id;
+        renderPosCreditMemberCard();
+    } catch (err) {
+        selectedPosCreditMember = null;
+        if (hiddenMember) hiddenMember.value = '';
+        if (card) card.classList.add('d-none');
+        if (errEl) {
+            errEl.textContent = err.message || 'Anggota tidak ditemukan.';
+            errEl.classList.remove('d-none');
+        }
+    } finally {
+        if (btn) btn.disabled = false;
         validatePosTransaction();
+    }
+}
+
+function renderPosCreditMemberCard() {
+    const card = document.getElementById('posMemberCreditCard');
+    const alertBox = document.getElementById('cardCreditAlert');
+    const member = selectedPosCreditMember;
+
+    if (!member || !card) {
+        if (card) card.classList.add('d-none');
         return;
     }
 
     card.classList.remove('d-none');
-    document.getElementById('cardMemberName').textContent = `${member.name} (${member.id})`;
+    document.getElementById('cardMemberName').textContent = `${member.name} (${member.code})`;
     document.getElementById('cardMemberUnit').textContent = member.unit;
 
-    // Status Badge
     const badge = document.getElementById('cardMemberStatusBadge');
-    if (member.status === 'TERVERIFIKASI') {
+    const isAccountActive = member.credit_account_status === 'ACTIVE';
+    if (isAccountActive) {
         badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
         badge.textContent = 'AKTIF TERVERIFIKASI';
     } else {
@@ -1712,38 +1919,33 @@ function onPosMemberSelected(memberId) {
         badge.textContent = 'DIBEKUKAN';
     }
 
-    // Overdue status
     const overdueEl = document.getElementById('cardMemberOverdueStatus');
-    if (member.is_overdue) {
+    if (member.has_overdue) {
         overdueEl.className = 'fw-bold text-danger';
-        overdueEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-0.5"></i> Overdue ${member.overdue_days} Hari`;
+        overdueEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-0.5"></i> Ada Tunggakan Overdue`;
     } else {
         overdueEl.className = 'fw-bold text-success';
         overdueEl.innerHTML = `<i class="bi bi-check-circle me-0.5"></i> Lancar (0 Tunggakan)`;
     }
 
-    // Available limit display
     document.getElementById('cardMemberLimitDisplay').textContent = `Rp ${member.available_limit.toLocaleString('id-ID')}`;
 
-    // Kelayakan Check
     const totalPos = getPosTotal();
     alertBox.className = 'alert py-2 px-2.5 mb-0 small';
 
-    if (member.status === 'DIBEKUKAN') {
+    if (!isAccountActive) {
         alertBox.classList.add('alert-danger');
-        alertBox.innerHTML = `<strong>⛔ Kredit Ditolak:</strong> Fasilitas piutang anggota saat ini dinonaktifkan oleh manajer koperasi.`;
-    } else if (member.is_overdue) {
+        alertBox.innerHTML = `<strong>Kredit Ditolak:</strong> Fasilitas piutang anggota sedang diblokir manajer.`;
+    } else if (member.has_overdue) {
         alertBox.classList.add('alert-danger');
-        alertBox.innerHTML = `<strong>⛔ Kredit Ditolak (Credit Hold):</strong> Anggota memiliki tagihan tertunggak lewat jatuh tempo (${member.overdue_days} hari). Lunasi tagihan sebelumnya sebelum membuka transaksi piutang baru.`;
+        alertBox.innerHTML = `<strong>Kredit Ditolak:</strong> Anggota memiliki tagihan lewat jatuh tempo. Lunasi tunggakan terlebih dahulu.`;
     } else if (member.available_limit < totalPos) {
         alertBox.classList.add('alert-danger');
-        alertBox.innerHTML = `<strong>⛔ Kredit Ditolak:</strong> Sisa limit belanja (Rp ${member.available_limit.toLocaleString('id-ID')}) tidak mencukupi untuk total tagihan transaksi ini (Rp ${totalPos.toLocaleString('id-ID')}).`;
+        alertBox.innerHTML = `<strong>Kredit Ditolak:</strong> Sisa limit (Rp ${member.available_limit.toLocaleString('id-ID')}) tidak mencukupi tagihan (Rp ${totalPos.toLocaleString('id-ID')}).`;
     } else {
         alertBox.classList.add('alert-success');
-        alertBox.innerHTML = `<strong>✅ Fasilitas Disetujui:</strong> Sisa limit mencukupi (Tersedia Rp ${member.available_limit.toLocaleString('id-ID')}). Jatuh tempo: 7 hari kalender bunga 0%.`;
+        alertBox.innerHTML = `<strong>Fasilitas Disetujui:</strong> Sisa limit mencukupi. Jatuh tempo: 7 hari kalender.`;
     }
-
-    validatePosTransaction();
 }
 
 function validatePosTransaction() {
@@ -1776,14 +1978,12 @@ function validatePosTransaction() {
         btn.disabled = false;
         btn.title = "Klik untuk menyelesaikan transaksi";
     } else if (method === 'CREDIT') {
-        const memberId = document.getElementById('posMemberSelect').value;
-        if (!memberId) {
+        if (!selectedPosCreditMember) {
             btn.disabled = true;
-            btn.title = "Pilih anggota koperasi terlebih dahulu";
+            btn.title = "Cari dan pilih anggota koperasi terlebih dahulu";
             return;
         }
-        const member = membersDirectory.find(m => m.id === memberId);
-        if (!member || member.status === 'DIBEKUKAN' || member.is_overdue || member.available_limit < total) {
+        if (selectedPosCreditMember.credit_account_status !== 'ACTIVE' || selectedPosCreditMember.has_overdue || selectedPosCreditMember.available_limit < total) {
             btn.disabled = true;
             btn.title = "Kelayakan kredit anggota tidak memenuhi syarat";
             return;
@@ -1793,107 +1993,113 @@ function validatePosTransaction() {
     }
 }
 
-// ==============================================================================
-// 4. MODAL STRUK POS KASIR (REPLACES BROWSER ALERT)
-// ==============================================================================
-function openPosReceiptModal() {
+async function openPosReceiptModal() {
     const total = getPosTotal();
     if (total <= 0) return;
 
+    const btn = document.getElementById('btnCompletePosSale');
     const method = document.getElementById('posPaymentMethod').value;
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    const transferRef = document.getElementById('posTransferRef')?.value.trim() || null;
 
-    document.getElementById('receiptDate').textContent = dateStr;
-    document.getElementById('receiptTotalAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
-
-    // Itemized table
-    const container = document.getElementById('receiptItemsContainer');
-    let itemsHtml = '';
-    posCart.forEach(item => {
-        itemsHtml += `
-            <div class="d-flex justify-content-between mb-1">
-                <span>${item.name} (${item.qty}x)</span>
-                <span>Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
-            </div>
-        `;
-    });
-    container.innerHTML = itemsHtml;
-
-    // Payment details
-    const cashDet = document.getElementById('receiptCashDetails');
-    const transDet = document.getElementById('receiptTransferDetails');
-    const credDet = document.getElementById('receiptCreditDetails');
-    const badge = document.getElementById('receiptPaymentBadge');
-
-    cashDet.classList.add('d-none');
-    transDet.classList.add('d-none');
-    credDet.classList.add('d-none');
-
-    if (method === 'CASH') {
-        badge.className = 'badge bg-success';
-        badge.textContent = 'TUNAI (CASH)';
-        document.getElementById('receiptCustomerName').textContent = 'Pembeli Umum / Langsung';
-        cashDet.classList.remove('d-none');
-        const received = parseInt(document.getElementById('posCashReceived').value, 10) || total;
-        document.getElementById('receiptCashReceived').textContent = `Rp ${received.toLocaleString('id-ID')}`;
-        document.getElementById('receiptChangeAmount').textContent = `Rp ${(received - total).toLocaleString('id-ID')}`;
-    } else if (method === 'BANK_TRANSFER') {
-        badge.className = 'badge bg-primary';
-        badge.textContent = 'TRANSFER / QRIS';
-        document.getElementById('receiptCustomerName').textContent = 'Pembeli Non-Tunai';
-        transDet.classList.remove('d-none');
-        const ref = document.getElementById('posTransferRef').value.trim() || 'QRIS-VERIF-' + Math.floor(10000 + Math.random() * 90000);
-        document.getElementById('receiptTransferRef').textContent = ref;
-    } else if (method === 'CREDIT') {
-        badge.className = 'badge bg-warning text-dark';
-        badge.textContent = 'PIUTANG ANGGOTA 7 HARI';
-        const memberId = document.getElementById('posMemberSelect').value;
-        const member = membersDirectory.find(m => m.id === memberId);
-        document.getElementById('receiptCustomerName').textContent = member ? `${member.name}` : 'Anggota Koperasi';
-        credDet.classList.remove('d-none');
-        document.getElementById('receiptCreditMemberId').textContent = memberId;
-        
-        // Due date 7 days from now
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-        document.getElementById('receiptCreditDueDate').textContent = dueDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' (Tempo 7 Hari)';
-
-        // Deduct limit in mock session
-        if (member) member.available_limit -= total;
+    if (method === 'CREDIT' && !selectedPosCreditMember?.id) {
+        showInlineAlert('posErrorAlert', 'Silakan cari dan pilih anggota yang valid untuk transaksi piutang.');
+        return;
     }
 
-    // Kirim pencatatan transaksi POS langsung ke backend Laravel TransactionService
-    const posItems = posCart.map(item => ({
-        product_id: item.sku || item.name,
-        quantity: item.qty
-    }));
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    fetch('/cashier/pos-sale', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify({
-            payment_choice: method,
-            channel: 'POS',
-            member_id: method === 'CREDIT' ? '00000000-0000-0000-0000-000000000001' : null,
-            items: posItems
-        })
-    }).then(r => r.json()).then(res => {
-        console.log('POS sale recorded in backend database:', res);
-    }).catch(err => {
-        console.warn('POS backend sale error:', err);
-    });
+    hideInlineAlert('posErrorAlert');
+    if (!currentPosIdempotencyKey) {
+        currentPosIdempotencyKey = generateIdemKey('pos');
+    }
 
-    const modal = new bootstrap.Modal(document.getElementById('posReceiptModal'));
-    modal.show();
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Memproses POS...`;
+
+    try {
+        const posItems = posCart.map(item => ({
+            product_id: item.productId || item.sku,
+            quantity: item.qty,
+        }));
+
+        const payload = {
+            payment_choice: method,
+            member_id: method === 'CREDIT' ? selectedPosCreditMember.id : null,
+            external_reference: method === 'BANK_TRANSFER' ? transferRef : null,
+            idempotency_key: currentPosIdempotencyKey,
+            items: posItems,
+        };
+
+        const result = await apiRequest('/api/v1/pos/sales', 'POST', payload);
+        const saleData = result.data || {};
+        currentPosIdempotencyKey = null;
+
+        document.getElementById('receiptOrderNo').textContent = saleData.order_no || '-';
+        const completedDate = saleData.completed_at ? new Date(saleData.completed_at) : new Date();
+        document.getElementById('receiptDate').textContent = completedDate.toLocaleDateString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        }) + ' ' + completedDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        document.getElementById('receiptTotalAmount').textContent = `Rp ${Number(saleData.total_amount ?? total).toLocaleString('id-ID')}`;
+
+        const container = document.getElementById('receiptItemsContainer');
+        container.innerHTML = posCart.map(item => `
+            <div class="d-flex justify-content-between mb-1">
+                <span>${escapeHtml(item.name)} (${item.qty}x)</span>
+                <span>Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
+            </div>
+        `).join('');
+
+        const cashDet = document.getElementById('receiptCashDetails');
+        const transDet = document.getElementById('receiptTransferDetails');
+        const credDet = document.getElementById('receiptCreditDetails');
+        const badge = document.getElementById('receiptPaymentBadge');
+
+        cashDet.classList.add('d-none');
+        transDet.classList.add('d-none');
+        credDet.classList.add('d-none');
+
+        if (method === 'CASH') {
+            badge.className = 'badge bg-success';
+            badge.textContent = 'TUNAI (CASH)';
+            document.getElementById('receiptCustomerName').textContent = 'Pembeli Umum / Langsung';
+            cashDet.classList.remove('d-none');
+            const received = parseInt(document.getElementById('posCashReceived').value, 10) || total;
+            document.getElementById('receiptCashReceived').textContent = `Rp ${received.toLocaleString('id-ID')}`;
+            document.getElementById('receiptChangeAmount').textContent = `Rp ${(received - total).toLocaleString('id-ID')}`;
+        } else if (method === 'BANK_TRANSFER') {
+            badge.className = 'badge bg-primary';
+            badge.textContent = 'TRANSFER / QRIS';
+            document.getElementById('receiptCustomerName').textContent = 'Pembeli Non-Tunai';
+            transDet.classList.remove('d-none');
+            document.getElementById('receiptTransferRef').textContent = transferRef || '-';
+        } else if (method === 'CREDIT') {
+            badge.className = 'badge bg-warning text-dark';
+            badge.textContent = 'PIUTANG ANGGOTA 7 HARI';
+            document.getElementById('receiptCustomerName').textContent = selectedPosCreditMember.name;
+            credDet.classList.remove('d-none');
+            document.getElementById('receiptCreditMemberId').textContent = selectedPosCreditMember.code;
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            document.getElementById('receiptCreditDueDate').textContent = dueDate.toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            }) + ' (Tempo 7 Hari)';
+            selectedPosCreditMember.available_limit = Math.max(0, selectedPosCreditMember.available_limit - total);
+            renderPosCreditMemberCard();
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('posReceiptModal'));
+        modal.show();
+    } catch (err) {
+        showInlineAlert('posErrorAlert', err.message || 'Gagal mencatat transaksi POS.');
+    } finally {
+        btn.innerHTML = originalHtml;
+        validatePosTransaction();
+    }
 }
 
 function resetPosCartAfterSale() {
     posCart = [];
+    currentPosIdempotencyKey = null;
+    hideInlineAlert('posErrorAlert');
     document.getElementById('posBarcodeField').value = '';
     document.getElementById('posCashReceived').value = '0';
     document.getElementById('posTransferRef').value = '';
@@ -1901,30 +2107,194 @@ function resetPosCartAfterSale() {
     renderPosCart();
 }
 
-// ==============================================================================
-// 5. MODAL SERAH TERIMA PICKUP (REPLACES BROWSER CONFIRM/ALERT)
-// ==============================================================================
-function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary, totalAmount, paymentMethod) {
+// Antrian order pickup live dari GET /api/v1/cashier/orders
+async function loadCashierOrders() {
+    const tbody = document.getElementById('pickupQueueTableBody');
+    const loadingRow = document.getElementById('pickupLoadingRow');
+    const emptyRow = document.getElementById('pickupEmptyRow');
+    const statCountEl = document.getElementById('statPickupOrdersCount');
+    const statSubEl = document.getElementById('statPickupOrdersSub');
+    const statusFilter = document.getElementById('pickupStatusFilter')?.value || '';
+
+    hideInlineAlert('pickupQueueErrorAlert');
+    if (loadingRow) loadingRow.classList.remove('d-none');
+
+    try {
+        const query = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
+        const res = await apiRequest(`/api/v1/cashier/orders${query}`);
+        liveCashierOrders = Array.isArray(res.data) ? res.data : [];
+
+        if (statCountEl) {
+            statCountEl.textContent = `${liveCashierOrders.length} Pesanan`;
+        }
+        if (statSubEl) {
+            const totalUnits = liveCashierOrders.reduce((sum, o) => {
+                const items = Array.isArray(o.items) ? o.items : [];
+                return sum + items.reduce((s, i) => s + Number(i.quantity || 0), 0);
+            }, 0);
+            statSubEl.innerHTML = `<i class="bi bi-bag-check-fill me-1"></i>${totalUnits} unit menunggu proses`;
+        }
+
+        renderPickupQueueRows(liveCashierOrders);
+    } catch (err) {
+        if (statCountEl) statCountEl.textContent = '0 Pesanan';
+        if (statSubEl) statSubEl.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>Gagal memuat`;
+        if (tbody) {
+            tbody.querySelectorAll('tr.live-order-row').forEach(tr => tr.remove());
+        }
+        if (emptyRow) emptyRow.classList.remove('d-none');
+        showInlineAlert('pickupQueueErrorAlert', err.message || 'Gagal memuat antrian pesanan dari server.');
+    } finally {
+        if (loadingRow) loadingRow.classList.add('d-none');
+    }
+}
+
+function formatOrderItemsSummary(order) {
+    const items = Array.isArray(order.items) ? order.items : [];
+    if (items.length === 0) return '-';
+    return items.map(item => {
+        const matched = stockCatalogue.find(p => p.id === item.product_id || p.sku === item.product_id);
+        const label = matched ? matched.name : `Produk (${String(item.product_id).slice(0, 8)})`;
+        return `${label} (${item.quantity}x)`;
+    }).join(', ');
+}
+
+function formatPickupMemberDisplay(order) {
+    const memberName = order.member_name || order.member?.full_name || order.member?.name || null;
+    const memberCode = order.member_no || order.member_number || order.member?.member_number || order.member?.employee_number || null;
+    if (memberName && memberCode) {
+        return `${memberName} (${memberCode})`;
+    }
+    if (memberName) {
+        const shortCode = order.member_id ? `#${String(order.member_id).slice(-6).toUpperCase()}` : '';
+        return shortCode ? `${memberName} (${shortCode})` : memberName;
+    }
+    if (memberCode) {
+        return `Anggota ${memberCode}`;
+    }
+    if (order.member_id) {
+        const raw = String(order.member_id);
+        const shortCode = raw.length > 12 ? `#${raw.slice(-6).toUpperCase()}` : raw;
+        return `Anggota ${shortCode}`;
+    }
+    return 'Non-Anggota';
+}
+
+function renderPickupQueueRows(orders) {
+    const tbody = document.getElementById('pickupQueueTableBody');
+    const emptyRow = document.getElementById('pickupEmptyRow');
+    if (!tbody) return;
+
+    tbody.querySelectorAll('tr.live-order-row').forEach(tr => tr.remove());
+
+    if (!orders || orders.length === 0) {
+        if (emptyRow) emptyRow.classList.remove('d-none');
+        return;
+    }
+
+    if (emptyRow) emptyRow.classList.add('d-none');
+
+    const rowsHtml = orders.map(order => {
+        const pickupCode = order.pickup_code || order.order_no || order.id;
+        const orderId = order.id;
+        const memberDisplay = formatPickupMemberDisplay(order);
+        const itemsSummary = formatOrderItemsSummary(order);
+        const totalAmount = Number(order.total_amount || 0);
+        const method = order.payment_choice || 'CASH';
+        const status = order.status || 'PENDING_PAYMENT';
+        const createdAt = order.created_at ? new Date(order.created_at).toLocaleString('id-ID') : '-';
+
+        let paymentBadgeHtml = '';
+        let canHandover = false;
+
+        if (method === 'CASH') {
+            if (status === 'READY_FOR_PICKUP') {
+                paymentBadgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle">Tunai Lunas</span>`;
+                canHandover = true;
+            } else {
+                paymentBadgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Tunai di Kasir (Belum Bayar)</span>
+                    <small class="text-muted" style="font-size: 0.68rem;">Akan dicatat lunas saat serah terima</small>`;
+                canHandover = true;
+            }
+        } else if (method === 'CREDIT') {
+            paymentBadgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Piutang 7 Hari</span>
+                <small class="text-success" style="font-size: 0.68rem;"><i class="bi bi-check-circle"></i> Limit Disetujui</small>`;
+            canHandover = true;
+        } else {
+            if (status === 'READY_FOR_PICKUP') {
+                paymentBadgeHtml = `<span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi</span>`;
+                canHandover = true;
+            } else {
+                paymentBadgeHtml = `<span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi</span>
+                    <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 mt-0.5 d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;" onclick="openVerifyTransferModalByOrderId('${escapeHtml(orderId)}')">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Catat & Verifikasi Transfer</span>
+                    </button>`;
+                canHandover = false;
+            }
+        }
+
+        return `
+            <tr class="live-order-row" id="pickupRow-${escapeHtml(pickupCode)}" data-code="${escapeHtml(String(pickupCode).toLowerCase())}" data-member="${escapeHtml((String(order.order_no || '') + ' ' + memberDisplay + ' ' + String(order.member_id || '')).toLowerCase())}">
+                <td>
+                    <span class="badge bg-primary px-2.5 py-1 fs-7 font-monospace fw-bold">${escapeHtml(pickupCode)}</span>
+                    <small class="text-muted d-block" style="font-size: 0.68rem;">${escapeHtml(createdAt)}</small>
+                </td>
+                <td>
+                    <span class="fw-bold text-dark font-monospace">${escapeHtml(order.order_no || '-')}</span>
+                    <small class="text-muted d-block">${escapeHtml(memberDisplay)}</small>
+                </td>
+                <td><span class="text-secondary">${escapeHtml(itemsSummary)}</span></td>
+                <td class="fw-bold text-dark font-monospace">Rp ${totalAmount.toLocaleString('id-ID')}</td>
+                <td><div class="d-flex flex-column gap-1">${paymentBadgeHtml}</div></td>
+                <td class="text-end">
+                    <div class="d-flex align-items-center justify-content-end gap-2">
+                        <button type="button" class="btn btn-sm ${canHandover ? 'btn-outline-success' : 'btn-outline-secondary opacity-50'} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 text-nowrap handover-btn" ${canHandover ? '' : 'disabled'} onclick="openPickupHandoverModalByOrderId('${escapeHtml(orderId)}')">
+                            <i class="bi bi-check2-circle"></i>
+                            <span>Serah Terima</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger px-2.5 py-1 d-inline-flex align-items-center gap-1 text-nowrap cancel-btn" onclick="openCancelOrderModalByOrderId('${escapeHtml(orderId)}')">
+                            <i class="bi bi-x-circle"></i>
+                            <span>Batal</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.insertAdjacentHTML('beforeend', rowsHtml);
+    const activeFilter = document.getElementById('pickupFilterInput')?.value || '';
+    if (activeFilter) filterPickupQueue(activeFilter);
+}
+
+function openPickupHandoverModalByOrderId(orderId) {
+    const order = liveCashierOrders.find(o => o.id === orderId);
+    if (!order) return;
+
     selectedPickupOrder = {
-        code: pickupCode,
-        name: memberName,
-        id: memberId,
-        items: itemsSummary,
-        amount: totalAmount,
-        method: paymentMethod
+        id: order.id,
+        code: order.pickup_code || order.order_no,
+        orderNo: order.order_no,
+        memberId: order.member_id || 'Non-Anggota',
+        items: formatOrderItemsSummary(order),
+        amount: Number(order.total_amount || 0),
+        method: order.payment_choice,
+        status: order.status,
     };
 
-    document.getElementById('confirmPickupCode').textContent = pickupCode;
-    document.getElementById('confirmPickupMemberName').textContent = memberName;
-    document.getElementById('confirmPickupMemberId').textContent = memberId;
-    document.getElementById('confirmPickupItems').textContent = itemsSummary;
-    document.getElementById('confirmPickupAmount').textContent = `Rp ${totalAmount.toLocaleString('id-ID')}`;
+    hideInlineAlert('pickupHandoverErrorAlert');
+    document.getElementById('confirmPickupCode').textContent = selectedPickupOrder.code;
+    document.getElementById('confirmPickupMemberName').textContent = selectedPickupOrder.orderNo || selectedPickupOrder.code;
+    document.getElementById('confirmPickupMemberId').textContent = selectedPickupOrder.memberId;
+    document.getElementById('confirmPickupItems').textContent = selectedPickupOrder.items;
+    document.getElementById('confirmPickupAmount').textContent = `Rp ${selectedPickupOrder.amount.toLocaleString('id-ID')}`;
 
     const badge = document.getElementById('confirmPickupPaymentBadge');
-    if (paymentMethod === 'CASH') {
+    if (selectedPickupOrder.method === 'CASH') {
         badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
-        badge.textContent = 'Lunas Tunai di Kasir';
-    } else if (paymentMethod === 'CREDIT') {
+        badge.textContent = selectedPickupOrder.status === 'READY_FOR_PICKUP' ? 'Lunas Tunai di Kasir' : 'Bayar Tunai saat Serah Terima';
+    } else if (selectedPickupOrder.method === 'CREDIT') {
         badge.className = 'badge bg-warning-subtle text-warning-emphasis border border-warning-subtle';
         badge.textContent = 'Piutang Anggota (Tempo 7 Hari)';
     } else {
@@ -1933,78 +2303,54 @@ function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary,
     }
 
     document.getElementById('checkPhysicalHandover').checked = true;
-
     const modal = new bootstrap.Modal(document.getElementById('pickupConfirmModal'));
     modal.show();
 }
 
-function executePickupHandover() {
+async function executePickupHandover() {
     if (!selectedPickupOrder) return;
+    if (!document.getElementById('checkPhysicalHandover')?.checked) {
+        showInlineAlert('pickupHandoverErrorAlert', 'Harap centang konfirmasi bahwa barang fisik sudah diserahkan.');
+        return;
+    }
 
-    const modalEl = document.getElementById('pickupConfirmModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    hideInlineAlert('pickupHandoverErrorAlert');
+    const btn = document.getElementById('btnExecuteHandover');
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Memproses...`;
 
-    const pickupCode = selectedPickupOrder.code;
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    // Kirim request konfirmasi pickup langsung ke backend Laravel TransactionService
-    fetch('/cashier/confirm-pickup', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify({
-            pickup_code: pickupCode
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        // Mark row as complete in UI
-        const row = document.getElementById(`pickupRow-${pickupCode}`);
-        if (row) {
-            const actionCell = row.querySelector('.handover-btn')?.parentElement;
-            if (actionCell) {
-                actionCell.innerHTML = `
-                    <span class="badge bg-success text-white py-1.5 px-2.5">
-                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
-                    </span>
-                `;
-            }
-            row.classList.add('table-light', 'text-muted');
+    try {
+        if (selectedPickupOrder.method === 'CASH' && selectedPickupOrder.status === 'PENDING_PAYMENT') {
+            await apiRequest(`/api/v1/orders/${encodeURIComponent(selectedPickupOrder.id)}/payments`, 'POST', {
+                method: 'CASH',
+                amount: selectedPickupOrder.amount,
+                idempotency_key: generateIdemKey(`ordcash-${selectedPickupOrder.id.slice(0, 8)}`),
+            });
+            selectedPickupOrder.status = 'READY_FOR_PICKUP';
         }
 
-        // Show success modal
-        document.getElementById('pickupSuccessMessage').innerHTML = `
-            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.<br>
-            Stok fisik barang telah resmi dibukukan keluar & tagihan piutang (bila ada) tercatat di database.
-        `;
+        await apiRequest(`/api/v1/orders/${encodeURIComponent(selectedPickupOrder.id)}/confirm-pickup`, 'POST', {
+            pickup_code: selectedPickupOrder.code,
+            handover_confirmed: true,
+            idempotency_key: generateIdemKey(`pkp-${selectedPickupOrder.id.slice(0, 8)}`),
+        });
 
-        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-        successModal.show();
-    })
-    .catch(err => {
-        console.error('Pickup handover error:', err);
-        const row = document.getElementById(`pickupRow-${pickupCode}`);
-        if (row) {
-            const actionCell = row.querySelector('.handover-btn')?.parentElement;
-            if (actionCell) {
-                actionCell.innerHTML = `
-                    <span class="badge bg-success text-white py-1.5 px-2.5">
-                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
-                    </span>
-                `;
-            }
-            row.classList.add('table-light', 'text-muted');
-        }
+        const modalEl = document.getElementById('pickupConfirmModal');
+        bootstrap.Modal.getInstance(modalEl)?.hide();
+
         document.getElementById('pickupSuccessMessage').innerHTML = `
-            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.
+            Pesanan <strong>${escapeHtml(selectedPickupOrder.code)}</strong> berhasil diserahkan.<br>
+            Stok fisik telah dikurangi dan transaksi tercatat sebagai COMPLETED.
         `;
-        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-        successModal.show();
-    });
+        new bootstrap.Modal(document.getElementById('pickupSuccessModal')).show();
+        await loadCashierOrders();
+    } catch (err) {
+        showInlineAlert('pickupHandoverErrorAlert', err.message || 'Gagal mengonfirmasi serah terima pickup.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
 }
 
 function filterCashierStock(rawQuery) {
@@ -2013,7 +2359,8 @@ function filterCashierStock(rawQuery) {
     document.querySelectorAll('.stock-item-row').forEach(row => {
         const name = row.getAttribute('data-name') || '';
         const sku = row.getAttribute('data-sku') || '';
-        if (!query || name.includes(query) || sku.includes(query)) {
+        const barcode = row.getAttribute('data-barcode') || '';
+        if (!query || name.includes(query) || sku.includes(query) || barcode.includes(query)) {
             row.classList.remove('d-none');
             matchCount++;
         } else {
@@ -2022,16 +2369,13 @@ function filterCashierStock(rawQuery) {
     });
 
     const emptyRow = document.getElementById('stockEmptyRow');
-    if (emptyRow) {
-        if (matchCount === 0) emptyRow.classList.remove('d-none');
-        else emptyRow.classList.add('d-none');
-    }
+    if (emptyRow) emptyRow.classList.toggle('d-none', matchCount > 0);
 }
 
 function filterPickupQueue(query) {
     const q = (query || '').toLowerCase().trim();
     let matchCount = 0;
-    document.querySelectorAll('#pickupQueueTableBody tr:not(#pickupEmptyRow)').forEach(row => {
+    document.querySelectorAll('#pickupQueueTableBody tr.live-order-row').forEach(row => {
         const code = row.getAttribute('data-code') || '';
         const member = row.getAttribute('data-member') || '';
         if (!q || code.includes(q) || member.includes(q)) {
@@ -2043,167 +2387,167 @@ function filterPickupQueue(query) {
     });
 
     const emptyRow = document.getElementById('pickupEmptyRow');
-    if (emptyRow) {
-        if (matchCount === 0) emptyRow.classList.remove('d-none');
-        else emptyRow.classList.add('d-none');
-    }
+    if (emptyRow) emptyRow.classList.toggle('d-none', matchCount > 0);
 }
 
-// ==============================================================================
-// VERIFIKASI PEMBAYARAN TRANSFER BANK / QRIS (FR-08)
-// ==============================================================================
-let currentVerifyTransfer = null;
+function openVerifyTransferModalByOrderId(orderId) {
+    const order = liveCashierOrders.find(o => o.id === orderId);
+    if (!order) return;
 
-function openVerifyTransferModal(code, memberName, memberId, amount, ref) {
-    currentVerifyTransfer = { code, memberName, memberId, amount, ref };
-    document.getElementById('vtfPickupCode').textContent = code;
-    document.getElementById('vtfMemberName').textContent = memberName;
-    document.getElementById('vtfMemberId').textContent = memberId;
-    document.getElementById('vtfTotalAmount').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
-    document.getElementById('vtfSenderName').textContent = memberName;
-    document.getElementById('vtfTransferProofAmount').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
-    document.getElementById('vtfRefInput').value = ref || `TRX-BCA-${code.replace('PKP-', '')}`;
+    currentVerifyTransfer = {
+        id: order.id,
+        code: order.pickup_code || order.order_no,
+        memberId: order.member_id || '-',
+        amount: Number(order.total_amount || 0),
+        paymentId: null,
+    };
+
+    hideInlineAlert('vtfErrorAlert');
+    document.getElementById('vtfPickupCode').textContent = currentVerifyTransfer.code;
+    document.getElementById('vtfMemberName').textContent = order.order_no || currentVerifyTransfer.code;
+    document.getElementById('vtfMemberId').textContent = currentVerifyTransfer.memberId;
+    document.getElementById('vtfTotalAmount').textContent = `Rp ${currentVerifyTransfer.amount.toLocaleString('id-ID')}`;
+    document.getElementById('vtfSenderName').textContent = currentVerifyTransfer.memberId;
+    document.getElementById('vtfTransferProofAmount').textContent = `Rp ${currentVerifyTransfer.amount.toLocaleString('id-ID')}`;
+    document.getElementById('vtfRefInput').value = '';
     document.getElementById('vtfConfirmFundsCheck').checked = false;
     document.getElementById('vtfRejectBox').classList.add('d-none');
 
-    const modal = new bootstrap.Modal(document.getElementById('verifyTransferModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('verifyTransferModal')).show();
 }
 
 function toggleRejectTransferBox() {
-    const box = document.getElementById('vtfRejectBox');
-    box.classList.toggle('d-none');
+    document.getElementById('vtfRejectBox').classList.toggle('d-none');
 }
 
-function executeApproveTransfer() {
+async function ensureOrderTransferPaymentId(ref) {
+    if (currentVerifyTransfer.paymentId) {
+        return currentVerifyTransfer.paymentId;
+    }
+
+    const payRes = await apiRequest(`/api/v1/orders/${encodeURIComponent(currentVerifyTransfer.id)}/payments`, 'POST', {
+        method: 'BANK_TRANSFER',
+        amount: currentVerifyTransfer.amount,
+        external_reference: ref || null,
+        idempotency_key: generateIdemKey(`trf-${currentVerifyTransfer.id.slice(0, 8)}`),
+    });
+    currentVerifyTransfer.paymentId = payRes.data.payment_id;
+    return currentVerifyTransfer.paymentId;
+}
+
+async function executeApproveTransfer() {
     if (!currentVerifyTransfer) return;
-    const ref = document.getElementById('vtfRefInput').value.trim() || 'TRX-VERIFIED';
+    const ref = document.getElementById('vtfRefInput').value.trim();
     const checked = document.getElementById('vtfConfirmFundsCheck').checked;
 
+    if (!ref) {
+        showInlineAlert('vtfErrorAlert', 'Nomor referensi mutasi bank wajib diisi.');
+        return;
+    }
     if (!checked) {
-        alert("Harap centang kotak konfirmasi bahwa dana telah dicek masuk rekening koperasi.");
+        showInlineAlert('vtfErrorAlert', 'Harap centang konfirmasi bahwa dana sudah masuk ke rekening koperasi.');
         return;
     }
 
-    const code = currentVerifyTransfer.code;
-    const modalEl = document.getElementById('verifyTransferModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    hideInlineAlert('vtfErrorAlert');
+    const btn = document.getElementById('btnExecuteApproveTransfer');
+    btn.disabled = true;
 
-    // Update status badge di tabel antrian
-    const badge = document.getElementById(`badgeTransfer-${code}`);
-    if (badge) {
-        badge.className = 'badge bg-success text-white';
-        badge.innerHTML = `<i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi`;
-        const container = badge.parentElement;
-        const btnVerify = document.getElementById(`btnVerify-${code}`);
-        if (btnVerify) btnVerify.remove();
-        const refSmall = document.createElement('small');
-        refSmall.className = 'text-muted font-monospace d-block';
-        refSmall.style.fontSize = '0.68rem';
-        refSmall.textContent = ref;
-        container.appendChild(refSmall);
+    try {
+        const paymentId = await ensureOrderTransferPaymentId(ref);
+        await apiRequest(`/api/v1/payments/${encodeURIComponent(paymentId)}/verify`, 'POST', {
+            action: 'VERIFY',
+            idempotency_key: generateIdemKey(`vrf-${paymentId.slice(0, 8)}`),
+        });
+
+        bootstrap.Modal.getInstance(document.getElementById('verifyTransferModal'))?.hide();
+
+        document.getElementById('pickupSuccessMessage').innerHTML = `
+            Pembayaran transfer untuk pesanan <strong>${escapeHtml(currentVerifyTransfer.code)}</strong> telah <strong>TERVERIFIKASI</strong>.<br>
+            Tombol Serah Terima barang kini aktif.
+        `;
+        new bootstrap.Modal(document.getElementById('pickupSuccessModal')).show();
+        await loadCashierOrders();
+    } catch (err) {
+        showInlineAlert('vtfErrorAlert', err.message || 'Gagal memverifikasi pembayaran transfer.');
+    } finally {
+        btn.disabled = false;
     }
-
-    // Aktifkan tombol serah terima
-    const btnHandover = document.getElementById(`btnHandover-${code}`);
-    if (btnHandover) {
-        btnHandover.disabled = false;
-        btnHandover.className = 'btn btn-sm btn-outline-success px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn';
-        btnHandover.title = 'Serahkan barang ke pembeli';
-    }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pembayaran transfer untuk pesanan <strong>${code}</strong> (${currentVerifyTransfer.memberName}) <strong>BERHASIL DIVERIFIKASI</strong>.<br>
-        Tombol Serah Terima barang kini telah aktif.
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
 }
 
-function executeRejectTransfer() {
+async function executeRejectTransfer() {
     if (!currentVerifyTransfer) return;
+    const ref = document.getElementById('vtfRefInput').value.trim() || null;
     const reason = document.getElementById('vtfRejectReason').value;
-    const code = currentVerifyTransfer.code;
 
-    const modalEl = document.getElementById('verifyTransferModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    hideInlineAlert('vtfErrorAlert');
+    const btn = document.getElementById('btnExecuteRejectTransfer');
+    btn.disabled = true;
 
-    // Update status badge di tabel antrian
-    const badge = document.getElementById(`badgeTransfer-${code}`);
-    if (badge) {
-        badge.className = 'badge bg-danger text-white';
-        badge.innerHTML = `<i class="bi bi-x-circle-fill me-0.5"></i> Transfer Ditolak`;
-        const container = badge.parentElement;
-        const btnVerify = document.getElementById(`btnVerify-${code}`);
-        if (btnVerify) btnVerify.remove();
-        const reasonSmall = document.createElement('small');
-        reasonSmall.className = 'text-danger d-block';
-        reasonSmall.style.fontSize = '0.68rem';
-        reasonSmall.textContent = reason;
-        container.appendChild(reasonSmall);
+    try {
+        const paymentId = await ensureOrderTransferPaymentId(ref);
+        await apiRequest(`/api/v1/payments/${encodeURIComponent(paymentId)}/verify`, 'POST', {
+            action: 'REJECT',
+            idempotency_key: generateIdemKey(`rej-${paymentId.slice(0, 8)}`),
+        });
+
+        bootstrap.Modal.getInstance(document.getElementById('verifyTransferModal'))?.hide();
+
+        document.getElementById('pickupSuccessMessage').innerHTML = `
+            Pembayaran transfer pesanan <strong>${escapeHtml(currentVerifyTransfer.code)}</strong> telah <strong>DITOLAK</strong> (${escapeHtml(reason)}).
+        `;
+        new bootstrap.Modal(document.getElementById('pickupSuccessModal')).show();
+        await loadCashierOrders();
+    } catch (err) {
+        showInlineAlert('vtfErrorAlert', err.message || 'Gagal menolak bukti transfer.');
+    } finally {
+        btn.disabled = false;
     }
-
-    // Tombol serah terima tetap nonaktif
-    const btnHandover = document.getElementById(`btnHandover-${code}`);
-    if (btnHandover) {
-        btnHandover.disabled = true;
-        btnHandover.className = 'btn btn-sm btn-outline-secondary opacity-50 px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn';
-        btnHandover.title = 'Pembayaran transfer ditolak';
-    }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pembayaran transfer untuk pesanan <strong>${code}</strong> telah <strong>DITOLAK</strong> (${reason}).<br>
-        Pembeli wajib menyelesaikan pembayaran tunai di kasir sebelum barang diserahkan.
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
 }
 
-// ==============================================================================
-// PEMBATALAN PESANAN PICKUP (PRD AC-12)
-// ==============================================================================
-let currentCancelOrder = null;
+function openCancelOrderModalByOrderId(orderId) {
+    const order = liveCashierOrders.find(o => o.id === orderId);
+    if (!order) return;
 
-function openCancelOrderModal(code, memberName, items, amount) {
-    currentCancelOrder = { code, memberName, items, amount };
-    document.getElementById('cancelPickupCode').textContent = code;
-    document.getElementById('cancelMemberName').textContent = memberName;
-    document.getElementById('cancelItemsSummary').textContent = items;
-    document.getElementById('cancelTotalAmount').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
+    currentCancelOrder = {
+        id: order.id,
+        code: order.pickup_code || order.order_no,
+        memberName: order.order_no || order.member_id || '-',
+        items: formatOrderItemsSummary(order),
+        amount: Number(order.total_amount || 0),
+    };
 
-    const modal = new bootstrap.Modal(document.getElementById('cancelOrderModal'));
-    modal.show();
+    hideInlineAlert('cancelOrderErrorAlert');
+    document.getElementById('cancelPickupCode').textContent = currentCancelOrder.code;
+    document.getElementById('cancelMemberName').textContent = currentCancelOrder.memberName;
+    document.getElementById('cancelItemsSummary').textContent = currentCancelOrder.items;
+    document.getElementById('cancelTotalAmount').textContent = `Rp ${currentCancelOrder.amount.toLocaleString('id-ID')}`;
+
+    new bootstrap.Modal(document.getElementById('cancelOrderModal')).show();
 }
 
-function executeCancelOrder() {
+async function executeCancelOrder() {
     if (!currentCancelOrder) return;
-    const code = currentCancelOrder.code;
+    hideInlineAlert('cancelOrderErrorAlert');
+    const btn = document.getElementById('btnExecuteCancelOrder');
+    btn.disabled = true;
 
-    const modalEl = document.getElementById('cancelOrderModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
+    try {
+        await apiRequest(`/api/v1/orders/${encodeURIComponent(currentCancelOrder.id)}/cancel`, 'POST', {});
 
-    const row = document.getElementById(`pickupRow-${code}`);
-    if (row) {
-        row.classList.add('table-light', 'text-muted');
-        const actionCell = row.querySelector('.handover-btn')?.parentElement;
-        if (actionCell) {
-            actionCell.innerHTML = `
-                <span class="badge bg-secondary text-white py-1.5 px-2">
-                    <i class="bi bi-x-circle me-0.5"></i> Pesanan Dibatalkan
-                </span>
-            `;
-        }
+        bootstrap.Modal.getInstance(document.getElementById('cancelOrderModal'))?.hide();
+
+        document.getElementById('pickupSuccessMessage').innerHTML = `
+            Pesanan <strong>${escapeHtml(currentCancelOrder.code)}</strong> berhasil dibatalkan.<br>
+            <span class="text-success small fw-semibold">Reservasi stok dan hold kredit telah dilepaskan.</span>
+        `;
+        new bootstrap.Modal(document.getElementById('pickupSuccessModal')).show();
+        await loadCashierOrders();
+    } catch (err) {
+        showInlineAlert('cancelOrderErrorAlert', err.message || 'Gagal membatalkan pesanan.');
+    } finally {
+        btn.disabled = false;
     }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pesanan <strong>${code}</strong> berhasil dibatalkan.<br>
-        <span class="text-success small fw-semibold">Reservasi stok dan penahanan limit kredit (credit hold) anggota telah dilepaskan otomatis tanpa membentuk piutang.</span>
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
 }
 
 // ==============================================================================
@@ -2749,23 +3093,32 @@ function submitModalManualBarcode() {
 }
 
 function submitManualBarcodeField() {
-    const val = document.getElementById('posBarcodeField').value.trim();
+    const field = document.getElementById('posBarcodeField');
+    const val = (field?.value || '').trim();
     if (!val) return;
+    hidePosSearchDropdown();
     playGopayChime();
     handleIncomingBarcode(val, { source: 'input', showGopaySheet: true });
-    document.getElementById('posBarcodeField').value = '';
+    if (field) {
+        field.value = '';
+        field.focus();
+    }
 }
 
-function handleIncomingBarcode(code, options = {}) {
-    const clean = code.trim().toLowerCase();
+async function handleIncomingBarcode(code, options = {}) {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return;
+    const clean = trimmed.toLowerCase();
     const shouldShowSheet = options.showGopaySheet !== false;
-    
-    // 1. Cek jika yang di-scan adalah Kode Pickup Anggota (contoh: PKP-84920 atau ORD-1082)
+
     if (clean.startsWith('pkp-') || clean.startsWith('ord-')) {
-        const pickupUpper = code.trim().toUpperCase();
-        const foundOrder = @json($pickupQueue ?? []).find(o => 
-            o.pickup_code.toUpperCase() === pickupUpper || 
-            o.id.toUpperCase() === pickupUpper
+        const pickupUpper = trimmed.toUpperCase();
+        if (liveCashierOrders.length === 0) {
+            await loadCashierOrders();
+        }
+        const foundOrder = liveCashierOrders.find(o =>
+            (o.pickup_code && o.pickup_code.toUpperCase() === pickupUpper) ||
+            (o.order_no && o.order_no.toUpperCase() === pickupUpper)
         );
 
         if (foundOrder) {
@@ -2774,33 +3127,23 @@ function handleIncomingBarcode(code, options = {}) {
                     type: 'Kode Pickup Pesanan Online',
                     badgeText: 'PICKUP TERVERIFIKASI',
                     badgeClass: 'bg-primary text-white',
-                    title: `${foundOrder.member_name} (${foundOrder.member_id})`,
-                    code: `${foundOrder.pickup_code} • ${foundOrder.id}`,
-                    price: `Rp ${Number(foundOrder.total_amount).toLocaleString('id-ID')}`,
-                    qtyBadge: `${foundOrder.items_count} Komoditas`,
-                    subtitle: `Pesanan siap diambil di gerai. Status: ${foundOrder.payment_status === 'PAID' ? 'LUNAS (Transfer/Cash)' : 'Piutang Anggota'}.`,
+                    title: `${foundOrder.order_no || foundOrder.pickup_code}`,
+                    code: `${foundOrder.pickup_code || '-'} • ${foundOrder.order_no || ''}`,
+                    price: `Rp ${Number(foundOrder.total_amount || 0).toLocaleString('id-ID')}`,
+                    qtyBadge: `${(foundOrder.items || []).length} Item`,
+                    subtitle: `Status: ${foundOrder.status} (${foundOrder.payment_choice}).`,
                     actionBtnText: 'Serah Terima Barang',
                     actionBtnIcon: 'bi-box-seam',
                     actionCallback: () => {
                         dismissGopayScanSheet();
-                        openPickupConfirm(foundOrder.pickup_code, foundOrder.member_name, foundOrder.member_id, foundOrder.total_amount, foundOrder.payment_status);
+                        openPickupHandoverModalByOrderId(foundOrder.id);
                     }
                 });
             } else {
-                showScanToast(
-                    `Kode Pickup ${pickupUpper} Ditemukan!`,
-                    `Pesanan atas nama ${foundOrder.member_name} (${foundOrder.member_id})`
-                );
+                showScanToast(`Kode Pickup ${pickupUpper} Ditemukan`, `Pesanan ${foundOrder.order_no || pickupUpper} siap diproses.`);
             }
 
-            // Alihkan ke tab Antrean Pickup
-            const tabBtn = document.getElementById('pickup-tab');
-            if (tabBtn) {
-                const bsTab = bootstrap.Tab.getOrCreateInstance(tabBtn);
-                bsTab.show();
-            }
-            // Highlight baris
-            const row = document.getElementById(`pickupRow-${foundOrder.pickup_code}`);
+            const row = document.getElementById(`pickupRow-${foundOrder.pickup_code || foundOrder.order_no}`);
             if (row) {
                 row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 row.classList.add('table-warning');
@@ -2810,37 +3153,36 @@ function handleIncomingBarcode(code, options = {}) {
         }
     }
 
-    // 2. Cek jika yang di-scan adalah Barang Sembako di Katalog Kasir
-    const barcodeAliases = {
-        '8991001100223': '89999991001',
-        '8992002200334': '89999991002',
-        '8993003300445': '89999991003',
-        '8994004400556': '89999991005',
-        '8995005500667': '89999991008',
-        '8996006600778': '89999991011',
-    };
-    const resolvedBarcode = barcodeAliases[clean] || clean;
-
-    const found = stockCatalogue.find(item => 
-        item.sku.toLowerCase() === clean || 
-        item.barcode.toLowerCase() === clean ||
-        item.barcode.toLowerCase() === resolvedBarcode ||
-        item.name.toLowerCase().includes(clean)
+    // Normalisasi pencarian manual berdasarkan SKU atau barcode (case-insensitive terhadap katalog DB)
+    const matchedCatalogue = stockCatalogue.find(item =>
+        (item.barcode && String(item.barcode).toLowerCase() === clean) ||
+        (item.sku && String(item.sku).toLowerCase() === clean)
     );
+    const lookupQuery = matchedCatalogue
+        ? (matchedCatalogue.barcode || matchedCatalogue.sku)
+        : (clean.includes('-') ? trimmed.toUpperCase() : trimmed);
 
-    if (found) {
-        posAddToCart(found.name, found.sell_price, found.sku);
-        
+    try {
+        const lookupRes = await apiRequest(`/api/v1/products/lookup?barcode=${encodeURIComponent(lookupQuery)}`);
+        const product = lookupRes.data;
+        const avail = Number(product.available_stock || 0);
+        if (avail <= 0) {
+            showInlineAlert('posErrorAlert', `Stok tersedia kosong untuk ${product.name} (${product.sku}).`);
+            return;
+        }
+
+        posAddToCart(product.name, Number(product.price), product.sku, product.id, product.barcode || '');
+
         if (shouldShowSheet) {
             showGopayScanSheet({
                 type: 'Komoditas Gerai KOPEG',
                 badgeText: 'SCAN BERHASIL',
                 badgeClass: 'bg-success text-white',
-                title: found.name,
-                code: `${found.sku} • ${found.barcode}`,
-                price: `Rp ${Number(found.sell_price).toLocaleString('id-ID')}`,
+                title: product.name,
+                code: `${product.sku} • ${product.barcode || '-'}`,
+                price: `Rp ${Number(product.price).toLocaleString('id-ID')}`,
                 qtyBadge: '+1 ke Keranjang Kasir',
-                subtitle: `Stok tersedia: ${found.available} ${found.unit ?? 'Pcs'}. Otomatis masuk ke kalkulasi POS.`,
+                subtitle: `Stok tersedia: ${avail} ${product.unit || 'Pcs'}.`,
                 actionBtnText: 'Scan Lagi',
                 actionBtnIcon: 'bi-camera-fill',
                 actionCallback: () => {
@@ -2849,36 +3191,27 @@ function handleIncomingBarcode(code, options = {}) {
                 }
             });
         } else {
-            showScanToast(
-                `✓ ${found.name}`,
-                `Barcode: ${found.barcode} • Rp ${found.sell_price.toLocaleString('id-ID')} masuk keranjang`
-            );
+            showScanToast(`${product.name}`, `Rp ${Number(product.price).toLocaleString('id-ID')} masuk keranjang`);
         }
-    } else {
-        // Fallback untuk barang sembako baru atau barcode custom
-        posAddToCart(`Komoditas Sembako #${code.toUpperCase()}`, 25000, code.toUpperCase());
+    } catch (err) {
+        showInlineAlert('posErrorAlert', err.message || `Barang dengan kode "${trimmed}" tidak ditemukan.`);
         if (shouldShowSheet) {
             showGopayScanSheet({
-                type: 'Item Cepat / Custom',
-                badgeText: 'ITEM DITAMBAHKAN',
-                badgeClass: 'bg-info text-dark',
-                title: `Komoditas Sembako #${code.toUpperCase()}`,
-                code: code.toUpperCase(),
-                price: 'Rp 25.000',
-                qtyBadge: '+1 ke Keranjang',
-                subtitle: 'Barcode belum terdaftar di master persediaan, dicatat sebagai item cepat.',
-                actionBtnText: 'Scan Lagi',
+                type: 'Pencarian Barcode',
+                badgeText: 'TIDAK DITEMUKAN',
+                badgeClass: 'bg-danger text-white',
+                title: `Kode "${trimmed}" tidak terdaftar`,
+                code: trimmed,
+                price: '-',
+                qtyBadge: 'Gagal',
+                subtitle: err.message || 'Periksa kembali SKU atau barcode produk di master data.',
+                actionBtnText: 'Coba Scan Lagi',
                 actionBtnIcon: 'bi-camera-fill',
                 actionCallback: () => {
                     dismissGopayScanSheet();
                     openBarcodeScannerModal();
                 }
             });
-        } else {
-            showScanToast(
-                `✓ Komoditas #${code.toUpperCase()}`,
-                `Item terdeteksi (Rp 25.000) ditambahkan ke keranjang kasir`
-            );
         }
     }
 }
@@ -2891,8 +3224,7 @@ window.addEventListener('keydown', (e) => {
     const activeEl = document.activeElement;
     const isTypingInOtherInput = activeEl && 
         (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable) &&
-        activeEl.id !== 'posBarcodeField' && 
-        activeEl.id !== 'modalManualBarcodeInput';
+        activeEl.id !== 'posBarcodeField';
 
     if (isTypingInOtherInput) return;
 
@@ -2918,60 +3250,6 @@ window.addEventListener('keydown', (e) => {
 // ==============================================================================
 // MODUL RENDERING BARCODE & QR KODE FISIK (JSBARCODE & QRCODE)
 // ==============================================================================
-function renderAllGalleryBarcodes() {
-    const jsb = window.JsBarcode || (typeof JsBarcode !== 'undefined' ? JsBarcode : null);
-    const qrc = window.QRCode || (typeof QRCode !== 'undefined' ? QRCode : null);
-
-    if (jsb) {
-        document.querySelectorAll('.gallery-barcode-svg').forEach(svg => {
-            const code = svg.getAttribute('data-barcode');
-            if (code) {
-                try {
-                    jsb(svg, code, {
-                        format: "CODE128",
-                        width: 1.8,
-                        height: 52,
-                        displayValue: true,
-                        fontSize: 12,
-                        margin: 8,
-                        lineColor: "#000000",
-                        background: "#ffffff"
-                    });
-                } catch (e) {
-                    console.warn("JsBarcode error for:", code, e);
-                }
-            }
-        });
-    }
-
-    if (qrc) {
-        document.querySelectorAll('.gallery-qr-canvas').forEach(canvas => {
-            const code = canvas.getAttribute('data-barcode');
-            if (code) {
-                try {
-                    qrc.toCanvas(canvas, code, {
-                        width: 80,
-                        margin: 1,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff'
-                        }
-                    });
-                } catch (e) {
-                    console.warn("QRCode error for:", code, e);
-                }
-            }
-        });
-    }
-}
-
-function openTestBarcodeGalleryModal() {
-    const modalEl = document.getElementById('testBarcodeGalleryModal');
-    if (!modalEl) return;
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-}
-
 let currentSingleBarcodeData = { sku: '', barcode: '', name: '', price: 0 };
 
 function showProductBarcodeModal(sku, barcode, name, price) {
@@ -3049,6 +3327,7 @@ function testScanCurrentSingleBarcode() {
 // Inisialisasi Keranjang Kasir Awal & Modal Listeners
 document.addEventListener('DOMContentLoaded', () => {
     renderPosCart();
+    loadCashierOrders();
 
     const scannerModalEl = document.getElementById('barcodeScannerModal');
     if (scannerModalEl) {
@@ -3063,13 +3342,6 @@ document.addEventListener('DOMContentLoaded', () => {
             dismissGopayScanSheet();
         }
     });
-
-    const galleryModalEl = document.getElementById('testBarcodeGalleryModal');
-    if (galleryModalEl) {
-        galleryModalEl.addEventListener('shown.bs.modal', () => {
-            renderAllGalleryBarcodes();
-        });
-    }
 
     const singleModalEl = document.getElementById('singleProductBarcodeModal');
     if (singleModalEl) {
