@@ -9,8 +9,9 @@
     <!-- Vite Assets (Bootstrap 5, Chart.js, Icons, Sass) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     @stack('styles')
+<link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118">
 </head>
-<body class="bg-light d-flex align-items-center justify-content-center min-vh-100 py-5">
+<body class="ui-polished bg-light d-flex align-items-center justify-content-center min-vh-100 py-5">
 
     <div class="container">
         <div class="row justify-content-center">
@@ -30,5 +31,6 @@
     </div>
 
     @stack('scripts')
+<script src="{{ asset('js/usability.js') }}?v=20261118" defer></script>
 </body>
 </html>

@@ -9,15 +9,18 @@
     <!-- Vite Assets (Bootstrap 5, Chart.js, Icons, Sass) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     @stack('styles')
+<link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118">
 </head>
-<body class="bg-light">
+<body class="ui-polished bg-light">
 
-    {{-- Top Navbar --}}
+    @php $uiRole = request()->is('cashier*') ? 'CASHIER' : (request()->is('manager*') ? 'MANAGER' : session('active_role', 'MEMBER')); @endphp
+<a class="skip-content" href="#main-content">Lewati ke konten</a>
+{{-- Top Navbar --}}
     @include('partials.navbar')
 
     {{-- Mobile Navigation Pill Bar (untuk layar kecil) --}}
-    <div class="d-md-none bg-white border-bottom px-3 py-2 overflow-x-auto">
-        @php $role = session('active_role', 'MEMBER'); @endphp
+    <div class="mobile-role-nav d-md-none bg-white border-bottom px-3 py-2 overflow-x-auto">
+        @php $role = $uiRole; @endphp
         <div class="d-flex gap-2 text-nowrap">
             @if($role === 'MEMBER')
                 <a href="{{ route('member.dashboard') }}" class="btn btn-sm {{ request()->routeIs('member.dashboard') || request()->routeIs('member.index') ? 'btn-primary' : 'btn-light border' }}">Dashboard</a>
@@ -28,6 +31,7 @@
                 <a href="{{ route('cashier.antrian') }}" class="btn btn-sm {{ request()->routeIs('cashier.antrian') ? 'btn-success' : 'btn-light border' }}">Antrian Pickup</a>
                 <a href="{{ route('cashier.pos') }}" class="btn btn-sm {{ request()->routeIs('cashier.pos') ? 'btn-success' : 'btn-light border' }}">POS Kasir</a>
                 <a href="{{ route('cashier.piutang') }}" class="btn btn-sm {{ request()->routeIs('cashier.piutang') ? 'btn-success' : 'btn-light border' }}">Cicilan</a>
+                <a href="{{ route('cashier.stok') }}" class="btn btn-sm {{ request()->routeIs('cashier.stok') ? 'btn-success' : 'btn-light border' }}">Stok barang</a>
             @elseif($role === 'MANAGER')
                 <a href="{{ route('manager.dashboard') }}" class="btn btn-sm {{ request()->routeIs('manager.dashboard') ? 'btn-danger' : 'btn-light border' }}">Dashboard</a>
                 <a href="{{ route('manager.piutang') }}" class="btn btn-sm {{ request()->routeIs('manager.piutang') ? 'btn-danger' : 'btn-light border' }}">Monitoring</a>
@@ -45,7 +49,7 @@
             @include('partials.sidebar')
 
             {{-- Main Content Area --}}
-            <main class="main-content flex-grow-1 p-3 p-md-4" style="min-width: 0;">
+            <main id="main-content" tabindex="-1" class="main-content flex-grow-1 p-3 p-md-4" style="min-width: 0;">
                 <div class="container-fluid px-0">
                     {{-- Flash Alert Messages --}}
                     @include('partials.flash-alert')
@@ -68,5 +72,6 @@
     @include('partials.footer')
 
     @stack('scripts')
+<script src="{{ asset('js/usability.js') }}?v=20261118" defer></script>
 </body>
 </html>

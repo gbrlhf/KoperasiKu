@@ -97,12 +97,15 @@ Route::prefix('cashier')->name('cashier.')->group(function () {
 // 4. Portal Manajer Eksekutif (Analitik Penjualan Bulan Ini, Laba & Piutang)
 // --------------------------------------------------------------------------
 Route::prefix('manager')->name('manager.')->group(function () {
-    Route::get('/', [ManagerController::class, 'index'])->name('index');
-    Route::get('/dashboard', [ManagerController::class, 'index'])->name('dashboard');
-    Route::get('/kredit', [ManagerController::class, 'kredit'])->name('kredit');
-    Route::get('/piutang', [ManagerController::class, 'piutang'])->name('piutang');
-    Route::get('/produk', [ManagerController::class, 'produk'])->name('produk');
-    Route::get('/import', [ManagerController::class, 'import'])->name('import');
+    Route::view('/', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('index');
+    Route::view('/dashboard', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('dashboard');
+    Route::view('/kredit', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('kredit');
+    Route::view('/piutang', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('piutang');
+    Route::view('/produk', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 0])->name('produk');
+    Route::view('/import', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 3])->name('import');
+    Route::view('/laporan', 'manager.portal-v2', ['initialPage' => 'rep', 'initialTab' => 0])->name('laporan');
+    Route::view('/transaksi', 'manager.portal-v2', ['initialPage' => 'ops', 'initialTab' => 0])->name('transaksi');
+    Route::view('/sistem', 'manager.portal-v2', ['initialPage' => 'sys', 'initialTab' => 0])->name('sistem');
 });
 
 // --------------------------------------------------------------------------

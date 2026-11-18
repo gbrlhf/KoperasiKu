@@ -1,5 +1,5 @@
 @php
-    $currentRole = session('active_role', 'MEMBER');
+    $currentRole = $uiRole ?? session('active_role', 'MEMBER');
     $availableRoles = session('available_roles', ['MEMBER', 'CASHIER', 'MANAGER']);
 
     $roleBadges = [
