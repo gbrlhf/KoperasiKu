@@ -20,8 +20,8 @@
             </a>
 
             <!-- Center Search Bar (Desktop) -->
-            <div class="d-none d-lg-flex flex-grow-1 justify-content-center px-2 min-w-0 position-relative">
-                <div class="storefront-search-bar position-relative" style="max-width: 520px; width: 100%;">
+            <div class="d-none d-lg-flex flex-grow-1 justify-content-center px-3 px-xl-4 min-w-0 position-relative">
+                <div class="storefront-search-bar position-relative" style="max-width: 640px; width: 100%;">
                     <i class="bi bi-search text-muted me-2" aria-hidden="true"></i>
                     <input type="text" id="storefrontSearchInput" oninput="filterStorefrontSearch(this.value)" onfocus="openSearchSuggestions()" onblur="closeSearchSuggestions()" placeholder="Cari sembako, beras ramos, minyak goreng, deterjen, biskuit..." aria-label="Cari produk di etalase KoperasiKu" autocomplete="off">
                     <button type="button" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold text-nowrap" onclick="scrollToFirstProduct()">
@@ -88,15 +88,6 @@
 
             <!-- Right Actions (Desktop) -->
             <div class="d-none d-lg-flex align-items-center gap-2 gap-xl-3 flex-shrink-0">
-                
-                <!-- Gerai Pickup Info Pill -->
-                <div class="storefront-location-pill flex-shrink-0" title="Lokasi & Jam Pengambilan Pesanan">
-                    <i class="bi bi-geo-alt-fill text-danger fs-6" aria-hidden="true"></i>
-                    <div class="d-flex flex-column text-start" style="line-height: 1.15;">
-                        <span class="fw-bold text-dark" style="font-size: 0.76rem;">Gerai Kanayakan A11</span>
-                        <span class="text-secondary" style="font-size: 0.68rem;">Pickup: 07.00 - 18.00 WIB</span>
-                    </div>
-                </div>
 
                 @if(!empty($landingShowCart))
                     <!-- Shopping Cart Button with Dynamic Badge -->
