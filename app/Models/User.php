@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -11,39 +11,67 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasUuids, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
-        'name',
+        'id',
         'email',
-        'password',
+        'password_hash',
+        'status',
+        'email_verified_at',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
+        'password_hash',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
         ];
+    }
+
+    public function getAuthPassword(): string
+    {
+        return (string) $this->password_hash;
+    }
+
+    public function setPasswordAttribute(string $value): void
+    {
+        $this->attributes['password_hash'] = $value;
+    }
+
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_code', 'id', 'code')
+            ->withTimestamps();
+    }
+
+    public function roleCodes(): array
+    {
+        return $this->roles()->pluck('roles.code')->map(fn ($c) => strtoupper((string) $c))->all();
+    }
+
+    public function hasRole(string $code): bool
+    {
+        return $this->roles()->where('roles.code', strtoupper($code))->exists();
+    }
+
+    public function hasAnyRole(array $codes): bool
+    {
+        $normalized = array_map(fn ($c) => strtoupper((string) $c), $codes);
+        return $this->roles()->whereIn('roles.code', $normalized)->exists();
+    }
+
+    public function isActive(): bool
+    {
+        return strtoupper((string) ($this->status ?? 'active')) === 'ACTIVE';
+    }
+
+    public function member()
+    {
+        return $this->hasOne(Member::class, 'user_id', 'id');
     }
 }

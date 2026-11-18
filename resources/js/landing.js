@@ -284,60 +284,16 @@ window.quickLoginAsRememberedMember = function () {
         if (saved) remembered = JSON.parse(saved);
     } catch (e) {}
 
-    const username = remembered?.id || 'EMP-001';
-    const btn = document.getElementById('btnQuickLoginRemembered');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sedang Masuk...';
+    const username = remembered?.id || '';
+    const usernameInput = document.getElementById('loginModalUsername');
+    const passwordInput = document.getElementById('loginModalPassword');
+    if (usernameInput && username) {
+        usernameInput.value = username;
     }
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify({
-            username: username,
-            password: 'password',
-            role: 'MEMBER'
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        window.isUserLoggedIn = true;
-        window.currentUser = data.user;
-
-        // Tutup modal login
-        const modalEl = document.getElementById('loginRequiredModal');
-        if (modalEl && window.bootstrap) {
-            const bsModal = window.bootstrap.Modal.getInstance(modalEl);
-            if (bsModal) bsModal.hide();
-        }
-
-        // Jalankan aksi tertunda
-        if (typeof window.pendingActionAfterLogin === 'function') {
-            try {
-                window.pendingActionAfterLogin();
-            } catch (e) {
-                console.warn('Error pending action:', e);
-            }
-            window.pendingActionAfterLogin = null;
-        }
-
-        try {
-            sessionStorage.setItem('koperasiku_open_cart_after_login', '1');
-        } catch (e) {}
-
-        window.location.reload();
-    })
-    .catch(err => {
-        console.error('Login error:', err);
-        window.location.href = '/login';
-    });
+    if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
 };
 
 window.openLoginModalFromCart = function () {

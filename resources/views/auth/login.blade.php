@@ -14,7 +14,12 @@
             <p class="text-secondary small mb-0">Masuk untuk mengakses layanan internal koperasi karyawan</p>
         </div>
 
-        {{-- // TODO: integrasi langsung dengan auth API backend saat endpoint /api/v1/auth/login siap --}}
+        @if($errors->any())
+            <div class="alert alert-danger py-2 px-3 small mb-3">
+                {{ $errors->first() }}
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('login.submit') }}">
             @csrf
             
@@ -115,8 +120,9 @@ function applyRememberedAccount() {
         if (saved) {
             const member = JSON.parse(saved);
             document.getElementById('username').value = member.id || 'EMP-001';
-            document.getElementById('password').value = 'password';
+            document.getElementById('password').value = '';
             document.getElementById('role').value = 'MEMBER';
+            document.getElementById('password')?.focus();
         }
     } catch (e) {}
 }

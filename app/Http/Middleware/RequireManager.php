@@ -25,11 +25,27 @@ class RequireManager
             return false;
         }
 
-        return DB::table('user_roles')
+        $hasManagerRole = DB::table('user_roles')
             ->join('roles', 'roles.code', '=', 'user_roles.role_code')
             ->where('user_roles.user_id', $user->getAuthIdentifier())
             ->where('roles.code', 'MANAGER')
             ->exists();
+
+        if (! $hasManagerRole) {
+            return false;
+        }
+
+        // Jika pengguna multi-role secara aktif beralih konteks ke MEMBER/CASHIER di sesi, cabut akses manajer sampai beralih kembali.
+        if ($request->hasSession()) {
+            $sessionUserId = $request->session()->get('active_role_user_id') ?? $request->session()->get('user.user_id');
+            $belongsToCurrentUser = ($sessionUserId === null || (string) $sessionUserId === (string) $user->getAuthIdentifier());
+            $activeRole = $request->session()->get('active_role');
+            if ($belongsToCurrentUser && $activeRole !== null && trim((string) $activeRole) !== '' && strtoupper(trim((string) $activeRole)) !== 'MANAGER') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function handle(Request $request, Closure $next): Response

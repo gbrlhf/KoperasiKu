@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KOPERADATA — Manajer</title>
 <meta name="manager-ui-version" content="v2">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
 :root{--pr:#4353e8;--p2:#7b88ff;--pl:#eef0ff;--ink:#1b2150;--mu:#8189a8;--ln:#eceefa;--bg:#f7f8ff;--gn:#2fae80;--gl:#e4f6ee;--or:#e8920c;--ol:#fff3dc;--rd:#e5484d;--rl:#fdeaea;--vi:#7c6cf2;--vl:#efedff;--f:'Plus Jakarta Sans',system-ui,sans-serif}

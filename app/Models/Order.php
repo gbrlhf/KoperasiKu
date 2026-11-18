@@ -9,6 +9,8 @@ class Order extends Model
 {
     use HasUuids;
 
+    public bool $wasIdempotentReplay = false;
+
     protected $guarded = [];
 
     public function items()
