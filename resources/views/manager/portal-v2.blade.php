@@ -1,181 +1,2337 @@
-<!DOCTYPE html>
-<html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KOPERADATA — Manajer</title>
-<meta name="manager-ui-version" content="v2">
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+@extends('layouts.app')
+
+@section('title', 'Portal Manajer & Analitik Koperasi')
+
+@php
+    use Illuminate\Support\Facades\Auth;
+    use Illuminate\Support\Facades\DB;
+    use Illuminate\Support\Facades\Schema;
+
+    $managerUser = Auth::user();
+    $managerMember = $managerUser?->member;
+    $managerName = $managerMember?->full_name
+        ?? $managerUser?->name
+        ?? session('user.name')
+        ?? $managerUser?->email
+        ?? 'Manajer Operasional';
+    $managerEmail = $managerUser?->email ?? session('user.email', '');
+    $nameParts = preg_split('/\s+/', trim((string) $managerName)) ?: ['Manajer'];
+    $managerFirstName = $nameParts[0] ?? 'Manajer';
+
+    $oltpCategories = [];
+    if (Schema::hasTable('categories')) {
+        $oltpCategories = DB::table('categories')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug'])
+            ->map(fn ($c) => (array) $c)
+            ->values()
+            ->all();
+    }
+
+    // Read-only OLTP snapshots untuk initial render (fallback ketika endpoint analitik PIC C/D/E belum aktif)
+    $oltpProducts = [];
+    if (Schema::hasTable('products')) {
+        $oltpProducts = \App\Models\Product::query()
+            ->with('inventory:product_id,on_hand,reserved')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($p) {
+                $onHand = (int) ($p->inventory?->on_hand ?? 0);
+                $reserved = (int) ($p->inventory?->reserved ?? 0);
+                $available = max(0, $onHand - $reserved);
+                $reorderPoint = (int) ($p->reorder_point ?? 10);
+                $rawImg = trim((string) ($p->image_path ?? $p->image ?? ''));
+                $imageUrl = '';
+                if ($rawImg !== '') {
+                    if (str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://') || str_starts_with($rawImg, '/')) {
+                        $imageUrl = $rawImg;
+                    } elseif (str_starts_with($rawImg, 'storage/')) {
+                        $imageUrl = asset($rawImg);
+                    } else {
+                        $imageUrl = \Illuminate\Support\Facades\Storage::url($rawImg);
+                    }
+                }
+
+                return [
+                    'id' => (string) $p->id,
+                    'sku' => (string) $p->sku,
+                    'barcode' => (string) ($p->barcode ?? ''),
+                    'name' => (string) $p->name,
+                    'category' => (string) ($p->category ?? 'Umum'),
+                    'category_id' => (string) ($p->category_id ?? ''),
+                    'supplier_id' => (string) ($p->supplier_id ?? ''),
+                    'unit' => (string) ($p->unit ?? 'Pcs'),
+                    'current_cost' => (float) ($p->current_cost ?? 0),
+                    'selling_price' => (float) ($p->selling_price ?? 0),
+                    'on_hand' => $onHand,
+                    'reserved' => $reserved,
+                    'available' => $available,
+                    'reorder_point' => $reorderPoint,
+                    'min_stock' => $reorderPoint,
+                    'image_url' => $imageUrl,
+                    'sales_count' => (int) ($p->sales_count ?? 0),
+                    'is_active' => (bool) ($p->is_active ?? true),
+                ];
+            })->values()->all();
+    }
+
+    $oltpMembers = [];
+    if (Schema::hasTable('members')) {
+        $rolesByUser = Schema::hasTable('user_roles')
+            ? DB::table('user_roles')->get()->groupBy('user_id')->map(fn ($g) => $g->pluck('role_code')->values()->all())->all()
+            : [];
+
+        $oltpMembers = \App\Models\Member::query()
+            ->with(['creditAccount:member_id,status,activated_at', 'user:id,email,status'])
+            ->orderBy('full_name')
+            ->get()
+            ->map(function ($m) use ($rolesByUser) {
+                $uid = (string) ($m->user_id ?? '');
+                return [
+                    'id' => (string) $m->id,
+                    'employee_number' => (string) ($m->employee_number ?? ''),
+                    'member_number' => (string) ($m->member_number ?? ''),
+                    'full_name' => (string) $m->full_name,
+                    'department' => (string) ($m->department ?? 'Umum'),
+                    'status' => (string) ($m->status ?? 'ACTIVE'),
+                    'credit_status' => (string) ($m->creditAccount?->status ?? 'BLOCKED'),
+                    'email' => (string) ($m->user?->email ?? ''),
+                    'roles' => $rolesByUser[$uid] ?? ['MEMBER'],
+                ];
+            })->values()->all();
+    }
+
+    $oltpSuppliers = [];
+    if (Schema::hasTable('suppliers')) {
+        $oltpSuppliers = DB::table('suppliers')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($s) => [
+                'id' => (string) $s->id,
+                'code' => (string) ($s->code ?? ''),
+                'name' => (string) $s->name,
+                'phone' => (string) ($s->phone ?? ''),
+                'address' => (string) ($s->address ?? ''),
+                'lead_time_days' => (int) ($s->lead_time_days ?? 1),
+                'is_active' => (bool) ($s->is_active ?? true),
+            ])
+            ->values()
+            ->all();
+    }
+
+    $oltpExpenses = [];
+    if (Schema::hasTable('operating_expenses')) {
+        $oltpExpenses = DB::table('operating_expenses')
+            ->orderByDesc('expense_date')
+            ->limit(50)
+            ->get()
+            ->map(fn ($e) => (array) $e)
+            ->values()
+            ->all();
+    }
+
+    $oltpImportBatches = [];
+    if (Schema::hasTable('import_batches')) {
+        $oltpImportBatches = DB::table('import_batches')
+            ->orderByDesc('created_at')
+            ->limit(25)
+            ->get()
+            ->map(fn ($b) => (array) $b)
+            ->values()
+            ->all();
+    }
+
+    $oltpPolicyLogs = [];
+    if (Schema::hasTable('credit_policy_logs')) {
+        $oltpPolicyLogs = \App\Models\CreditPolicyLog::query()
+            ->orderByDesc('changed_at')
+            ->limit(15)
+            ->get()
+            ->map(fn ($l) => [
+                'old_limit_amount' => $l->old_limit_amount !== null ? (float) $l->old_limit_amount : null,
+                'new_limit_amount' => (float) $l->new_limit_amount,
+                'reason' => (string) ($l->reason ?? '-'),
+                'changed_at' => $l->changed_at ? \Carbon\Carbon::parse($l->changed_at)->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
+            ])->values()->all();
+    }
+
+    $oltpAuditLogs = [];
+    if (Schema::hasTable('audit_logs')) {
+        $oltpAuditLogs = \App\Models\AuditLog::query()
+            ->with('actor:id,email')
+            ->orderByDesc('created_at')
+            ->limit(25)
+            ->get()
+            ->map(fn ($a) => [
+                'created_at' => $a->created_at ? $a->created_at->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
+                'actor' => (string) ($a->actor?->email ?? 'Sistem'),
+                'action' => (string) $a->action,
+                'entity_type' => (string) ($a->entity_type ?? '-'),
+                'entity_id' => (string) ($a->entity_id ?? '-'),
+            ])->values()->all();
+    }
+
+    $oltpOrdersSummary = [
+        'completed_count' => 0,
+        'sales_revenue' => 0.0,
+        'cash_sales' => 0.0,
+        'credit_sales' => 0.0,
+        'cogs' => 0.0,
+        'verified_payments' => 0.0,
+        'cogs_incomplete' => false,
+    ];
+    if (Schema::hasTable('orders')) {
+        $completedOrders = DB::table('orders')->where('status', 'COMPLETED');
+        $oltpOrdersSummary['completed_count'] = (int) (clone $completedOrders)->count();
+        $oltpOrdersSummary['sales_revenue'] = (float) (clone $completedOrders)->sum('total_amount');
+        $oltpOrdersSummary['cash_sales'] = (float) (clone $completedOrders)->whereIn('payment_choice', ['CASH', 'BANK_TRANSFER'])->sum('total_amount');
+        $oltpOrdersSummary['credit_sales'] = (float) (clone $completedOrders)->where('payment_choice', 'CREDIT')->sum('total_amount');
+
+        if (Schema::hasTable('order_items')) {
+            $itemAgg = DB::table('order_items')
+                ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                ->where('orders.status', 'COMPLETED')
+                ->selectRaw('COALESCE(SUM(COALESCE(order_items.hpp_snapshot, 0) * order_items.quantity), 0) AS total_cogs, SUM(CASE WHEN order_items.hpp_snapshot IS NULL THEN 1 ELSE 0 END) AS null_hpp_rows')
+                ->first();
+            $oltpOrdersSummary['cogs'] = (float) ($itemAgg->total_cogs ?? 0);
+            $oltpOrdersSummary['cogs_incomplete'] = ((int) ($itemAgg->null_hpp_rows ?? 0)) > 0;
+        }
+    }
+    if (Schema::hasTable('payments')) {
+        $oltpOrdersSummary['verified_payments'] = (float) DB::table('payments')->where('status', 'VERIFIED')->sum('amount');
+    }
+
+    $managerBootstrap = [
+        'user' => [
+            'name' => $managerName,
+            'first_name' => $managerFirstName,
+            'email' => $managerEmail,
+        ],
+        'initial_page' => $initialPage ?? 'home',
+        'initial_tab' => (int) ($initialTab ?? 0),
+        'today_jakarta' => now('Asia/Jakarta')->toDateString(),
+        'routes' => [
+            'landing' => route('landing'),
+        ],
+        'oltp' => [
+            'products' => $oltpProducts,
+            'categories' => $oltpCategories,
+            'members' => $oltpMembers,
+            'suppliers' => $oltpSuppliers,
+            'expenses' => $oltpExpenses,
+            'import_batches' => $oltpImportBatches,
+            'policy_logs' => $oltpPolicyLogs,
+            'audit_logs' => $oltpAuditLogs,
+            'orders_summary' => $oltpOrdersSummary,
+            'rendered_at' => now('Asia/Jakarta')->format('d M Y, H:i') . ' WIB',
+        ],
+    ];
+@endphp
+
+@push('styles')
 <style>
-:root{--pr:#4353e8;--p2:#7b88ff;--pl:#eef0ff;--ink:#1b2150;--mu:#8189a8;--ln:#eceefa;--bg:#f7f8ff;--gn:#2fae80;--gl:#e4f6ee;--or:#e8920c;--ol:#fff3dc;--rd:#e5484d;--rl:#fdeaea;--vi:#7c6cf2;--vl:#efedff;--f:'Plus Jakarta Sans',system-ui,sans-serif}
-*{box-sizing:border-box}html,body{margin:0;height:100%}
-body{font:13px/1.5 var(--f);color:var(--ink);background:#eef1ff radial-gradient(60% 50% at 100% 0,#a9b6ff 0,transparent 70%) no-repeat,radial-gradient(50% 45% at 0 100%,#b9c4ff 0,transparent 70%) no-repeat}
-.app{display:flex;width:min(1400px,calc(100% - 32px));height:calc(100% - 32px);margin:16px auto;background:#fff;border-radius:28px;box-shadow:0 30px 80px rgba(67,83,232,.2);overflow:hidden}
-nav{width:92px;flex:none;background:var(--bg);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px}
-nav .lg{width:42px;height:42px;border-radius:50%;background:var(--pr);color:#fff;font:800 18px var(--f);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-nav a{width:72px;padding:8px 0 5px;border-radius:14px;text-align:center;font-size:10.5px;color:var(--mu);cursor:pointer;font-weight:500;position:relative}
-nav a i{display:flex;width:40px;height:40px;margin:0 auto 2px;border-radius:12px;align-items:center;justify-content:center}
-nav svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-nav a:hover i{background:var(--pl)}nav a.on{color:var(--pr);font-weight:700}nav a.on i{background:var(--pr);color:#fff;box-shadow:0 8px 18px rgba(67,83,232,.35)}
-nav a b{position:absolute;top:4px;right:10px;min-width:17px;height:17px;border-radius:9px;background:var(--rd);color:#fff;font-size:10px;line-height:17px}
-nav .sp{flex:1}
-main{flex:1;min-width:0;overflow:auto;padding:20px 30px 40px}
-.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-.sr{flex:1;max-width:340px;border:1px solid var(--ln);border-radius:99px;padding:8px 16px;background:#fff}
-.ic{width:36px;height:36px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;border:0}
-.ic.dot:after{content:"";position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--rd)}
-.av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7b88ff,#4353e8);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0}
-.menu{position:absolute;right:30px;top:62px;background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(27,33,80,.18);padding:8px;width:230px;z-index:9;display:none}.menu.on{display:block}
-.menu div{padding:8px 10px;border-radius:8px;cursor:pointer}.menu div:hover{background:var(--pl)}.menu small{color:var(--mu);padding:4px 10px;display:block}
-h1,h2,h3{margin:0;font-family:var(--f)}h1{font-size:21px;font-weight:700}h3{font-size:14px;font-weight:700}
-.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}.ph>div{flex:1}.ph p{margin:2px 0 0;color:var(--mu)}
-select,input{font:inherit;color:inherit;border:1px solid var(--ln);background:#fff;border-radius:10px;padding:8px 12px;width:100%}
-select.w,input.w{width:auto}
-input:focus-visible,select:focus-visible,button:focus-visible,nav a:focus-visible{outline:2px solid var(--p2);outline-offset:2px}
-label{display:block;font-size:12px;color:var(--mu);margin:10px 0 4px}
-.bt{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:9px 18px;font:600 13px var(--f);cursor:pointer;box-shadow:0 6px 14px rgba(67,83,232,.25)}
-.bt.s{background:#fff;color:var(--ink);border:1px solid var(--ln);box-shadow:none}.bt.d{background:var(--rd);box-shadow:none}.bt.x{padding:4px 12px;font-size:12px;box-shadow:none}.bt:disabled{opacity:.5;cursor:default}
-.g{display:grid;gap:16px;margin-bottom:16px}.k4{grid-template-columns:repeat(4,1fr)}.k3{grid-template-columns:repeat(3,1fr)}.r2{grid-template-columns:1.6fr 1fr}.r2b{grid-template-columns:1.7fr 1fr}.r2e{grid-template-columns:1fr 1fr}
-@media(max-width:1100px){.k4{grid-template-columns:1fr 1fr}.r2,.r2b{grid-template-columns:1fr}.k3{grid-template-columns:1fr}}
-@media(max-width:620px){.k4,.r2e{grid-template-columns:1fr}}
-.cd{background:#fff;border:1px solid var(--ln);border-radius:18px;padding:16px 18px;box-shadow:0 4px 20px rgba(67,83,232,.05);min-width:0}
-.cd .hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}.cd .hd h3{flex:1}
-.kc{border-radius:18px;padding:16px 18px;border:1px solid var(--ln);background:#fff;box-shadow:0 4px 20px rgba(67,83,232,.05)}
-.kc.fill{background:linear-gradient(145deg,#4353e8,#5f6dff);color:#fff;border:0;box-shadow:0 12px 28px rgba(67,83,232,.35)}
-.kc .t{display:flex;justify-content:space-between;font-weight:500;font-size:12.5px;opacity:.9}.kc .v{font:700 24px var(--f);margin:6px 0 0}.kc small{font-size:11.5px;opacity:.75}
-.up{color:var(--gn);font-weight:600;font-size:12px}.dn{color:var(--rd);font-weight:600;font-size:12px}.fill .up,.fill .dn{color:#b8f5dc}
-.pl{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11.5px;font-weight:600;background:var(--pl);color:var(--pr)}
-.pl.g{background:var(--gl);color:var(--gn)}.pl.o{background:var(--ol);color:var(--or)}.pl.r{background:var(--rl);color:var(--rd)}.pl.v{background:var(--vl);color:var(--vi)}
-.act{display:flex;gap:12px;align-items:center;border-radius:16px;padding:14px 16px;cursor:pointer;border:1px solid transparent;text-align:left;background:var(--bg);font:inherit;color:inherit;width:100%}
-.act:hover{border-color:var(--p2)}.act .ti{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}.act b{font:700 20px var(--f)}.act small{display:block;color:var(--mu);font-size:11.5px}
-.tabs{display:inline-flex;gap:4px;background:var(--bg);padding:4px;border-radius:12px;margin-bottom:16px;flex-wrap:wrap}.tabs button{border:0;background:none;padding:7px 16px;border-radius:9px;font:600 12.5px var(--f);color:var(--mu);cursor:pointer}.tabs .on{background:#fff;color:var(--pr);box-shadow:0 2px 8px rgba(67,83,232,.15)}
-.tw{overflow-x:auto}table{border-collapse:collapse;width:100%}
-th{text-align:left;font-weight:500;color:var(--mu);font-size:12px;padding:8px 10px;white-space:nowrap;border-bottom:1px solid var(--ln)}
-td{padding:11px 10px;border-bottom:1px solid var(--ln);white-space:nowrap}tr:last-child td{border:0}tbody tr:hover td{background:var(--bg)}
-.st{border-radius:16px;padding:14px 16px;cursor:pointer;border:2px solid transparent;font:inherit;text-align:left;width:100%;color:inherit}.st.on{border-color:var(--pr)}.st b{font:700 22px var(--f);display:block}.st span{font-weight:600;font-size:12.5px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.f{flex:1;min-width:150px}
-.bar{height:8px;border-radius:5px;background:var(--pl);overflow:hidden}.bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--p2),var(--pr))}
-.nt{padding:10px 14px;border-radius:12px;background:var(--ol);color:#8a5a06;margin-bottom:14px;font-size:12.5px}.nt.i{background:var(--pl);color:var(--pr)}
-.asof{font-size:11px;color:var(--mu)}
-.md{position:fixed;inset:0;background:rgba(27,33,80,.45);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}.md.on{display:flex}
-.md>div{background:#fff;border-radius:20px;padding:22px;width:480px;max-width:100%;max-height:90vh;overflow:auto}.md h2{margin-bottom:10px;font-size:18px}
-.ts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;display:none;z-index:30}
-.sc{height:150px;border-radius:14px;background:#0f1538;color:#a9b6ff;display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;text-align:center;font-size:12px}
-.sc:after{content:"";position:absolute;left:12%;right:12%;top:50%;height:2px;background:var(--or)}
-.stp{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.stp span{padding:5px 14px;border-radius:99px;background:var(--bg);color:var(--mu);font-size:12px;font-weight:500}.stp .on{background:var(--pr);color:#fff}.stp .ok{background:var(--gl);color:var(--gn)}
-.sw{appearance:none;width:38px;height:22px;border-radius:99px;background:#d5d9ee;position:relative;cursor:pointer;padding:0;border:0}.sw:checked{background:var(--gn)}.sw:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}.sw:checked:after{left:19px}
-@media(max-width:820px){.app{width:100%;height:100%;margin:0;border-radius:0}nav{position:fixed;bottom:0;left:0;right:0;width:100%;flex-direction:row;justify-content:space-around;height:66px;padding:4px;z-index:10;box-shadow:0 -4px 20px rgba(27,33,80,.1)}nav .lg,nav .sp{display:none}nav a{width:56px}main{padding:14px 14px 90px}.sr{display:none}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style><link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118"></head><body class="ui-polished manager-v2">
-<div class="app"><nav id="nv"></nav><main id="mn"><div class="top"><input class="sr" placeholder="Cari pesanan, anggota, produk…" aria-label="Cari"><span style="flex:1"></span><span class="pl o" title="Angka dan tindakan pada desain referensi ini masih simulasi">Demo UI · data contoh</span><button class="ic dot" aria-label="Notifikasi" onclick="toast('3 notifikasi baru: 2 transfer menunggu verifikasi, 1 impor berisiko')">🔔</button><button class="av" aria-label="Akun" onclick="$('#mu').classList.toggle('on')">RK</button></div><div class="menu" id="mu"><small>Rina Kusuma</small><div onclick="toast('Konteks: Manajer')">✓ Manajer</div><div onclick="location.href='/'">Anggota (akun ganda)</div><div onclick="toast('Profil')">Profil saya</div><div onclick="location.href='/login'">Keluar</div></div><div id="pg"></div></main></div>
-<div class="md" id="md"><div id="mc"></div></div><div class="ts" id="ts"></div>
+    .mgr-tabs {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        background: #ffffff;
+        border: 1px solid #E5E7E9;
+        padding: 5px;
+        border-radius: 10px;
+    }
+    .mgr-tabs .btn-tab {
+        border: 0;
+        background: transparent;
+        color: #6D7588;
+        font-size: 0.84rem;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }
+    .mgr-tabs .btn-tab:hover {
+        color: #212121;
+        background: #F5F7F9;
+    }
+    .mgr-tabs .btn-tab.active {
+        background: #ecfdf5;
+        color: #059669;
+        font-weight: 700;
+    }
+    .mgr-quick-btn {
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+    }
+    .mgr-switch {
+        appearance: none;
+        width: 40px;
+        height: 22px;
+        border-radius: 99px;
+        background: #d1d5db;
+        position: relative;
+        cursor: pointer;
+        padding: 0;
+        border: 0;
+        flex-shrink: 0;
+        transition: background-color 0.15s ease;
+    }
+    .mgr-switch:checked {
+        background: #10b981;
+    }
+    .mgr-switch::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #ffffff;
+        transition: left 0.15s ease;
+    }
+    .mgr-switch:checked::after {
+        left: 21px;
+    }
+    .mgr-progress-track {
+        height: 8px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        overflow: hidden;
+    }
+    .mgr-progress-fill {
+        display: block;
+        height: 100%;
+        border-radius: 6px;
+    }
+    .mgr-stepper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .mgr-step-pill {
+        padding: 6px 14px;
+        border-radius: 99px;
+        background: #f3f4f6;
+        color: #6b7280;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: 1px solid #e5e7eb;
+    }
+    .mgr-step-pill.active {
+        background: #059669;
+        color: #ffffff;
+        border-color: #059669;
+    }
+    .mgr-step-pill.done {
+        background: #ecfdf5;
+        color: #059669;
+        border-color: #a7f3d0;
+    }
+    .mgr-chart-wrap {
+        position: relative;
+        height: 240px;
+        width: 100%;
+    }
+    .mgr-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1f2937;
+        color: #ffffff;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 0.84rem;
+        font-weight: 500;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        z-index: 1090;
+        display: none;
+        max-width: calc(100vw - 32px);
+    }
+    #managerPortalRoot .table-responsive .dropdown-menu {
+        z-index: 1060;
+    }
+    html {
+        scroll-behavior: smooth;
+    }
+    @keyframes portalSectionEnter {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .portal-section-enter {
+        animation: portalSectionEnter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity, transform;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+        .portal-section-enter {
+            animation: none;
+        }
+    }
+</style>
+@endpush
+
+@section('header')
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h4 class="fw-bold mb-0 text-dark" id="mgrPageHeading">Portal Manajer &amp; Analitik Koperasi</h4>
+        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
+            <i class="bi bi-shop me-1"></i> Gerai Kanayakan Dago
+        </span>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs" id="etlFreshBadge" title="Status sinkronisasi data analitik &amp; OLTP">
+            <i class="bi bi-database-check text-success me-1"></i>
+            <span>OLTP Real-Time &bull; {{ $managerBootstrap['oltp']['rendered_at'] }}</span>
+        </span>
+    </div>
+</div>
+@endsection
+
+@section('content')
+<div id="managerPortalRoot" data-ui="manager-v2">
+    <div id="pg"></div>
+</div>
+
+<!-- Modal Aksi Dinamis Portal Manajer -->
+<div class="modal fade" id="mgrActionModal" tabindex="-1" aria-labelledby="mgrModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom px-4 py-3">
+                <h6 class="modal-title fw-bold text-dark mb-0" id="mgrModalTitle">Form Manajer</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body p-4" id="mgrModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<div class="mgr-toast" id="ts" role="status" aria-live="polite"></div>
+@endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const $=s=>document.querySelector(s),rp=n=>(n<0?'-':'')+'Rp'+Math.abs(n).toLocaleString('id-ID'),jt=n=>'Rp'+(n/1e6).toLocaleString('id-ID',{maximumFractionDigits:1})+' jt';
-const pl=(t,c='')=>`<span class="pl ${c}">${t}</span>`,toast=t=>{const e=$('#ts');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2600)};
-const cd=(t,b,a='')=>`<div class="cd"><div class="hd"><h3>${t}</h3>${a}</div>${b}</div>`;
-const tb=(h,r)=>`<div class="tw"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-const fl=(l,i)=>`<label>${l}</label>${i}`,ph=(t,s,r='')=>`<div class="ph"><div><h1>${t}</h1><p>${s}</p></div>${r}</div>`;
-const M=(t,h)=>{$('#mc').innerHTML=`<h2>${t}</h2>${h}`;$('#md').classList.add('on')},C=()=>$('#md').classList.remove('on');$('#md').onclick=e=>{if(e.target.id=='md')C()};
-const ok=(m,c='')=>`<div class="row" style="margin-top:18px;justify-content:flex-end"><button class="bt s" onclick="C()">Batal</button><button class="bt ${c}" onclick="sub(this,'${m}')">Simpan</button></div>`;
-function sub(b,m){b.disabled=true;b.textContent='Menyimpan…';setTimeout(()=>{C();toast('Simulasi UI: '+m+' — belum disimpan ke server')},500)} /* Preview UI only; no operational write is made. */
-const asof=t=>`<span class="asof">per ${t||'17 Nov 2026, 02:00 WIB'}</span>`;
+const BOOTSTRAP = @json($managerBootstrap);
+const $ = s => document.querySelector(s);
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-/* ---------- chart helpers (SVG murni) ---------- */
-const smooth=(a,w,h,p=6)=>{const m=Math.max(...a),n=Math.min(...a),X=i=>i*w/(a.length-1),Y=v=>h-p-(v-n)/(m-n||1)*(h-2*p);return a.map((v,i)=>i?`C${(X(i-1)+X(i))/2} ${Y(a[i-1])} ${(X(i-1)+X(i))/2} ${Y(v)} ${X(i)} ${Y(v)}`:`M0 ${Y(v)}`).join(' ')};
-const sp=(a,c,w=160,h=46)=>`<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${smooth(a,w,h)}" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-function bars(L,A,B,u){const m=Math.ceil(Math.max(...A)/10)*10,W=520,H=210;return`<svg viewBox="0 0 ${W} ${H}" style="width:100%" role="img" aria-label="Grafik batang omzet dan laba kotor">${[0,1,2,3].map(i=>{const y=170-i*45;return`<line x1="44" x2="${W}" y1="${y}" y2="${y}" stroke="#eceefa"/><text x="38" y="${y+4}" text-anchor="end" font-size="10" fill="#8189a8">${Math.round(m/3*i)}</text>`}).join('')}${L.map((l,i)=>{const x=60+i*64,h1=A[i]/m*135,h2=B[i]/m*135;return`<rect x="${x}" y="${170-h1}" width="20" height="${h1}" rx="6" fill="#4353e8"><title>${l}: omzet ${A[i]} jt</title></rect><rect x="${x+23}" y="${170-h2}" width="20" height="${h2}" rx="6" fill="#b4bcff"><title>${l}: laba kotor ${B[i]} jt</title></rect><text x="${x+21}" y="192" text-anchor="middle" font-size="10" fill="#8189a8">${l}</text>`}).join('')}</svg><div class="row asof"><span style="color:#4353e8">●</span>Omzet <span style="color:#b4bcff">●</span>Laba kotor (${u}) · ${asof().replace(/<[^>]+>/g,'')}</div>`}
-function donut(D,c1,c2){const R=46,T=2*Math.PI*R;let o=0;const s=D.map(d=>{const l=T*d.v/100,e=`<circle cx="70" cy="70" r="${R}" fill="none" stroke="${d.c}" stroke-width="18" stroke-dasharray="${l-2} ${T}" stroke-dashoffset="${-o}" transform="rotate(-90 70 70)"><title>${d.l} ${d.v}%</title></circle>`;o+=l;return e}).join('');return`<div class="row" style="flex-wrap:nowrap;gap:18px"><svg viewBox="0 0 140 140" style="width:150px;flex:none" role="img" aria-label="Donat">${s}<text x="70" y="68" text-anchor="middle" font-size="17" font-weight="800" fill="#1b2150">${c1}</text><text x="70" y="83" text-anchor="middle" font-size="9" fill="#8189a8">${c2}</text></svg><div class="f">${D.map(d=>`<div class="row" style="justify-content:space-between;margin:7px 0;flex-wrap:nowrap"><span><span style="color:${d.c}">●</span> ${d.l}</span><b>${d.v}%</b></div>`).join('')}</div></div>`}
-const hb=(D,c='')=>D.map(d=>`<div style="margin:11px 0"><div class="row" style="justify-content:space-between"><span>${d[0]}</span><b>${d[1]}${d[2]||''}</b></div><div class="bar"><i style="width:${d[3]}%;${c}"></i></div></div>`).join('');
-const AG=[['Belum jatuh tempo',9.2,'#2fae80'],['1–30 hari',4.1,'#f5b83d'],['31–60 hari',1.8,'#f08a3c'],['61–90 hari',.8,'#e5484d'],['>90 hari',0,'#b3261e']];
-const aging=()=>{const m=9.2;return`<svg viewBox="0 0 330 190" style="width:100%" role="img" aria-label="Aging piutang">${AG.map((a,i)=>{const h=a[1]/m*120,x=14+i*64;return`<rect x="${x}" y="${140-h}" width="40" height="${Math.max(h,2)}" rx="8" fill="${a[2]}"><title>${a[0]}: ${a[1]} jt</title></rect><text x="${x+20}" y="${132-h}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1b2150">${a[1]}</text><text x="${x+20}" y="160" text-anchor="middle" font-size="9" fill="#8189a8">${['Current','1–30','31–60','61–90','>90'][i]}</text>`}).join('')}</svg><div class="asof">Juta Rp · saldo snapshot, tidak dijumlah lintas hari · ${asof().replace(/<[^>]+>/g,'')}</div>`};
-function fcChart(h){const n=14,A=[...Array(n)].map((_,i)=>Math.round(52+9*Math.sin(i/2)+i*.7)),F=[...Array(h)].map((_,i)=>Math.round(63+8*Math.sin((n+i)/2)+i*(h>7?.25:.5))),all=[...A,...F],W=560,H=210,m=Math.max(...all)+16,X=i=>40+i*(W-60)/(all.length-1),Y=v=>180-v/m*160,pa=A.map((v,i)=>(i?'L':'M')+X(i)+' '+Y(v)).join(' '),pf=[A[n-1],...F].map((v,i)=>(i?'L':'M')+X(n-1+i)+' '+Y(v)).join(' '),up=F.map((v,i)=>X(n+i)+','+Y(v+4+i*.6)).join(' '),lo=F.map((v,i)=>X(n+i)+','+Y(v-4-i*.6)).reverse().join(' ');return`<svg viewBox="0 0 ${W} ${H}" style="width:100%" role="img" aria-label="Forecast permintaan">${[0,1,2,3].map(i=>`<line x1="40" x2="${W-20}" y1="${180-i*45}" y2="${180-i*45}" stroke="#eceefa"/><text x="34" y="${184-i*45}" text-anchor="end" font-size="10" fill="#8189a8">${Math.round(m/3.55*i)}</text>`).join('')}<polygon points="${up} ${lo}" fill="#7b88ff" opacity=".18"/><path d="${pa}" fill="none" stroke="#4353e8" stroke-width="2.5"/><path d="${pf}" fill="none" stroke="#e8920c" stroke-width="2.5" stroke-dasharray="6 5"/><line x1="${X(n-1)}" x2="${X(n-1)}" y1="14" y2="180" stroke="#8189a8" stroke-dasharray="2 3"/><text x="${X(n-1)}" y="10" text-anchor="middle" font-size="10" fill="#8189a8">hari ini</text><text x="40" y="200" font-size="10" fill="#8189a8">H-14</text><text x="${W-20}" y="200" text-anchor="end" font-size="10" fill="#8189a8">H+${h}</text></svg><div class="row asof"><span style="color:#4353e8">●</span>Aktual <span style="color:#e8920c">●</span>Forecast (estimasi, ±pita ketidakpastian) · Model v2026.11.1 · ${asof().replace(/<[^>]+>/g,'')}</div>`}
+const escapeHtml = str => String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-/* ---------- data (mock sesuai kontrak /api/v1) ---------- */
-const P=[['BRS-5K','8991001000011','Beras 5 kg','Sembako',58000,66000,100,12,20],['MNY-1L','8991001000028','Minyak goreng 1 L','Sembako',15500,18000,64,8,30],['GLA-1K','8991001000035','Gula pasir 1 kg','Sembako',14200,16500,18,3,25],['KPI-SCH','8991001000042','Kopi sachet (10)','Minuman',9800,12500,210,0,40],['MIE-GRG','8991001000059','Mi goreng (dus)','Makanan',98000,112000,9,2,10],['SBN-BTG','8991001000066','Sabun batang','Kebersihan',2800,4000,0,0,50]];
-const MB=[['A-0012','Dewi Anggraini','Produksi','Aktif',1,'ok'],['A-0021','Budi Santoso','Gudang','Aktif',1,'overdue'],['A-0034','Sari Wulandari','Keuangan','Aktif',1,'ok'],['A-0047','Agus Pratama','Produksi','Aktif',0,'blocked'],['A-0058','Lina Marlina','HRD','Nonaktif',0,'blocked']];
-const DS={Hari:{om:4.82,lk:1.17,ks:3.98,pt:15.9,s:[3.1,3.8,4.2,3.6,4.9,4.4,4.82],d:[8,5,6,-3]},Pekan:{om:31.4,lk:7.6,ks:26.9,pt:15.9,s:[24,26,29,25,31,28,31.4],d:[12.5,9,7,-2]},Bulan:{om:128.6,lk:31.1,ks:112.8,pt:15.9,s:[96,104,99,115,121,118,128.6],d:[8.3,6.1,12,-4.5]},Tahun:{om:1384,lk:333,ks:1210,pt:15.9,s:[900,980,1050,1120,1210,1300,1384],d:[14,11,15,-6]}};
-const OS={PENDING_PAYMENT:['Menunggu bayar','o'],PENDING_PICKUP:['Menunggu pickup (kredit)','v'],READY_FOR_PICKUP:['Siap diambil','pl'],COMPLETED:['Selesai','g'],CANCELLED:['Dibatalkan','r']};
-const O=[['ORD-1182','Dewi A.','Beras 5 kg ×2',132000,'Tunai','Belum bayar','PENDING_PAYMENT'],['ORD-1183','Budi S.','Minyak ×4',72000,'Transfer','Menunggu verifikasi','PENDING_PAYMENT'],['ORD-1184','Sari W.','Gula ×3, Kopi ×2',74500,'Piutang','Hold kredit','PENDING_PICKUP'],['ORD-1185','Agus P.','Mi goreng ×1',112000,'Tunai','Terverifikasi','READY_FOR_PICKUP'],['ORD-1186','Dewi A.','Kopi ×5',62500,'Transfer','Terverifikasi','READY_FOR_PICKUP'],['ORD-1179','Dewi A.','Kopi ×5',62500,'Tunai','Lunas','COMPLETED'],['ORD-1176','Budi S.','Sabun ×6',24000,'Tunai','—','CANCELLED']];
-const TB={ops:0,data:0,rep:0};let OF='';
+const rp = n => {
+    const val = Number(n || 0);
+    return (val < 0 ? '-' : '') + 'Rp ' + Math.round(Math.abs(val)).toLocaleString('id-ID');
+};
 
-/* ---------- navigasi (5 tujuan + sistem) ---------- */
-const I={home:'<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',ops:'<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>',ar:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',data:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/>',rep:'<path d="M18 20V10M12 20V4M6 20v-6"/>',sys:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
-const NAV=[['home','Beranda'],['ops','Transaksi',7],['ar','Piutang',2],['data','Data'],['rep','Laporan']];
-$('#nv').innerHTML='<div class="lg">K</div>'+NAV.map(n=>`<a id="n-${n[0]}" tabindex="0" onclick="go('${n[0]}')"><i><svg viewBox="0 0 24 24">${I[n[0]]}</svg></i>${n[1]}${n[2]?`<b>${n[2]}</b>`:''}</a>`).join('')+'<span class="sp"></span>'+`<a id="n-sys" tabindex="0" onclick="go('sys')"><i><svg viewBox="0 0 24 24">${I.sys}</svg></i>Sistem</a>`;
-const go=id=>{location.hash=id},tabs=(pg,l)=>`<div class="tabs" role="tablist">${l.map((x,i)=>`<button role="tab" class="${TB[pg]==i?'on':''}" onclick="TB.${pg}=${i};route()">${x}</button>`).join('')}</div>`;
-const S={},H={};
-function route(){let id=location.hash.slice(1);if(!S[id])id='home';document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.id=='n-'+id));$('#pg').innerHTML=S[id]();(H[id]||(()=>{}))();$('#mu').classList.remove('on')}
-window.onhashchange=()=>{route();$('#mn').scrollTop=0};
+const pl = (t, tone = 'success') => {
+    const map = {
+        g: 'bg-success-subtle text-success border border-success-subtle',
+        success: 'bg-success-subtle text-success border border-success-subtle',
+        o: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+        warning: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+        r: 'bg-danger-subtle text-danger border border-danger-subtle',
+        danger: 'bg-danger-subtle text-danger border border-danger-subtle',
+        i: 'bg-light text-secondary border',
+        pl: 'bg-primary-subtle text-primary border border-primary-subtle',
+        v: 'bg-secondary-subtle text-dark border',
+    };
+    return `<span class="badge ${map[tone] || map.i} fw-semibold">${escapeHtml(t)}</span>`;
+};
 
-/* ---------- BERANDA ---------- */
-S.home=()=>`${ph('Selamat pagi, Rina! 👋','Ringkasan koperasi — hal yang perlu Anda putuskan ada di bagian tengah.',`<select class="w" id="per" onchange="dash(this.value)" aria-label="Periode">${Object.keys(DS).map(k=>`<option ${k=='Bulan'?'selected':''}>${k}</option>`).join('')}</select>`)}
-<div class="g k4" id="kp"></div>
-<div class="g k3"><button class="act" onclick="go('ops')"><span class="ti" style="background:var(--ol)">🛍️</span><div><b>7</b><small>Pesanan perlu diproses (2 transfer belum diverifikasi)</small></div></button><button class="act" onclick="go('ar')"><span class="ti" style="background:var(--rl)">⏰</span><div><b>2 anggota</b><small>Menunggak ${jt(2.7e6)} · kredit baru diblokir</small></div></button><button class="act" onclick="TB.rep=3;go('rep');route()"><span class="ti" style="background:var(--vl)">📦</span><div><b>5 saran restock</b><small>3 SKU stok kritis · menunggu review Anda</small></div></button></div>
-<div class="g r2">${cd('Omzet vs laba kotor','<div id="bc"></div>')}${cd('Komposisi penjualan',donut([{l:'Tunai',v:48,c:'#4353e8'},{l:'Transfer',v:23,c:'#9aa5ff'},{l:'Piutang',v:29,c:'#f5a524'}],'29%','piutang'),'<span class="pl">Bulan ini</span>')}</div>
-<div class="g k3">${cd('Aging piutang',aging(),`<button class="bt s x" onclick="go('ar')">Detail</button>`)}${cd('Forecast permintaan 7 hari',fcChart(7),`<button class="bt s x" onclick="TB.rep=3;go('rep');route()">Detail</button>`)}${cd('Produk terlaris',hb([['Beras 5 kg',420,' unit',92],['Minyak goreng 1 L',380,' unit',84],['Kopi sachet',310,' unit',68],['Gula pasir 1 kg',260,' unit',57]])+asof('17 Nov 02:00 WIB'))}</div>`;
-H.home=()=>dash('Bulan');
-function dash(p){const d=DS[p],K=[['Omzet (pesanan selesai)',d.om,'💰',1],['Laba kotor',d.lk,'📈'],['Kas masuk',d.ks,'🏦'],['Piutang terbuka',d.pt,'🧾']],cl=['#fff','#4353e8','#2fae80','#e8920c'],u=p=='Tahun'?' jt':' jt';
-$('#kp').innerHTML=K.map((k,i)=>`<div class="kc ${i?'':'fill'}"><div class="t"><span>${k[0]}</span><span>${k[2]}</span></div><div class="v">${'Rp'+k[1].toLocaleString('id-ID')} jt</div><span class="${d.d[i]<0?'dn':'up'}">${d.d[i]<0?'▼':'▲'} ${Math.abs(d.d[i])}%</span> <small>vs periode lalu${i==1?' · <b>estimasi</b>':''}${i==3?' · jatuh tempo Rp2,7 jt':''}</small>${sp(d.s.map(v=>v*(i?[0,.24,.88,.12][i]:1)+i),cl[i])}</div>`).join('');
-$('#bc').innerHTML=bars(['Sen','Sel','Rab','Kam','Jum','Sab','Min'],[21,26,29,24,31,28,34],[5.9,7.1,7.8,6.4,8.5,7.6,9.2],'juta Rp')}
+const toast = t => {
+    const e = $('#ts');
+    if (!e) return;
+    e.textContent = t;
+    e.style.display = 'block';
+    clearTimeout(window.__tsTimer);
+    window.__tsTimer = setTimeout(() => { e.style.display = 'none'; }, 3400);
+};
 
-/* ---------- TRANSAKSI: pesanan | kasir | stok ---------- */
-S.ops=()=>`${ph('Transaksi','Antrian pesanan, kasir, dan stok dalam satu tempat.',`<button class="bt" onclick="TB.ops=1;route()">+ Penjualan baru (POS)</button>`)}${tabs('ops',['Pesanan & pickup','Kasir / POS','Stok'])}${[SO,SP,SK][TB.ops]()}`;
-H.ops=()=>{if(TB.ops==1){cart=[];rc();pays()}};
-const SO=()=>{const cnt=s=>O.filter(o=>o[6]==s).length,cs=[['PENDING_PAYMENT','var(--ol)','var(--or)'],['PENDING_PICKUP','var(--vl)','var(--vi)'],['READY_FOR_PICKUP','var(--pl)','var(--pr)'],['COMPLETED','var(--gl)','var(--gn)']],rows=O.filter(o=>!OF||o[6]==OF);
-return`<div class="g k4">${cs.map(c=>`<button class="st ${OF==c[0]?'on':''}" style="background:${c[1]};color:${c[2]}" onclick="OF=OF=='${c[0]}'?'':'${c[0]}';route()"><span>${OS[c[0]][0]}</span><b>${c[0]=='COMPLETED'?74:cnt(c[0])}</b></button>`).join('')}</div>
-${cd(OF?'Pesanan: '+OS[OF][0]:'Semua pesanan',tb(['Kode','Anggota','Item','Total','Metode','Pembayaran','Status','Aksi'],rows.map(o=>[o[0],o[1],o[2],rp(o[3]),o[4],o[5],pl(...OS[o[6]]),o[6]=='PENDING_PAYMENT'?`<button class="bt x" onclick="payM('${o[0]}',${o[3]})">Verifikasi bayar</button>`:o[6].includes('PICKUP')?`<button class="bt x" onclick="pickM('${o[0]}',${o[4]=='Piutang'?1:0})">Konfirmasi pickup</button>`:o[6]=='COMPLETED'?'<button class="bt s x" onclick="toast(\'Struk dibuka\')">Struk</button>':'—'])),OF?'<button class="bt s x" onclick="OF=\'\';route()">Hapus filter</button>':'')}
-<div class="nt i" style="margin-top:14px">Stok fisik baru berkurang setelah kasir mengonfirmasi serah terima. Pesanan milik kasir sendiri harus dikonfirmasi petugas lain.</div>`};
-const payM=(k,t)=>M('Verifikasi pembayaran',`<div class="nt i">${k} · ${rp(t)}</div>${fl('Referensi transfer','<input value="TRF-20261117-0381">')}${fl('Bukti transfer','<input type="file">')}<div class="row" style="margin-top:18px;justify-content:flex-end"><button class="bt d" onclick="sub(this,'Pembayaran ditolak')">Tolak</button><button class="bt" onclick="sub(this,'Terverifikasi — masuk kas, belum omzet')">Dana diterima</button></div>`);
-const pickM=(k,c)=>M('Konfirmasi pickup',`<div class="nt i">${k}${c?' · Piutang':''}</div>${fl('Kode pickup','<input value="PICKUP-7Q4K2">')}<label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" style="width:auto" checked> Barang sudah diserahkan</label><div style="background:var(--bg);border-radius:12px;padding:12px;margin-top:12px;font-size:12.5px"><b>Hasil dari server</b><br>• Stok fisik turun, reservasi dilepas<br>• Penjualan + HPP diakui sekali${c?'<br>• Credit hold dilepas, tagihan dibuat · jatuh tempo +7 hari (24 Nov 2026)':''}</div>${ok('Pickup dikonfirmasi — COMPLETED')}`);
-const SP=()=>`<div class="g r2b"><div class="g" style="margin:0">${cd('Scan barcode',`<div class="sc" id="sc">Kamera belum aktif<br>Izinkan akses kamera (HTTPS)</div><div class="row"><button class="bt" onclick="scan()">▶ Mulai scan</button><button class="bt s" onclick="toast('Kamera dihentikan')">■ Stop</button><div class="f"><input id="mi" placeholder="Atau ketik nama / SKU / barcode, tekan Enter" onkeydown="if(event.key=='Enter')man()"></div></div>`)}${cd('Keranjang','<div id="ct"></div>')}</div>${cd('Pembayaran',`${fl('Pelanggan','<select id="pm" onchange="pays()"><option value="">Nonanggota (tunai/transfer)</option>'+MB.filter(m=>m[3]=='Aktif').map(m=>`<option value="${m[0]}">${m[1]}</option>`).join('')+'</select>')}${fl('Metode','<select id="py"></select>')}<div id="el" style="margin:10px 0"></div><div class="row" style="justify-content:space-between"><span>Total</span><b style="font-size:22px" id="tot">Rp0</b></div><button class="bt" style="width:100%;margin-top:14px" onclick="fin(this)">Serahkan barang & selesaikan</button>`)}</div>`;
-let cart=[];
-const add=i=>{const x=cart.find(c=>c[0]==i);x?x[1]++:cart.push([i,1]);rc();toast('+ '+P[i][2])},scan=()=>{const i=Math.floor(Math.random()*4);$('#sc').innerHTML='✔ '+P[i][1]+'<br>'+P[i][2];add(i)},man=()=>{const q=$('#mi').value.toLowerCase(),i=P.findIndex(p=>(p[0]+p[1]+p[2]).toLowerCase().includes(q));i<0?toast('Barcode tidak ditemukan — coba cari manual'):add(i);$('#mi').value=''};
-function rc(){$('#ct').innerHTML=cart.length?tb(['Produk','Harga','Qty','Subtotal'],cart.map(c=>[P[c[0]][2],rp(P[c[0]][5]),`<button class="bt s x" onclick="qy(${c[0]},-1)">−</button> ${c[1]} <button class="bt s x" onclick="qy(${c[0]},1)">+</button>`,rp(P[c[0]][5]*c[1])])):'<div class="asof" style="padding:24px;text-align:center">Keranjang kosong. Scan barcode atau cari produk untuk memulai.</div>';$('#tot').textContent=rp(cart.reduce((s,c)=>s+P[c[0]][5]*c[1],0))}
-const qy=(i,d)=>{const x=cart.find(c=>c[0]==i);x[1]+=d;if(x[1]<1)cart=cart.filter(c=>c!=x);rc()};
-function pays(){const m=MB.find(x=>x[0]==$('#pm').value);$('#py').innerHTML='<option>Tunai</option><option>Transfer</option>'+(m&&m[5]=='ok'?'<option>Piutang</option>':'');$('#el').innerHTML=m?({ok:pl('Eligible piutang (dari server)','g'),overdue:pl('Kredit tidak tersedia: ada tunggakan','r'),blocked:pl('Fasilitas piutang tidak aktif','o')})[m[5]]:''}
-const fin=b=>{if(!cart.length)return toast('Keranjang kosong');b.disabled=true;setTimeout(()=>{toast('Transaksi selesai — struk siap dicetak');cart=[];rc();b.disabled=false},600)};
-const SK=()=>cd('Persediaan',tb(['Produk','On hand','Reserved','Tersedia','Level','Status',''],P.map(p=>{const a=p[6]-p[7];return[`${p[2]}<br><span class="asof">${p[0]}</span>`,p[6],p[7],`<b>${a}</b>`,`<div class="bar" style="width:90px"><i style="width:${Math.min(100,a/p[8]*50)}%;${a<p[8]?'background:#f5a524':''}"></i></div>`,a==0?pl('Habis','r'):a<p[8]?pl('Kritis','o'):pl('Aman','g'),`<button class="bt s x" onclick="adj('${p[2]}')">Koreksi</button>`]})),'<button class="bt x" onclick="rcvM()">+ Terima barang</button>');
-const adj=n=>M('Koreksi stok — '+n,`${fl('Jenis','<select><option>Kurangi (rusak/hilang)</option><option>Tambah (selisih opname)</option></select>')}${fl('Jumlah','<input type="number" min="1" value="1">')}${fl('Alasan (wajib)','<input placeholder="mis. opname 17 Nov">')}${ok('Koreksi tersimpan & diaudit')}`);
-const rcvM=()=>M('Terima barang dari pemasok',`${fl('Pemasok','<select><option>CV Tani Makmur</option><option>PT Sumber Pangan</option></select>')}${fl('Produk','<select>'+P.map(p=>`<option>${p[2]}</option>`).join('')+'</select>')}<div class="row"><div class="f">${fl('Jumlah','<input type="number" value="50">')}</div><div class="f">${fl('Harga beli satuan','<input type="number" value="57500">')}</div></div><div class="asof" style="margin-top:8px">HPP dihitung ulang server (moving weighted average).</div>${ok('Penerimaan dicatat')}`);
+const cd = (title, body, actions = '') => `
+    <div class="card border-0 shadow-sm bg-white h-100 overflow-hidden">
+        <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h6 class="card-title fw-bold text-dark mb-0 small">${title}</h6>
+            ${actions ? `<div class="d-flex align-items-center gap-2 flex-wrap">${actions}</div>` : ''}
+        </div>
+        <div class="card-body p-3 p-md-4">${body}</div>
+    </div>
+`;
 
-/* ---------- PIUTANG: tagihan + kebijakan global ---------- */
-S.ar=()=>`${ph('Piutang','Pantau tagihan anggota dan atur satu kebijakan kredit untuk semua.')}
-<div class="g k4"><div class="kc fill"><div class="t"><span>Total piutang terbuka</span></div><div class="v">Rp15,9 jt</div><small>snapshot 17 Nov 2026</small></div><div class="kc"><div class="t"><span>Jatuh tempo ≤ 7 hari</span></div><div class="v">Rp3,1 jt</div><small>6 tagihan</small></div><div class="kc"><div class="t"><span>Sudah jatuh tempo</span></div><div class="v" style="color:var(--rd)">Rp2,7 jt</div><small>2 anggota · kredit baru diblokir</small></div><div class="kc"><div class="t"><span>Tertagih bulan ini</span></div><div class="v" style="color:var(--gn)">Rp15,9 jt</div><small>kas masuk dari cicilan</small></div></div>
-<div class="g r2b"><div>${cd('Tagihan aktif',tb(['Tagihan','Anggota','Jatuh tempo','Awal','Sisa','Status',''],[['RCV-0418','Budi S.','10 Nov',rp(350000),rp(350000),pl('Terlambat 7 hari','r'),`<button class="bt x" onclick="inst('Budi S.',350000)">Catat cicilan</button>`],['RCV-0421','Sari W.','17 Nov',rp(200000),rp(125000),pl('Dicicil','pl'),`<button class="bt x" onclick="inst('Sari W.',125000)">Catat cicilan</button>`],['RCV-0430','Sari W.','21 Nov',rp(75000),rp(75000),pl('Terbuka','o'),`<button class="bt x" onclick="inst('Sari W.',75000)">Catat cicilan</button>`],['RCV-0425','Dewi A.','19 Nov',rp(160000),'—',pl('Lunas','g'),'']]),'<input class="w" placeholder="Cari anggota…" style="width:180px">')}<div style="height:16px"></div>${cd('Pelunasan terbaru',tb(['Tanggal','Anggota','Metode','Jumlah','Status'],[['17 Nov','Sari W.','Tunai',rp(75000),pl('Terverifikasi','g')],['16 Nov','Budi S.','Transfer',rp(100000),pl('Menunggu verifikasi','o')]]))}</div>
-<div>${cd('Aging piutang',aging())}<div style="height:16px"></div>${cd('Kebijakan kredit (semua anggota)',`${fl('Limit global (Rp)','<input type="number" placeholder="Belum ditetapkan — isi nominal">')}${fl('Jatuh tempo','<input value="7 hari kalender sejak serah terima" disabled>')}<div class="asof" style="margin:8px 0 12px">Satu nilai untuk semua anggota. Tanpa bunga/denda otomatis. Limit tersedia per anggota dihitung server.</div><button class="bt" onclick="sub(this,'Kebijakan disimpan & diaudit')">Simpan limit</button><div class="nt" style="margin:14px 0 0">Menurunkan limit tidak mengubah tagihan lama; hanya kredit baru yang ditolak.</div>`)}<div style="height:16px"></div>${cd('Fasilitas piutang anggota',MB.filter(m=>m[3]=='Aktif').map(m=>`<div class="row" style="justify-content:space-between;margin:8px 0;flex-wrap:nowrap"><span>${m[1]}<br>${m[5]=='overdue'?pl('Menunggak','r'):''}</span><input type="checkbox" class="sw" ${m[4]?'checked':''} aria-label="Fasilitas ${m[1]}" onchange="toast(this.checked?'Fasilitas diaktifkan':'Fasilitas diblokir (diaudit)')"></div>`).join(''))}</div></div>`;
-const inst=(n,s)=>M('Catat cicilan — '+n,`<div class="nt i">Sisa tagihan ${rp(s)} · cicilan menambah kas dan mengurangi piutang, bukan omzet.</div>${fl('Metode','<select><option>Tunai (langsung terverifikasi)</option><option>Transfer (perlu verifikasi)</option></select>')}${fl('Nominal','<input id="am" type="number" value="'+Math.min(75000,s)+'">')}<div class="asof" style="margin-top:6px">Alokasi default ke tagihan jatuh tempo terawal. Validasi akhir oleh server.</div>${ok('Pembayaran dicatat')}`);
+const cdTable = (title, body, actions = '') => `
+    <div class="card border-0 shadow-sm bg-white">
+        <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h6 class="card-title fw-bold text-dark mb-0 small">${title}</h6>
+            ${actions ? `<div class="d-flex align-items-center gap-2 flex-wrap">${actions}</div>` : ''}
+        </div>
+        ${body}
+    </div>
+`;
 
-/* ---------- DATA: produk | anggota | pemasok | impor ---------- */
-S.data=()=>`${ph('Data master','Produk & harga, anggota, pemasok, dan impor Excel.')}${tabs('data',['Produk & harga','Anggota','Pemasok','Impor Excel'])}${[DP,DM,DV,DI][TB.data]()}`;
-H.data=()=>{if(TB.data==3){is=0;ri()}};
-const DP=()=>cd('Master produk',tb(['Produk','Barcode','Kategori','HPP','Harga jual','Margin','Status',''],P.map((p,i)=>[`${p[2]}<br><span class="asof">${p[0]}</span>`,p[1],p[3],rp(p[4]),rp(p[5]),pl(Math.round((p[5]-p[4])/p[5]*100)+'%','g'),pl('Aktif','g'),`<button class="bt s x" onclick="prc(${i})">Ubah harga</button>`])),'<button class="bt x" onclick="M(\'Tambah produk\',fl(\'SKU\',\'<input>\')+fl(\'Barcode (unik)\',\'<input>\')+fl(\'Nama\',\'<input>\')+fl(\'Kategori\',\'<select><option>Sembako</option></select>\')+ok(\'Produk disimpan\'))">+ Produk</button>');
-const prc=i=>M('Ubah harga — '+P[i][2],`<div class="row"><div class="f">${fl('HPP acuan',`<input id="h1" type="number" value="${P[i][4]}" oninput="pv()">`)}</div><div class="f">${fl('Harga jual',`<input id="h2" type="number" value="${P[i][5]}" oninput="pv()">`)}</div></div><div id="pvw" style="margin:10px 0"></div>${fl('Alasan (wajib)','<input placeholder="mis. kenaikan harga pemasok">')}<div class="asof" style="margin:8px 0">Preview margin hanya perkiraan; transaksi lama tetap memakai harga snapshot.</div><b>Riwayat</b><div class="asof">02 Nov · ${rp(P[i][5]-1000)} → ${rp(P[i][5])} · Rina K.</div>${ok('Harga diubah & tercatat')}`),pv=()=>{const a=+$('#h1').value,b=+$('#h2').value;$('#pvw').innerHTML=b<a?'<div class="nt" style="margin:0">⚠ Harga jual di bawah HPP — transaksi akan rugi.</div>':pl('Preview margin '+(b?Math.round((b-a)/b*100):0)+'%','g')};
-const acc=()=>M('Kelola akun',fl('Peran','<select><option>MEMBER</option><option>MEMBER + CASHIER</option><option>MEMBER + MANAGER</option></select>')+`<button class="bt s" style="margin-top:12px" onclick="toast('Link reset password dikirim')">Reset password</button>`+ok('Akun diperbarui'));
-const DM=()=>cd('Anggota & akun',tb(['Anggota','Divisi','Peran','Keanggotaan','Piutang',''],MB.map(m=>[`${m[1]}<br><span class="asof">${m[0]}</span>`,m[2],pl('MEMBER')+(m[0]=='A-0034'?' '+pl('CASHIER','v'):''),pl(m[3],m[3]=='Aktif'?'g':'r'),m[5]=='overdue'?pl('Menunggak','r'):m[4]?pl('Aktif','g'):pl('Nonaktif','o'),`<button class="bt s x" onclick="acc()">Kelola</button>`])),'<button class="bt x" onclick="M(\'Tambah anggota\',fl(\'No. anggota\',\'<input>\')+fl(\'ID karyawan\',\'<input>\')+fl(\'Nama\',\'<input>\')+fl(\'Divisi\',\'<input>\')+ok(\'Anggota dibuat\'))">+ Anggota</button>')+'<div class="nt i" style="margin-top:14px">Tiga peran saja: Anggota, Kasir, Manajer. Anggota nonaktif tidak dapat memesan; riwayat tetap tersimpan.</div>';
-const DV=()=>cd('Pemasok',tb(['Pemasok','Kontak','Lead time','Penerimaan terakhir'],[['CV Tani Makmur','0812-555-0101','3 hari','12 Nov · Beras 80'],['PT Sumber Pangan','022-555-0188','5 hari','16 Nov · Kopi 120'],['UD Berkah Jaya','0813-555-0145','2 hari','—']]),'<button class="bt x" onclick="M(\'Tambah pemasok\',fl(\'Nama\',\'<input>\')+fl(\'Kontak\',\'<input>\')+fl(\'Lead time (hari)\',\'<input type=number>\')+ok(\'Pemasok disimpan\'))">+ Pemasok</button>');
-const st=['Pilih jenis','Mapping kolom','Preview','Konfirmasi','Selesai'];let is=0;
-const DI=()=>`<div class="stp" id="stp"></div><div id="ib"></div><div style="height:16px"></div>${cd('Riwayat impor',tb(['Batch','Jenis','File','Diterima','Ditolak','Status'],[['IMP-0007','Histori penjualan','penjualan_2025.xlsx',9812,23,pl('Selesai','g')],['IMP-0006','Stok awal (cut-off 31 Okt)','stok_awal.csv',212,0,pl('Selesai','g')]]))}`;
-function ri(){$('#stp').innerHTML=st.map((s,i)=>`<span class="${i==is?'on':i<is?'ok':''}">${s}</span>`).join('');const L=['<div class="row"><div class="f">'+fl('Jenis data','<select><option>Produk</option><option>Anggota</option><option>Stok awal (cut-off)</option><option>Histori transaksi</option></select>')+'</div><div class="f">'+fl('File XLSX/CSV','<input type="file">')+'</div></div><button class="bt s x" style="margin-top:10px" onclick="toast(\'Template diunduh\')">Unduh template</button>',tb(['Kolom di file','Dipetakan ke'],[['kode_barang','sku'],['barcode','barcode'],['nama','name'],['harga_modal','current_cost'],['harga','selling_price']]),`<div class="row">${pl('198 valid','g')}${pl('2 duplikat → upsert','o')}${pl('3 error','r')}</div>`+tb(['Baris','SKU','Masalah'],[[57,'—',pl('SKU kosong','r')],[88,'KPI-SCH',pl('Harga bukan angka','r')],[14,'MNY-1L',pl('Duplikat','o')]])+'<button class="bt s x" style="margin-top:10px" onclick="toast(\'Laporan error diekspor\')">Ekspor baris error</button>',`<div class="nt">Impor aman diulang. Histori sebelum cut-off tidak mengubah stok berjalan atau membuat piutang aktif.</div><label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input id="cf" type="checkbox" style="width:auto" onchange="$('#nx').disabled=!this.checked"> Saya sudah memeriksa preview: 198 diterima, 3 ditolak</label>`,'<div class="nt i">Batch IMP-0008 selesai. ETL dijadwalkan menyegarkan data mart.</div>'];
-$('#ib').innerHTML=cd(st[is],L[is]+`<div class="row" style="margin-top:14px">${is>0&&is<4?'<button class="bt s" onclick="is--;ri()">Kembali</button>':''}${is<4?`<button class="bt" id="nx" ${is==3?'disabled':''} onclick="imp()">${is==3?'Impor sekarang':'Lanjut'}</button>`:'<button class="bt s" onclick="is=0;ri()">Impor baru</button>'}</div>`)}
-function imp(){if(is<3){is++;return ri()}const b=$('#nx');b.disabled=true;let p=0;b.textContent='Memproses 0%';const t=setInterval(()=>{p+=25;b.textContent='Memproses '+p+'%';if(p>=100){clearInterval(t);is=4;ri()}},300)}
+const renderActionDropdown = (itemsHtml, label = 'Aksi') => `
+    <div class="dropdown d-inline-block">
+        <button type="button" class="btn btn-light btn-sm border px-2 py-1" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+            <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="min-width:190px;z-index:1060;">
+            ${itemsHtml}
+        </ul>
+    </div>
+`;
 
-/* ---------- LAPORAN: keuangan | biaya | analitik | forecast ---------- */
-S.rep=()=>`${ph('Laporan & analitik','Angka keuangan, tren, dan prediksi — semua berlabel waktu pembaruan.',`<button class="bt s" onclick="toast('PDF dibuat (dengan waktu cetak)')">Ekspor PDF</button><button class="bt s" onclick="toast('Excel dibuat')">Ekspor Excel</button>`)}${tabs('rep',['Keuangan','Biaya operasional','Analitik','Forecast & restock'])}${[RK,RB,RA,RF][TB.rep]()}`;
-H.rep=()=>{if(TB.rep==3)fch(7)};
-const RK=()=>`<div class="row" style="margin-bottom:14px"><select class="w"><option>Bulanan</option><option>Harian</option><option>Pekanan</option><option>Tahunan</option></select><input class="w" type="month" value="2026-11"><select class="w"><option>Semua kategori</option><option>Sembako</option></select></div><div class="nt">Laba bersih berstatus <b>estimasi</b>: HPP 2 SKU belum lengkap dan biaya listrik Oktober belum dicatat.</div>
-<div class="g r2e">${cd('Laba rugi penjualan',tb(['Komponen','Nilai'],[['Omzet (pesanan selesai)',rp(128600000)],['Retur/koreksi',rp(-1200000)],['<b>Penjualan bersih</b>','<b>'+rp(127400000)+'</b>'],['HPP barang terjual',rp(-97500000)],['<b>Laba kotor</b>','<b>'+rp(29900000)+'</b>'],['Biaya operasional',rp(-9300000)],['<b>Estimasi laba bersih</b> '+pl('estimasi','o'),'<b>'+rp(20600000)+'</b>']]))}
-${cd('Kas masuk vs penjualan piutang',donut([{l:'Penjualan tunai/transfer',v:81,c:'#4353e8'},{l:'Uang muka',v:5,c:'#9aa5ff'},{l:'Pelunasan piutang',v:14,c:'#2fae80'}],'Rp112,8','juta kas masuk')+tb(['Komponen','Nilai'],[['Penjualan piutang baru',rp(37400000)],['Piutang akhir (snapshot)',rp(15900000)],['Transaksi selesai','1.284']])+'<div class="asof" style="margin-top:8px">Pelunasan piutang tidak dihitung sebagai omzet baru.</div>')}</div>`;
-const RB=()=>`<div class="g r2b">${cd('Daftar biaya',tb(['Tanggal','Jenis','Deskripsi','Jumlah'],[['15 Nov','Listrik','Tagihan PLN Nov',rp(1800000)],['10 Nov','Sewa','Sewa ruang',rp(2000000)],['05 Nov','Gaji','Petugas paruh waktu',rp(4500000)]]))}${cd('Catat biaya',fl('Tanggal','<input type="date" value="2026-11-17">')+fl('Jenis','<select><option>Listrik</option><option>Sewa</option><option>Gaji</option><option>Lainnya</option></select>')+fl('Jumlah (Rp)','<input type="number">')+fl('Bukti','<input type="file">')+'<button class="bt" style="margin-top:14px" onclick="sub(this,\'Biaya dicatat\')">Simpan biaya</button>')}</div>`;
-const RA=()=>`<div class="g k4"><div class="kc"><div class="t"><span>Penjualan kredit</span></div><div class="v">29%</div><small>dari omzet</small></div><div class="kc"><div class="t"><span>Tren pelunasan</span></div><div class="v">+12%</div><small>vs bulan lalu</small></div><div class="kc"><div class="t"><span>Dead stock</span></div><div class="v">2 SKU</div><small>tanpa penjualan 60 hari</small></div><div class="kc"><div class="t"><span>Kualitas data</span></div><div class="v">97,8%</div><small>baris valid</small></div></div>
-<div class="g r2e">${cd('Produk terlaris & paling menguntungkan',hb([['Beras 5 kg',420,' unit',92],['Minyak goreng 1 L',380,' unit',84],['Kopi sachet',310,' unit',68],['Gula pasir 1 kg',260,' unit',57]]))}${cd('Peringkat kategori (omzet)',donut([{l:'Sembako',v:62,c:'#4353e8'},{l:'Makanan',v:21,c:'#9aa5ff'},{l:'Minuman',v:11,c:'#f5a524'},{l:'Kebersihan',v:6,c:'#2fae80'}],'4','kategori'))}</div>
-<div class="g r2e">${cd('Aktivitas anggota (pseudonim)',hb([['Aktif ≥4×/bulan',118,' orang',38],['Belanja 1–3×',146,' orang',47],['Tidak aktif 60 hari',48,' orang',15]]))}${cd('Stok berlebih / dead stock',tb(['Produk','Stok','Terakhir terjual'],[['Sabun batang',0,'72 hari lalu'],['Mi goreng (dus)',9,'41 hari lalu']]))}</div>`;
-const RF=()=>`<div class="nt i">Forecast berupa saran. Tidak ada pembelian otomatis ke pemasok — setiap rekomendasi perlu persetujuan Anda.</div><div class="g r2b">${cd('Prediksi permintaan (semua SKU, unit/hari)','<div id="fcc"></div>','<div class="tabs" style="margin:0"><button class="on" id="f7" onclick="fch(7)">7 hari</button><button id="f30" onclick="fch(30)">30 hari</button></div>')}${cd('Evaluasi model (backtesting)',tb(['Model','MAE','WAPE'],[['Moving average (baseline)','8,4','24%'],['Gradient boosting','6,1',pl('17%','g')]])+'<div class="asof" style="margin-top:10px">Model dipakai hanya bila lebih baik dari baseline.</div><div style="height:12px"></div><b>Benchmark volume data</b>'+tb(['Baris','SQL','PySpark'],[['10.000','0,4 s','6,2 s'],['1.000.000','31 s','14 s']]))}</div>
-${cd('Rekomendasi restock',tb(['Produk','Tersedia','Forecast 7h','Lead time','Saran beli','Model',''],[['Beras 5 kg',88,96,'3 hari','+40',pl('GB','g'),'<button class="bt x" onclick="toast(\'Disetujui — buat PO manual, tidak ada pembelian otomatis\')">Setujui</button>'],['Minyak goreng 1 L',56,88,'5 hari','+60',pl('Baseline'),'<button class="bt x" onclick="toast(\'Disetujui\')">Setujui</button>'],['Gula pasir 1 kg',15,61,'2 hari','+70',pl('GB','g'),'<button class="bt x" onclick="toast(\'Disetujui\')">Setujui</button>'],['Sabun batang',0,'—','—','—',pl('insufficient_data','o'),'<button class="bt s x" disabled>Data kurang</button>']]))}`;
-const fch=h=>{$('#fcc').innerHTML=fcChart(h);$('#f7').classList.toggle('on',h==7);$('#f30').classList.toggle('on',h==30)};
+const tb = (headers, rows, emptyMsg = 'Tidak ada data untuk ditampilkan.') => {
+    const body = rows.length
+        ? rows.map(r => `<tr>${r.map(c => `<td class="py-2">${c}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="${headers.length}" class="text-center text-muted py-4 small">${escapeHtml(emptyMsg)}</td></tr>`;
+    return `<div class="table-responsive"><table class="table table-hover align-middle mb-0" style="font-size:0.84rem;"><thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+};
 
-/* ---------- SISTEM ---------- */
-S.sys=()=>`${ph('Sistem','Status pipeline data, pengaturan, dan jejak audit.')}<div class="g k3">${[['ETL PySpark','17 Nov 02:00 · 4m 12s','1.284.330 baris',100],['Data mart','17 Nov 02:09 · 38s','Segar',100],['Forecast','17 Nov 02:30 · 2m 05s','86 SKU',100]].map(j=>`<div class="kc"><div class="t"><span>${j[0]}</span>${pl('OK','g')}</div><div class="v" style="font-size:15px">${j[1]}</div><small>${j[2]}</small><div class="bar" style="margin-top:8px"><i style="width:${j[3]}%"></i></div></div>`).join('')}</div>
-<div class="g r2e">${cd('Pengaturan',fl('Zona waktu','<select><option>Asia/Jakarta</option></select>')+fl('Pekan dimulai','<select><option>Senin</option><option>Minggu</option></select>')+fl('Masa aktif reservasi (belum dibayar)','<input placeholder="Belum ditentukan">')+fl('Masa aktif reservasi (sudah dibayar)','<input placeholder="Belum ditentukan">')+'<button class="bt" style="margin-top:14px" onclick="sub(this,\'Pengaturan disimpan\')">Simpan</button><button class="bt s" style="margin-top:14px;margin-left:8px" onclick="toast(\'ETL dijadwalkan ulang (idempoten)\')">Jalankan ulang ETL</button>')}${cd('Audit log',tb(['Waktu','Aktor','Aksi','Objek'],[['17 Nov 10:21','Rina K.','Ubah harga','BRS-5K'],['17 Nov 09:40','Tono','Konfirmasi pickup','ORD-1179'],['16 Nov 16:05','Rina K.','Blokir piutang','A-0021'],['16 Nov 15:40','Tono','Terima stok','PO-0331'],['15 Nov 08:00','Rina K.','Buat kebijakan kredit','#1']]))}</div>`;
-TB.data = @json($initialTab ?? 0);
-if (!location.hash) history.replaceState(null, '', '#'+@json($initialPage ?? 'home'));
-route();
-</script><script src="{{ asset('js/usability.js') }}?v=20261118" defer></script></body></html>
+const fl = (label, inputHtml) => `<div class="mb-3"><label class="form-label small fw-semibold text-secondary mb-1">${label}</label>${inputHtml}</div>`;
+
+const ph = (title, subtitle, rightHtml = '') => `
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div class="min-w-0">
+            <h5 class="fw-bold text-dark mb-0">${escapeHtml(title)}</h5>
+            ${subtitle ? `<small class="text-muted">${escapeHtml(subtitle)}</small>` : ''}
+        </div>
+        ${rightHtml ? `<div class="d-flex align-items-center gap-2 flex-wrap">${rightHtml}</div>` : ''}
+    </div>
+`;
+
+function openMgrModal(title, html) {
+    $('#mgrModalTitle').textContent = title;
+    $('#mgrModalBody').innerHTML = html;
+    bootstrap.Modal.getOrCreateInstance($('#mgrActionModal')).show();
+}
+
+function closeMgrModal() {
+    const el = $('#mgrActionModal');
+    const inst = el ? bootstrap.Modal.getInstance(el) : null;
+    if (inst) inst.hide();
+}
+
+/* ---------- Helper API Terpusat (fetch + CSRF Token) ---------- */
+async function managerApi(url, method = 'GET', body = null) {
+    const headers = {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+    };
+    const options = { method, headers, credentials: 'same-origin' };
+
+    if (body instanceof FormData) {
+        options.body = body;
+    } else if (body !== null) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(url, options);
+    let data = {};
+    try {
+        data = await res.json();
+    } catch (_) {
+        data = {};
+    }
+
+    if (!res.ok || data.success === false) {
+        const firstValidationErr = data.errors ? Object.values(data.errors).flat()[0] : null;
+        const err = new Error(firstValidationErr || data.message || `Permintaan gagal (HTTP ${res.status}).`);
+        err.status = res.status;
+        err.payload = data;
+        throw err;
+    }
+    return data;
+}
+
+function getPeriodRange(period = 'month') {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const end = fmt(now);
+    const startDate = new Date(now);
+    if (period === 'day') return { start: end, end };
+    if (period === 'week') {
+        const day = startDate.getDay() || 7;
+        startDate.setDate(startDate.getDate() - (day - 1));
+        return { start: fmt(startDate), end };
+    }
+    if (period === 'year') return { start: `${now.getFullYear()}-01-01`, end };
+    return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end };
+}
+
+/* ---------- State Portal Manajer ---------- */
+const state = {
+    period: 'month',
+    orderStatusFilter: '',
+    orders: [],
+    receivables: [],
+    creditPolicy: null,
+    agingSummary: null,
+    financialReport: null,
+    analyticsSummary: null,
+    topProducts: null,
+    forecasts: null,
+    forecastHorizon: 7,
+    importBatch: null,
+    importPreview: null,
+    importStep: 0,
+    charts: {},
+};
+
+const TB = { ops: 0, data: 0, rep: 0 };
+if (Object.prototype.hasOwnProperty.call(TB, BOOTSTRAP.initial_page)) {
+    TB[BOOTSTRAP.initial_page] = Number(BOOTSTRAP.initial_tab || 0);
+}
+
+function syncSidebarActive(pageId) {
+    document.querySelectorAll('.sidebar .nav-link[data-mgr-page]').forEach(link => {
+        link.classList.toggle('active', link.dataset.mgrPage === pageId);
+    });
+}
+
+const go = id => { location.hash = id; };
+const tabs = (pg, labels) => `
+    <div class="mgr-tabs mb-3" role="tablist">
+        ${labels.map((lbl, i) => `<button type="button" role="tab" class="btn-tab ${TB[pg] == i ? 'active' : ''}" onclick="TB.${pg}=${i};route()">${escapeHtml(lbl)}</button>`).join('')}
+    </div>
+`;
+
+const S = {}, H = {};
+let activePageId = null;
+let activeTabKey = null;
+let animateSubTabOnly = false;
+
+const wrapSectionEnter = html => `<div class="portal-section-enter">${html}</div>`;
+const renderSubTabShell = (pg, labels, panels) => {
+    const body = panels[TB[pg]]();
+    return `${tabs(pg, labels)}${animateSubTabOnly ? wrapSectionEnter(body) : body}`;
+};
+
+function destroyCharts() {
+    Object.values(state.charts).forEach(ch => { try { ch?.destroy(); } catch (_) {} });
+    state.charts = {};
+}
+
+function route() {
+    destroyCharts();
+    let id = location.hash.slice(1);
+    if (!S[id]) id = BOOTSTRAP.initial_page || 'home';
+    if (!S[id]) id = 'home';
+
+    const pageChanged = activePageId !== id;
+    const tabKey = `${id}:${TB[id] ?? 0}`;
+    const tabChanged = !pageChanged && activeTabKey !== tabKey;
+    animateSubTabOnly = tabChanged;
+
+    syncSidebarActive(id);
+    const rendered = S[id]();
+    $('#pg').innerHTML = pageChanged ? wrapSectionEnter(rendered) : rendered;
+
+    const shouldScrollTop = pageChanged && activePageId !== null;
+    activePageId = id;
+    activeTabKey = tabKey;
+    animateSubTabOnly = false;
+
+    (H[id] || (() => {}))();
+    if (shouldScrollTop) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+window.onhashchange = () => {
+    route();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+/* ---------- Helper Aging Piutang dari Data Server ---------- */
+function formatReceivablesAgingFromServer(rows) {
+    if (state.agingSummary && Array.isArray(state.agingSummary.buckets)) {
+        return state.agingSummary.buckets;
+    }
+    const openRows = (rows || []).filter(r => r.effective_status !== 'PAID' && Number(r.outstanding_amount || 0) > 0);
+    const today = new Date();
+    const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    const buckets = [
+        { key: 'current', label: 'Belum jatuh tempo (Current)', amount: 0, count: 0, color: '#10b981' },
+        { key: '1_30', label: '1–30 hari lewat tempo', amount: 0, count: 0, color: '#f59e0b' },
+        { key: '31_60', label: '31–60 hari lewat tempo', amount: 0, count: 0, color: '#f97316' },
+        { key: '61_90', label: '61–90 hari lewat tempo', amount: 0, count: 0, color: '#ef4444' },
+        { key: 'gt_90', label: '>90 hari lewat tempo', amount: 0, count: 0, color: '#991b1b' },
+    ];
+    openRows.forEach(r => {
+        const amt = Number(r.outstanding_amount || 0);
+        if (r.effective_status !== 'OVERDUE' || !r.due_date) {
+            buckets[0].amount += amt;
+            buckets[0].count += 1;
+            return;
+        }
+        const due = new Date(String(r.due_date).slice(0, 10) + 'T00:00:00Z');
+        const diffDays = Math.max(1, Math.floor((todayUtc - due.getTime()) / 86400000));
+        const idx = diffDays <= 30 ? 1 : (diffDays <= 60 ? 2 : (diffDays <= 90 ? 3 : 4));
+        buckets[idx].amount += amt;
+        buckets[idx].count += 1;
+    });
+    return buckets;
+}
+
+function renderAgingBarsHtml(rows) {
+    const buckets = formatReceivablesAgingFromServer(rows);
+    const maxAmt = Math.max(...buckets.map(b => b.amount), 1);
+    return buckets.map(b => {
+        const pct = Math.round((b.amount / maxAmt) * 100);
+        return `
+            <div class="mb-2.5">
+                <div class="d-flex justify-content-between align-items-center small mb-1">
+                    <span class="text-secondary">${escapeHtml(b.label)} (${b.count})</span>
+                    <strong class="text-dark tokped-price">${rp(b.amount)}</strong>
+                </div>
+                <div class="mgr-progress-track"><span class="mgr-progress-fill" style="width:${pct}%;background:${b.color}"></span></div>
+            </div>
+        `;
+    }).join('') + `<small class="text-muted d-block mt-2" style="font-size:0.72rem;">Saldo snapshot dari GET /api/v1/manager/receivables · tidak dijumlahkan lintas hari.</small>`;
+}
+
+function statCardHtml(title, value, sub, iconClass, iconBg, iconColor, valClass = 'text-dark') {
+    return `
+        <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-w-0">
+                <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">${escapeHtml(title)}</small>
+                <h4 class="fw-bold ${valClass} mb-0 fs-5 tokped-price">${escapeHtml(value)}</h4>
+                <small class="text-muted d-block text-truncate mt-1" style="font-size:0.7rem;" title="${escapeHtml(sub)}">${escapeHtml(sub)}</small>
+            </div>
+            <span class="tokped-stat-icon" style="background:${iconBg};color:${iconColor};">
+                <i class="bi ${iconClass}"></i>
+            </span>
+        </div>
+    `;
+}
+
+/* ---------- 1. BERANDA EKSEKUTIF ---------- */
+S.home = () => {
+    const periodOpts = [
+        ['day', 'Hari Ini'],
+        ['week', 'Pekan Ini'],
+        ['month', 'Bulan Ini'],
+        ['year', 'Tahun Ini'],
+    ];
+    return `${ph(
+        `Halo, ${BOOTSTRAP.user.first_name}`,
+        'Ringkasan operasional, keuangan, piutang, dan analitik koperasi.',
+        `<select class="form-select form-select-sm" style="width:auto;min-width:140px;" id="per" onchange="onHomePeriodChange(this.value)" aria-label="Pilih Periode">
+            ${periodOpts.map(([val, lbl]) => `<option value="${val}" ${state.period === val ? 'selected' : ''}>${lbl}</option>`).join('')}
+        </select>
+        <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5" onclick="loadExecutiveDashboard(state.period)">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Muat Ulang</span>
+        </button>`
+    )}
+    <div id="homeStatusBanner"></div>
+    <div class="row g-3 g-xl-4 mb-4" id="kp"></div>
+    <div class="row g-3 g-xl-4 mb-4" id="homeQuickActions"></div>
+    <div class="row g-3 g-xl-4 mb-4">
+        <div class="col-12 col-lg-8">
+            ${cd('Omzet vs Laba Kotor', '<div class="mgr-chart-wrap"><canvas id="homeRevenueChart"></canvas></div><small class="text-muted d-block mt-2" id="homeTrendNote">Memuat data periode...</small>')}
+        </div>
+        <div class="col-12 col-lg-4">
+            ${cd('Komposisi Penjualan &amp; Kas Masuk', '<div class="mgr-chart-wrap" style="height:190px"><canvas id="homeCompositionChart"></canvas></div><div id="homeCompositionLegend" class="mt-3"></div>')}
+        </div>
+    </div>
+    <div class="row g-3 g-xl-4">
+        <div class="col-12 col-lg-4">
+            ${cd('Aging Piutang (5 Kelompok)', '<div id="homeAgingBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="go(\'ar\')">Detail</button>')}
+        </div>
+        <div class="col-12 col-lg-4">
+            ${cd('Forecast Permintaan (7 / 30 Hari)', '<div id="homeForecastBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="TB.rep=3;go(\'rep\');route()">Detail</button>')}
+        </div>
+        <div class="col-12 col-lg-4">
+            ${cd('Produk Terlaris &amp; Stok Kritis', '<div id="homeTopProductsBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="TB.data=0;go(\'data\');route()">Master</button>')}
+        </div>
+    </div>`;
+};
+
+function onHomePeriodChange(period) {
+    state.period = period;
+    loadExecutiveDashboard(period);
+}
+
+H.home = () => loadExecutiveDashboard(state.period);
+
+async function loadExecutiveDashboard(period = 'month') {
+    state.period = period;
+    const { start, end } = getPeriodRange(period);
+    const query = `?period=${encodeURIComponent(period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+
+    const [ordersRes, recvRes, policyRes, finRes, summaryRes, topRes, forecastRes, agingRes] = await Promise.allSettled([
+        managerApi('/api/v1/cashier/orders'),
+        managerApi('/api/v1/manager/receivables'),
+        managerApi('/api/v1/credit-policy'),
+        managerApi(`/api/v1/reports/financial${query}`),
+        managerApi(`/api/v1/analytics/summary${query}`),
+        managerApi(`/api/v1/analytics/top-products${query}`),
+        managerApi('/api/v1/analytics/forecasts?horizon=7,30'),
+        managerApi('/api/v1/manager/receivables/aging'),
+    ]);
+
+    if (ordersRes.status === 'fulfilled') state.orders = ordersRes.value.data || [];
+    if (recvRes.status === 'fulfilled') state.receivables = recvRes.value.data || [];
+    if (policyRes.status === 'fulfilled') state.creditPolicy = policyRes.value.data || null;
+    state.financialReport = finRes.status === 'fulfilled' ? (finRes.value.data || finRes.value) : null;
+    state.analyticsSummary = summaryRes.status === 'fulfilled' ? (summaryRes.value.data || summaryRes.value) : null;
+    state.topProducts = topRes.status === 'fulfilled' ? (topRes.value.data || topRes.value) : null;
+    state.forecasts = forecastRes.status === 'fulfilled' ? (forecastRes.value.data || forecastRes.value) : null;
+    state.agingSummary = agingRes.status === 'fulfilled' ? (agingRes.value.data || agingRes.value) : null;
+
+    updateFreshnessBadge();
+    if ($('#kp')) renderHomeDashboardContent();
+}
+
+function updateFreshnessBadge() {
+    const badge = $('#etlFreshBadge');
+    if (!badge) return;
+    const src = state.analyticsSummary || state.financialReport;
+    if (src && src.last_updated_at) {
+        const stale = Boolean(src.is_stale);
+        badge.className = `badge ${stale ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle'} px-3 py-2 small shadow-xs`;
+        badge.innerHTML = `<i class="bi ${stale ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-1"></i><span>${stale ? 'ETL Stale' : 'Data Mart'} &bull; ${escapeHtml(src.last_updated_at)}</span>`;
+    } else {
+        badge.className = 'badge bg-white text-secondary border px-3 py-2 small shadow-xs';
+        badge.innerHTML = `<i class="bi bi-database-check text-success me-1"></i><span>OLTP Real-Time &bull; ${escapeHtml(BOOTSTRAP.oltp.rendered_at)}</span>`;
+    }
+}
+
+function renderHomeDashboardContent() {
+    const fin = state.financialReport || state.analyticsSummary || {};
+    const m = fin.metrics || {};
+    const hasAnalytics = Boolean(state.financialReport || state.analyticsSummary);
+    const oltpOrd = BOOTSTRAP.oltp.orders_summary;
+
+    const omzet = hasAnalytics && m.sales_revenue !== undefined ? Number(m.sales_revenue) : oltpOrd.sales_revenue;
+    const cashSales = hasAnalytics && m.cash_sales_revenue !== undefined ? Number(m.cash_sales_revenue) : oltpOrd.cash_sales;
+    const creditSales = hasAnalytics && m.new_credit_sales !== undefined ? Number(m.new_credit_sales) : oltpOrd.credit_sales;
+    const cogs = hasAnalytics && m.cogs !== undefined ? Number(m.cogs) : oltpOrd.cogs;
+    const grossProfit = hasAnalytics && m.gross_profit !== undefined ? Number(m.gross_profit) : (omzet - cogs);
+    const opex = hasAnalytics && m.operating_expenses !== undefined ? Number(m.operating_expenses) : BOOTSTRAP.oltp.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const netProfit = hasAnalytics && m.estimated_net_profit !== undefined ? Number(m.estimated_net_profit) : (grossProfit - opex);
+    const marginPct = omzet > 0 ? ((grossProfit / omzet) * 100).toFixed(1) : '0.0';
+    const cashIn = hasAnalytics && m.cash_receipts !== undefined ? Number(m.cash_receipts) : oltpOrd.verified_payments;
+    const openRecv = hasAnalytics && m.receivables_outstanding_as_of_end !== undefined
+        ? Number(m.receivables_outstanding_as_of_end)
+        : state.receivables.reduce((s, r) => s + Number(r.outstanding_amount || 0), 0);
+    const overdueRecv = hasAnalytics && m.overdue_outstanding_as_of_end !== undefined
+        ? Number(m.overdue_outstanding_as_of_end)
+        : state.receivables.filter(r => r.effective_status === 'OVERDUE').reduce((s, r) => s + Number(r.outstanding_amount || 0), 0);
+    const collectedRecv = hasAnalytics && m.receivable_payments_collected !== undefined ? Number(m.receivable_payments_collected) : null;
+    const totalStockAvail = BOOTSTRAP.oltp.products.reduce((s, p) => s + Number(p.available || 0), 0);
+    const activeMembersCount = BOOTSTRAP.oltp.members.filter(x => x.status === 'ACTIVE').length;
+    const txCount = hasAnalytics && m.completed_orders_count !== undefined ? Number(m.completed_orders_count) : oltpOrd.completed_count;
+
+    const cogsIncomplete = fin.data_quality ? !fin.data_quality.cogs_complete : oltpOrd.cogs_incomplete;
+    const expIncomplete = fin.data_quality ? !fin.data_quality.expenses_complete : BOOTSTRAP.oltp.expenses.length === 0;
+    const isStale = Boolean(fin.is_stale);
+
+    const banner = $('#homeStatusBanner');
+    if (banner) {
+        const notes = [];
+        if (!hasAnalytics) {
+            notes.push('Endpoint analitik periodik (<code>/api/v1/reports/financial</code> &amp; <code>/api/v1/analytics/summary</code>) belum aktif di backend; angka menampilkan ringkasan OLTP terkini dan endpoint piutang/order langsung.');
+        }
+        if (isStale) {
+            notes.push(`<strong>ETL Stale:</strong> data mart tertinggal dari transaksi operasional (pembaruan terakhir: ${escapeHtml(fin.last_updated_at || '-')}).`);
+        }
+        if (cogsIncomplete || expIncomplete) {
+            notes.push('<strong>Estimasi / data belum lengkap:</strong> sebagian HPP historis atau biaya operasional belum tercatat penuh.');
+        }
+        banner.innerHTML = notes.length
+            ? `<div class="alert ${isStale ? 'alert-warning' : 'alert-light border'} py-2.5 px-3 small mb-4">${notes.join(' ')}</div>`
+            : '';
+    }
+
+    const kpiCards = [
+        ['Omzet Penjualan Selesai', rp(omzet), `${txCount} transaksi COMPLETED`, 'bi-cash-coin', '#ecfdf5', '#059669', 'text-dark'],
+        ['Tunai / Transfer vs Kredit', rp(cashSales), `Penjualan piutang: ${rp(creditSales)}`, 'bi-credit-card-2-front', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['HPP & Laba Kotor', rp(grossProfit), `HPP: ${rp(cogs)} · Margin ${marginPct}%`, 'bi-graph-up-arrow', '#ecfdf5', '#059669', 'text-success'],
+        ['Biaya & Estimasi Laba Bersih', rp(netProfit), `OPEX: ${rp(opex)} ${(cogsIncomplete || expIncomplete) ? '· estimasi' : ''}`, 'bi-calculator', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['Kas Masuk Terverifikasi', rp(cashIn), collectedRecv !== null ? `Cicilan piutang: ${rp(collectedRecv)}` : 'Pembayaran status VERIFIED', 'bi-wallet2', '#ecfdf5', '#059669', 'text-success'],
+        ['Piutang Terbuka (Snapshot)', rp(openRecv), `Jatuh tempo (OVERDUE): ${rp(overdueRecv)}`, 'bi-exclamation-circle', '#fff7ed', '#d97706', overdueRecv > 0 ? 'text-danger' : 'text-dark'],
+        ['Stok Tersedia Gerai', `${totalStockAvail.toLocaleString('id-ID')} unit`, `${BOOTSTRAP.oltp.products.filter(p => p.available <= 0).length} SKU stok habis`, 'bi-box-seam', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['Anggota Aktif & Limit Global', `${activeMembersCount} anggota`, state.creditPolicy ? `Limit global: ${rp(state.creditPolicy.limit_amount)} (7 hari)` : 'Limit global belum dimuat', 'bi-people', '#ecfdf5', '#059669', 'text-dark'],
+    ];
+
+    $('#kp').innerHTML = kpiCards.map(c => `
+        <div class="col-6 col-md-3">
+            ${statCardHtml(c[0], c[1], c[2], c[3], c[4], c[5], c[6])}
+        </div>
+    `).join('');
+
+    const activeOrdersCount = state.orders.filter(o => ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(o.status)).length;
+    const overdueCount = state.receivables.filter(r => r.effective_status === 'OVERDUE').length;
+    const criticalStockCount = BOOTSTRAP.oltp.products.filter(p => p.available <= Math.max(p.reorder_point, 10)).length;
+
+    $('#homeQuickActions').innerHTML = `
+        <div class="col-12 col-md-4">
+            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="go('ops')">
+                <div class="min-w-0">
+                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Antrian Pesanan Aktif</small>
+                    <h5 class="fw-bold text-dark mb-0 tokped-price">${activeOrdersCount} Pesanan</h5>
+                    <small class="text-success d-block mt-1" style="font-size:0.7rem;">Lihat operasional pesanan →</small>
+                </div>
+                <span class="tokped-stat-icon" style="background:#FFF5E6;color:#FA591D;"><i class="bi bi-bag-check"></i></span>
+            </button>
+        </div>
+        <div class="col-12 col-md-4">
+            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="go('ar')">
+                <div class="min-w-0">
+                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Faktur Piutang Overdue</small>
+                    <h5 class="fw-bold text-danger mb-0 tokped-price">${overdueCount} Faktur</h5>
+                    <small class="text-muted d-block mt-1" style="font-size:0.7rem;">Total jatuh tempo: ${rp(overdueRecv)}</small>
+                </div>
+                <span class="tokped-stat-icon" style="background:#FFEAEA;color:#EF144A;"><i class="bi bi-clock-history"></i></span>
+            </button>
+        </div>
+        <div class="col-12 col-md-4">
+            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="TB.ops=1;go('ops');route()">
+                <div class="min-w-0">
+                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Stok Habis / Kritis</small>
+                    <h5 class="fw-bold text-dark mb-0 tokped-price">${criticalStockCount} SKU</h5>
+                    <small class="text-success d-block mt-1" style="font-size:0.7rem;">Periksa persediaan gerai →</small>
+                </div>
+                <span class="tokped-stat-icon" style="background:#ecfdf5;color:#059669;"><i class="bi bi-boxes"></i></span>
+            </button>
+        </div>
+    `;
+
+    renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs);
+
+    const agingBox = $('#homeAgingBox');
+    if (agingBox) agingBox.innerHTML = renderAgingBarsHtml(state.receivables);
+
+    const forecastBox = $('#homeForecastBox');
+    if (forecastBox) {
+        if (state.forecasts && Array.isArray(state.forecasts.items || state.forecasts)) {
+            const list = (state.forecasts.items || state.forecasts).slice(0, 4);
+            forecastBox.innerHTML = tb(
+                ['SKU', '7H', '30H', 'Status'],
+                list.map(f => [
+                    escapeHtml(f.sku || f.name || '-'),
+                    f.forecast_7d ?? '-',
+                    f.forecast_30d ?? '-',
+                    f.insufficient_data ? pl('insufficient_data', 'o') : pl(f.model_version || 'Model OK', 'g')
+                ])
+            );
+        } else {
+            forecastBox.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi 7/30 hari (<code>GET /api/v1/analytics/forecasts</code>) belum tersedia pada branch ini.</div>';
+        }
+    }
+
+    const topBox = $('#homeTopProductsBox');
+    if (topBox) {
+        if (state.topProducts && Array.isArray(state.topProducts.items || state.topProducts)) {
+            const items = (state.topProducts.items || state.topProducts).slice(0, 5);
+            topBox.innerHTML = tb(
+                ['Produk', 'Unit', 'Omzet'],
+                items.map(it => [escapeHtml(it.name || it.sku), it.units ?? it.sold_qty ?? 0, rp(it.sales_revenue ?? it.omzet ?? 0)])
+            );
+        } else {
+            const critical = [...BOOTSTRAP.oltp.products]
+                .sort((a, b) => a.available - b.available)
+                .slice(0, 5);
+            topBox.innerHTML = tb(
+                ['Produk (OLTP)', 'Tersedia', 'Status'],
+                critical.map(p => [
+                    escapeHtml(p.name),
+                    `${p.available} ${escapeHtml(p.unit)}`,
+                    p.available <= 0 ? pl('Habis', 'r') : (p.available <= Math.max(p.reorder_point, 10) ? pl('Kritis', 'o') : pl('Aman', 'g'))
+                ])
+            );
+        }
+    }
+}
+
+function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
+    const revCanvas = $('#homeRevenueChart');
+    if (revCanvas && typeof Chart !== 'undefined') {
+        const trend = state.analyticsSummary?.trend || state.financialReport?.rows || null;
+        const labels = Array.isArray(trend) && trend.length ? trend.map(r => r.label || r.period || r.date) : ['Periode Terpilih'];
+        const revSeries = Array.isArray(trend) && trend.length ? trend.map(r => Number(r.sales_revenue || 0)) : [omzet];
+        const gpSeries = Array.isArray(trend) && trend.length ? trend.map(r => Number(r.gross_profit || (Number(r.sales_revenue || 0) - Number(r.cogs || 0)))) : [grossProfit];
+
+        state.charts.homeRevenue = new Chart(revCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Omzet', data: revSeries, backgroundColor: '#059669', borderRadius: 6 },
+                    { label: 'Laba Kotor', data: gpSeries, backgroundColor: '#34d399', borderRadius: 6 },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+            },
+        });
+        const note = $('#homeTrendNote');
+        if (note) {
+            note.textContent = Array.isArray(trend) && trend.length
+                ? 'Sumber: data tren dari endpoint laporan/analitik.'
+                : `Agregat periode saat ini · Omzet ${rp(omzet)}, HPP ${rp(cogs)}, Laba kotor ${rp(grossProfit)}.`;
+        }
+    }
+
+    const compCanvas = $('#homeCompositionChart');
+    if (compCanvas && typeof Chart !== 'undefined') {
+        const total = cashSales + creditSales;
+        const dataVals = total > 0 ? [cashSales, creditSales] : [0, 0];
+        state.charts.homeComp = new Chart(compCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Tunai / Transfer', 'Piutang Anggota'],
+                datasets: [{ data: dataVals, backgroundColor: ['#10b981', '#f59e0b'], borderWidth: 2, borderColor: '#fff' }],
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%' },
+        });
+        const legend = $('#homeCompositionLegend');
+        if (legend) {
+            legend.innerHTML = `<div class="d-flex justify-content-between small"><span>Tunai / Transfer</span><strong>${rp(cashSales)}</strong></div>`
+                + `<div class="d-flex justify-content-between small mt-1"><span>Piutang Anggota</span><strong>${rp(creditSales)}</strong></div>`;
+        }
+    }
+}
+
+/* ---------- 2. TRANSAKSI & STOK (TANPA POS SIMULASI ACAK) ---------- */
+S.ops = () => `${ph(
+    'Transaksi & Operasional Gerai',
+    'Pantau antrian order dari server dan kondisi persediaan gerai.'
+)}${renderSubTabShell('ops', ['Pesanan & Pickup', 'Persediaan Stok'], [SO, SK])}`;
+
+H.ops = () => {
+    if (TB.ops === 0) loadManagerOrders(state.orderStatusFilter);
+};
+
+const ORDER_BADGES = {
+    PENDING_PAYMENT: ['Menunggu Pembayaran', 'o'],
+    PENDING_PICKUP: ['Siap Pickup (Kredit)', 'pl'],
+    READY_FOR_PICKUP: ['Siap Diambil (Lunas)', 'g'],
+    COMPLETED: ['Selesai', 'g'],
+    CANCELLED: ['Dibatalkan', 'r'],
+};
+
+const SO = () => {
+    const statuses = [
+        ['', 'Semua Aktif'],
+        ['PENDING_PAYMENT', 'Menunggu Bayar'],
+        ['PENDING_PICKUP', 'Pickup Kredit'],
+        ['READY_FOR_PICKUP', 'Siap Diambil'],
+        ['COMPLETED', 'Selesai'],
+    ];
+    return `
+        ${cdTable(
+            'Daftar Pesanan (GET /api/v1/cashier/orders)',
+            '<div id="opsOrdersTableWrap" class="p-3 text-muted small">Memuat antrian pesanan...</div>',
+            `<select class="form-select form-select-sm" style="width:auto;min-width:170px;" id="opsOrderStatusFilter" onchange="loadManagerOrders(this.value)">
+                ${statuses.map(([v, l]) => `<option value="${v}" ${state.orderStatusFilter === v ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="loadManagerOrders(state.orderStatusFilter)"><i class="bi bi-arrow-clockwise"></i> Muat Ulang</button>`
+        )}
+        <div class="alert alert-light border small mt-3 mb-0">
+            <i class="bi bi-info-circle text-success me-1"></i>
+            Stok fisik berkurang dan penjualan/HPP dicatat atomik hanya setelah serah terima pickup dikonfirmasi.
+        </div>
+    `;
+};
+
+async function loadManagerOrders(status = '') {
+    state.orderStatusFilter = status;
+    const wrap = $('#opsOrdersTableWrap');
+    if (wrap) wrap.innerHTML = '<div class="p-4 text-muted small">Memuat dari server...</div>';
+    try {
+        const q = status ? `?status=${encodeURIComponent(status)}` : '';
+        const res = await managerApi(`/api/v1/cashier/orders${q}`);
+        state.orders = Array.isArray(res.data) ? res.data : [];
+        if (wrap) {
+            wrap.className = '';
+            wrap.innerHTML = tb(
+                ['Order & Pickup', 'Channel', 'Item', 'Total', 'Metode', 'Status'],
+                state.orders.map(o => {
+                    const stInfo = ORDER_BADGES[o.status] || [o.status, 'i'];
+                    const itemCount = Array.isArray(o.items) ? o.items.reduce((s, it) => s + Number(it.quantity || 0), 0) : 0;
+                    return [
+                        `<span class="fw-bold font-monospace">${escapeHtml(o.order_no || '-')}</span><br><small class="text-muted font-monospace">${escapeHtml(o.pickup_code || o.id)}</small>`,
+                        escapeHtml(o.channel || '-'),
+                        `${itemCount} unit`,
+                        `<span class="fw-bold tokped-price">${rp(o.total_amount)}</span>`,
+                        escapeHtml(o.payment_choice || '-'),
+                        pl(stInfo[0], stInfo[1]),
+                    ];
+                }),
+                'Tidak ada pesanan pada filter status ini.'
+            );
+        }
+    } catch (err) {
+        if (wrap) wrap.innerHTML = `<div class="alert alert-danger m-3 mb-0 small">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+const SK = () => cdTable(
+    'Persediaan Stok Gerai (OLTP Real-Time)',
+    tb(
+        ['Produk', 'SKU / Barcode', 'Stok Fisik', 'Reservasi', 'Tersedia', 'Status'],
+        BOOTSTRAP.oltp.products.map(p => {
+            const avail = Number(p.available || 0);
+            const minThreshold = Math.max(Number(p.min_stock ?? p.reorder_point ?? 0), 10);
+            const st = avail <= 0 ? pl('Stok Habis', 'r') : (avail <= minThreshold ? pl('Stok Kritis', 'o') : pl('Aman', 'g'));
+            return [
+                `<div class="d-flex align-items-center gap-2">${renderProductThumbHtml(p, 36)}<div><span class="fw-semibold text-dark">${escapeHtml(p.name)}</span><br><small class="text-muted">${escapeHtml(p.category)}</small></div></div>`,
+                `<span class="font-monospace fw-bold">${escapeHtml(p.sku)}</span>${p.barcode ? `<br><small class="text-muted font-monospace">${escapeHtml(p.barcode)}</small>` : ''}`,
+                `${p.on_hand} ${escapeHtml(p.unit)}`,
+                `${p.reserved} ${escapeHtml(p.unit)}`,
+                `<strong class="text-success">${avail} ${escapeHtml(p.unit)}</strong>`,
+                st,
+            ];
+        }),
+        'Belum ada data produk di database.'
+    ),
+    `<button type="button" class="btn btn-outline-primary btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Penyesuaian Stok</button>
+    <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok Pemasok</button>`
+);
+
+function buildProductSelectOptions(selectedId = null) {
+    return BOOTSTRAP.oltp.products.map(p => {
+        const sel = selectedId && String(p.id) === String(selectedId) ? 'selected' : '';
+        return `<option value="${escapeHtml(p.id)}" ${sel}>${escapeHtml(p.sku)} — ${escapeHtml(p.name)} (Stok: ${Number(p.on_hand || 0)} ${escapeHtml(p.unit)})</option>`;
+    }).join('');
+}
+
+function openReceiveStockModal(preselectedProductId = null) {
+    const targetProduct = preselectedProductId
+        ? BOOTSTRAP.oltp.products.find(p => String(p.id) === String(preselectedProductId))
+        : BOOTSTRAP.oltp.products[0];
+    const defaultSupplierId = targetProduct?.supplier_id || '';
+    const supOpts = '<option value="">-- Supplier Umum / Tanpa Pemasok --</option>'
+        + BOOTSTRAP.oltp.suppliers.map(s => {
+            const sel = defaultSupplierId && String(s.id) === String(defaultSupplierId) ? 'selected' : '';
+            return `<option value="${escapeHtml(s.id)}" ${sel}>${escapeHtml(s.name)}</option>`;
+        }).join('');
+    const prodOpts = buildProductSelectOptions(preselectedProductId || targetProduct?.id);
+    const costHint = targetProduct ? `HPP saat ini: ${rp(targetProduct.current_cost)}` : 'Kosongkan jika sama dengan HPP terakhir';
+
+    openMgrModal('Terima Stok dari Pemasok (FR-04)', `
+        <form id="receiveStockForm" onsubmit="submitReceiveStock(event)">
+            ${fl('Produk *', `<select class="form-select" id="rcvProductId" required onchange="onRcvProductChange(this.value)">${prodOpts}</select>`)}
+            ${fl('Pemasok', `<select class="form-select" id="rcvSupplierId">${supOpts}</select>`)}
+            <div class="row g-2">
+                <div class="col-6">${fl('Jumlah Masuk (Qty) *', '<input class="form-control" type="number" id="rcvQty" min="1" value="1" required>')}</div>
+                <div class="col-6">${fl('Harga Beli / HPP Satuan Terbaru (Opsional)', `<input class="form-control" type="number" id="rcvCost" min="0" step="100" placeholder="Opsional"><small class="text-muted" id="rcvCostHint">${escapeHtml(costHint)}</small>`)}</div>
+            </div>
+            ${fl('Nomor Nota / Catatan Penerimaan', '<input class="form-control" id="rcvNotes" placeholder="Contoh: SJ-2026-001 / Faktur pemasok">')}
+            <small class="text-muted d-block mb-3">Jika harga beli diisi, HPP dihitung ulang oleh server menggunakan Moving Weighted Average.</small>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="closeMgrModal()">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSubmitRcv">Simpan Penerimaan</button>
+            </div>
+        </form>
+    `);
+}
+
+function onRcvProductChange(productId) {
+    const p = BOOTSTRAP.oltp.products.find(x => String(x.id) === String(productId));
+    const hint = $('#rcvCostHint');
+    if (hint && p) hint.textContent = `HPP saat ini: ${rp(p.current_cost)}`;
+    const supSel = $('#rcvSupplierId');
+    if (supSel && p?.supplier_id) supSel.value = String(p.supplier_id);
+}
+
+async function submitReceiveStock(e) {
+    e.preventDefault();
+    const btn = $('#btnSubmitRcv');
+    if (btn) btn.disabled = true;
+    const costRaw = ($('#rcvCost')?.value ?? '').trim();
+    const qtyVal = Number($('#rcvQty')?.value || 0);
+    const prodId = $('#rcvProductId')?.value;
+    if (!prodId || qtyVal < 1) {
+        toast('Pilih produk dan masukkan jumlah masuk minimal 1.');
+        if (btn) btn.disabled = false;
+        return;
+    }
+    const itemPayload = {
+        product_id: prodId,
+        quantity: qtyVal,
+    };
+    if (costRaw !== '') itemPayload.unit_cost = Number(costRaw);
+
+    try {
+        const res = await managerApi('/api/v1/inventory/receipts', 'POST', {
+            supplier_id: $('#rcvSupplierId')?.value || null,
+            notes: $('#rcvNotes')?.value.trim() || null,
+            items: [itemPayload],
+        });
+        closeMgrModal();
+        toast(res.message || 'Penerimaan stok berhasil dicatat.');
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? 'Endpoint POST /api/v1/inventory/receipts belum tersedia di routes/api.php (menunggu integrasi PIC C).'
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function openAdjustStockModal(preselectedProductId = null) {
+    const targetProduct = preselectedProductId
+        ? BOOTSTRAP.oltp.products.find(p => String(p.id) === String(preselectedProductId))
+        : BOOTSTRAP.oltp.products[0];
+    const prodOpts = buildProductSelectOptions(preselectedProductId || targetProduct?.id);
+    const currentHint = targetProduct
+        ? `Stok fisik saat ini: ${targetProduct.on_hand} ${targetProduct.unit} (Tersedia: ${targetProduct.available} ${targetProduct.unit})`
+        : '';
+
+    openMgrModal('Penyesuaian Stok Barang (FR-04)', `
+        <form id="adjustStockForm" onsubmit="submitAdjustStock(event)">
+            ${fl('Produk *', `<select class="form-select" id="adjProductId" required onchange="onAdjProductChange(this.value)">${prodOpts}</select><small class="text-muted d-block mt-1" id="adjStockHint">${escapeHtml(currentHint)}</small>`)}
+            <div class="row g-2">
+                <div class="col-6">${fl('Tipe Penyesuaian *', `
+                    <select class="form-select" id="adjType" required onchange="onAdjTypeChange(this.value)">
+                        <option value="ADDITION">Penambahan (+)</option>
+                        <option value="DEDUCTION">Pengurangan (-)</option>
+                        <option value="OPNAME">Stok Opname (Set Fisik)</option>
+                    </select>`)}</div>
+                <div class="col-6">${fl('<span id="adjQtyLabel">Jumlah Selisih *</span>', '<input class="form-control" type="number" id="adjQty" min="1" value="1" required>')}</div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-semibold text-secondary mb-1" for="adjReason">Alasan Penyesuaian (Wajib) *</label>
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm pos-btn-compact" onclick="$('#adjReason').value='Barang rusak / cacat kemasan'">Rusak</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm pos-btn-compact" onclick="$('#adjReason').value='Barang kedaluwarsa'">Kedaluwarsa</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm pos-btn-compact" onclick="$('#adjReason').value='Selisih hasil hitung stok opname'">Selisih Opname</button>
+                </div>
+                <textarea class="form-control" id="adjReason" rows="2" required placeholder="Tuliskan alasan penyesuaian stok secara jelas..."></textarea>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="closeMgrModal()">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSubmitAdj">Simpan Penyesuaian</button>
+            </div>
+        </form>
+    `);
+}
+
+function onAdjProductChange(productId) {
+    const p = BOOTSTRAP.oltp.products.find(x => String(x.id) === String(productId));
+    const hint = $('#adjStockHint');
+    if (hint && p) {
+        hint.textContent = `Stok fisik saat ini: ${p.on_hand} ${p.unit} (Tersedia: ${p.available} ${p.unit})`;
+    }
+}
+
+function onAdjTypeChange(typeVal) {
+    const qtyEl = $('#adjQty');
+    const lblEl = $('#adjQtyLabel');
+    if (!qtyEl || !lblEl) return;
+    if (typeVal === 'OPNAME') {
+        lblEl.textContent = 'Jumlah Stok Fisik Baru *';
+        qtyEl.min = '0';
+    } else {
+        lblEl.textContent = 'Jumlah Selisih *';
+        qtyEl.min = '1';
+        if (Number(qtyEl.value || 0) < 1) qtyEl.value = '1';
+    }
+}
+
+async function submitAdjustStock(e) {
+    e.preventDefault();
+    const reason = ($('#adjReason')?.value || '').trim();
+    const qty = Number($('#adjQty')?.value ?? -1);
+    const adjType = $('#adjType')?.value || 'ADDITION';
+    const prodId = $('#adjProductId')?.value;
+
+    if (!prodId) {
+        toast('Pilih produk terlebih dahulu.');
+        return;
+    }
+    if (!reason) {
+        toast('Alasan penyesuaian stok wajib diisi.');
+        return;
+    }
+    if (Number.isNaN(qty) || (adjType === 'OPNAME' ? qty < 0 : qty < 1)) {
+        toast(adjType === 'OPNAME' ? 'Stok fisik opname minimal 0.' : 'Jumlah selisih minimal 1.');
+        return;
+    }
+
+    const btn = $('#btnSubmitAdj');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await managerApi('/api/v1/inventory/adjustments', 'POST', {
+            product_id: prodId,
+            adjustment_type: adjType,
+            quantity: qty,
+            reason,
+        });
+        closeMgrModal();
+        toast(res.message || 'Penyesuaian stok berhasil dicatat.');
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? 'Endpoint POST /api/v1/inventory/adjustments belum tersedia di routes/api.php (menunggu integrasi PIC C).'
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+/* ---------- 3. PIUTANG & KEBIJAKAN LIMIT GLOBAL (LIVE API) ---------- */
+S.ar = () => `${ph(
+    'Piutang & Kebijakan Kredit Global',
+    'Pantau tagihan terbuka/menunggak dari server dan kelola satu limit global seragam (jatuh tempo tetap 7 hari).'
+)}
+<div class="row g-3 g-xl-4 mb-4" id="arKpiGrid"></div>
+<div class="row g-3 g-xl-4">
+    <div class="col-12 col-lg-7">
+        ${cdTable(
+            'Tagihan Aktif &amp; Penunggak (GET /api/v1/manager/receivables)',
+            '<div id="arReceivablesTableWrap" class="p-3 text-muted small">Memuat tagihan dari server...</div>',
+            '<input class="form-control form-control-sm" id="arSearchInput" placeholder="Cari anggota / no order..." style="width:210px;" oninput="renderReceivablesTables()">'
+        )}
+        <div class="mt-4">
+            ${cdTable('Riwayat Perubahan Kebijakan Global', tb(
+                ['Waktu', 'Limit Lama', 'Limit Baru', 'Alasan'],
+                BOOTSTRAP.oltp.policy_logs.map(l => [
+                    escapeHtml(l.changed_at),
+                    l.old_limit_amount !== null ? rp(l.old_limit_amount) : '—',
+                    `<strong class="text-success">${rp(l.new_limit_amount)}</strong>`,
+                    escapeHtml(l.reason),
+                ]),
+                'Belum ada log perubahan kebijakan limit global.'
+            ))}
+        </div>
+    </div>
+    <div class="col-12 col-lg-5 d-flex flex-column gap-4">
+        ${cd('Aging Piutang (5 Kelompok)', '<div id="arAgingWrap">Memuat...</div>')}
+        ${cd('Kebijakan Kredit Global (Semua Anggota)', `
+            <form id="creditPolicyForm" onsubmit="submitCreditPolicy(event)">
+                ${fl('Limit Global Seragam (Rp)', '<input type="number" class="form-control fw-bold" id="inputGlobalLimit" min="0" step="1000" required placeholder="Masukkan nominal >= 0">')}
+                ${fl('Masa Jatuh Tempo (Terkunci MVP)', '<input class="form-control bg-light text-muted" id="policyDueDays" value="7 hari kalender sejak serah terima" disabled>')}
+                ${fl('Alasan Perubahan (Audit Log)', '<input class="form-control" id="policyReason" placeholder="Contoh: Penyesuaian rapat pengurus koperasi">')}
+                <small class="text-muted d-block mb-3">Satu nilai untuk seluruh anggota. Tanpa bunga/denda otomatis. Menurunkan limit tidak mengubah tagihan lama.</small>
+                <button type="submit" class="btn btn-primary w-100" id="btnSavePolicy">Simpan Limit Global</button>
+            </form>
+        `)}
+        ${cd('Fasilitas Piutang Anggota (ACTIVE / BLOCKED)', '<div id="arMemberStatusWrap"></div>')}
+    </div>
+</div>`;
+
+H.ar = () => loadReceivablesAndPolicy();
+
+async function loadReceivablesAndPolicy() {
+    renderMemberStatusToggles();
+    try {
+        const [policyRes, recvRes, agingRes] = await Promise.allSettled([
+            managerApi('/api/v1/credit-policy'),
+            managerApi('/api/v1/manager/receivables'),
+            managerApi('/api/v1/manager/receivables/aging'),
+        ]);
+
+        if (policyRes.status === 'fulfilled') {
+            state.creditPolicy = policyRes.value.data || null;
+            const limitInput = $('#inputGlobalLimit');
+            const dueInput = $('#policyDueDays');
+            if (limitInput && state.creditPolicy) {
+                limitInput.value = Number(state.creditPolicy.limit_amount ?? 0);
+            }
+            if (dueInput && state.creditPolicy) {
+                dueInput.value = `${state.creditPolicy.due_days ?? 7} hari kalender sejak serah terima`;
+            }
+        }
+
+        if (recvRes.status === 'fulfilled') {
+            state.receivables = Array.isArray(recvRes.value.data) ? recvRes.value.data : [];
+        }
+        state.agingSummary = agingRes.status === 'fulfilled' ? (agingRes.value.data || agingRes.value) : null;
+
+        renderArKpis();
+        renderReceivablesTables();
+        const agingWrap = $('#arAgingWrap');
+        if (agingWrap) agingWrap.innerHTML = renderAgingBarsHtml(state.receivables);
+    } catch (err) {
+        toast(err.message);
+    }
+}
+
+function renderArKpis() {
+    const grid = $('#arKpiGrid');
+    if (!grid) return;
+    const rows = state.receivables || [];
+    const activeRows = rows.filter(r => r.effective_status !== 'PAID' && Number(r.outstanding_amount || 0) > 0);
+    const overdueRows = rows.filter(r => r.effective_status === 'OVERDUE');
+    const totalOpen = activeRows.reduce((s, r) => s + Number(r.outstanding_amount || 0), 0);
+    const totalOverdue = overdueRows.reduce((s, r) => s + Number(r.outstanding_amount || 0), 0);
+    const overdueMemberCount = new Set(overdueRows.map(r => r.member_id)).size;
+
+    const cards = [
+        ['Total Piutang Terbuka', rp(totalOpen), `${activeRows.length} faktur belum lunas`, 'bi-receipt-cutoff', '#ecfdf5', '#059669', 'text-dark'],
+        ['Piutang Overdue (Server)', rp(totalOverdue), `${overdueMemberCount} anggota menunggak`, 'bi-exclamation-triangle', '#FFEAEA', '#EF144A', 'text-danger'],
+        ['Limit Global Aktif', state.creditPolicy ? rp(state.creditPolicy.limit_amount) : 'Belum diatur', 'Seragam semua anggota', 'bi-sliders', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['Jatuh Tempo Baku', `${state.creditPolicy ? (state.creditPolicy.due_days ?? 7) : 7} Hari`, 'Kalender sejak serah terima', 'bi-calendar-check', '#ecfdf5', '#059669', 'text-success'],
+    ];
+    grid.innerHTML = cards.map(c => `<div class="col-6 col-md-3">${statCardHtml(c[0], c[1], c[2], c[3], c[4], c[5], c[6])}</div>`).join('');
+}
+
+function renderReceivablesTables() {
+    const wrap = $('#arReceivablesTableWrap');
+    if (!wrap) return;
+    const q = ($('#arSearchInput')?.value || '').trim().toLowerCase();
+    const filtered = (state.receivables || []).filter(r => {
+        if (!q) return true;
+        const hay = `${r.order?.order_no || ''} ${r.member?.full_name || ''} ${r.member?.employee_number || ''} ${r.member?.member_number || ''} ${r.effective_status || ''}`.toLowerCase();
+        return hay.includes(q);
+    });
+
+    const stBadge = st => ({
+        OVERDUE: pl('OVERDUE', 'r'),
+        PARTIALLY_PAID: pl('PARTIALLY_PAID', 'pl'),
+        OPEN: pl('OPEN', 'o'),
+        PAID: pl('PAID', 'g'),
+    }[st] || pl(st || '-', 'i'));
+
+    wrap.className = '';
+    wrap.innerHTML = tb(
+        ['Order', 'Anggota', 'Jatuh Tempo', 'Awal', 'Sisa', 'Status'],
+        filtered.map(r => {
+            const memberLabel = r.member?.full_name
+                ? `<span class="fw-semibold">${escapeHtml(r.member.full_name)}</span><br><small class="text-muted font-monospace">${escapeHtml(r.member.employee_number || r.member.member_number || '')}</small>`
+                : escapeHtml(r.member_id || '-');
+            return [
+                `<span class="fw-bold font-monospace">${escapeHtml(r.order?.order_no || r.order_id || '-')}</span>`,
+                memberLabel,
+                escapeHtml(String(r.due_date || '-').slice(0, 10)),
+                rp(r.original_amount),
+                `<strong class="tokped-price">${rp(r.outstanding_amount)}</strong>`,
+                stBadge(r.effective_status),
+            ];
+        }),
+        'Belum ada tagihan piutang tercatat di server.'
+    );
+}
+
+async function submitCreditPolicy(e) {
+    e.preventDefault();
+    const btn = $('#btnSavePolicy');
+    const limitVal = Number($('#inputGlobalLimit')?.value);
+    const reasonVal = $('#policyReason')?.value.trim() || null;
+
+    if (Number.isNaN(limitVal) || limitVal < 0) {
+        toast('Nominal limit global harus >= 0.');
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await managerApi('/api/v1/credit-policy', 'PATCH', {
+            limit_amount: limitVal,
+            active: true,
+            reason: reasonVal,
+        });
+        toast(res.message || 'Kebijakan limit global berhasil disimpan.');
+        await loadReceivablesAndPolicy();
+    } catch (err) {
+        toast(err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function renderMemberStatusToggles() {
+    const wrap = $('#arMemberStatusWrap');
+    if (!wrap) return;
+    const activeMembers = BOOTSTRAP.oltp.members.filter(m => m.status === 'ACTIVE');
+    if (!activeMembers.length) {
+        wrap.innerHTML = '<small class="text-muted">Belum ada data anggota aktif.</small>';
+        return;
+    }
+    wrap.innerHTML = activeMembers.map(m => {
+        const isOn = m.credit_status === 'ACTIVE';
+        const code = m.employee_number || m.member_number || m.id.slice(-6).toUpperCase();
+        return `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-2">
+                <div class="min-w-0">
+                    <div class="fw-semibold text-dark small text-truncate">${escapeHtml(m.full_name)}</div>
+                    <small class="text-muted font-monospace" style="font-size:0.72rem;">${escapeHtml(code)} &bull; ${escapeHtml(m.department)}</small>
+                </div>
+                <input type="checkbox" class="mgr-switch" ${isOn ? 'checked' : ''} aria-label="Status piutang ${escapeHtml(m.full_name)}" onchange="toggleMemberCreditStatus('${escapeHtml(m.id)}', this)">
+            </div>
+        `;
+    }).join('');
+}
+
+async function toggleMemberCreditStatus(memberId, checkboxEl) {
+    const nextStatus = checkboxEl.checked ? 'ACTIVE' : 'BLOCKED';
+    checkboxEl.disabled = true;
+    try {
+        const res = await managerApi(`/api/v1/members/${encodeURIComponent(memberId)}/credit-status`, 'PATCH', {
+            status: nextStatus,
+        });
+        const memberObj = BOOTSTRAP.oltp.members.find(x => x.id === memberId);
+        if (memberObj) memberObj.credit_status = nextStatus;
+        toast(res.message || `Status fasilitas anggota diubah menjadi ${nextStatus}.`);
+        await loadReceivablesAndPolicy();
+    } catch (err) {
+        checkboxEl.checked = !checkboxEl.checked;
+        toast(err.message);
+    } finally {
+        checkboxEl.disabled = false;
+    }
+}
+
+/* ---------- 4. MASTER DATA & IMPOR EXCEL ---------- */
+S.data = () => `${ph('Master Data & Impor', 'Kelola master produk, anggota, pemasok, dan impor data Excel/CSV.')}${renderSubTabShell('data', ['Produk & Harga', 'Anggota', 'Pemasok', 'Impor Excel'], [DP, DM, DV, DI])}`;
+
+H.data = () => {
+    if (TB.data === 3) renderImportWizard();
+};
+
+function renderProductThumbHtml(p, size = 40) {
+    const dim = `width:${size}px;height:${size}px;flex-shrink:0;`;
+    const iconCls = size >= 64 ? 'fs-4' : 'small';
+    const placeholder = `<div class="rounded-2 border bg-light text-muted d-inline-flex align-items-center justify-content-center" style="${dim}"><i class="bi bi-image ${iconCls}" aria-hidden="true"></i></div>`;
+    if (!p?.image_url) return placeholder;
+    return `<div class="d-inline-flex align-items-center justify-content-center flex-shrink-0" style="${dim}"><img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name || 'Produk')}" class="rounded-2 border w-100 h-100" style="object-fit:cover;" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none');"><div class="d-none rounded-2 border bg-light text-muted w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi bi-image ${iconCls}" aria-hidden="true"></i></div></div>`;
+}
+
+const DP = () => cdTable(
+    'Master Produk &amp; Harga (OLTP)',
+    tb(
+        ['Foto', 'Produk', 'Barcode', 'Kategori', 'HPP Acuan', 'Harga Jual', 'Stok Tersedia', 'Min. Stok', 'Status', 'Aksi'],
+        BOOTSTRAP.oltp.products.map(p => {
+            const st = !p.is_active
+                ? pl('Nonaktif', 'r')
+                : (p.available <= 0 ? pl('Stok Habis', 'r') : pl('Aktif', 'g'));
+            const pid = escapeHtml(p.id);
+            return [
+                renderProductThumbHtml(p, 40),
+                `<span class="fw-semibold text-dark">${escapeHtml(p.name)}</span><br><small class="text-muted font-monospace">${escapeHtml(p.sku)}</small>`,
+                `<span class="font-monospace">${escapeHtml(p.barcode || '—')}</span>`,
+                escapeHtml(p.category),
+                rp(p.current_cost),
+                `<strong class="tokped-price">${rp(p.selling_price)}</strong>`,
+                `${p.available} ${escapeHtml(p.unit)}`,
+                `${Number(p.min_stock ?? p.reorder_point ?? 0)} ${escapeHtml(p.unit)}`,
+                st,
+                renderActionDropdown(`
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small" onclick="openEditProductModal('${pid}')"><i class="bi bi-pencil-square text-primary"></i><span>Edit Produk</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small" onclick="openReceiveStockModal('${pid}')"><i class="bi bi-box-arrow-in-down text-success"></i><span>Terima Stok</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small" onclick="openAdjustStockModal('${pid}')"><i class="bi bi-sliders text-secondary"></i><span>Penyesuaian Stok</span></button></li>
+                `, `Aksi ${p.name}`),
+            ];
+        }),
+        'Belum ada data produk di database.'
+    ),
+    `<button type="button" class="btn btn-outline-secondary btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Penyesuaian Stok</button>
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok</button>
+    <button type="button" class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i class="bi bi-plus-lg"></i> Tambah Produk</button>`
+);
+
+let productPreviewObjectUrl = null;
+
+function openAddProductModal() {
+    openProductFormModal(null);
+}
+
+function openEditProductModal(productId) {
+    openProductFormModal(productId);
+}
+
+function openProductFormModal(productId = null) {
+    const p = productId ? BOOTSTRAP.oltp.products.find(x => String(x.id) === String(productId)) : null;
+    const isEdit = Boolean(p);
+    if (productPreviewObjectUrl) {
+        URL.revokeObjectURL(productPreviewObjectUrl);
+        productPreviewObjectUrl = null;
+    }
+
+    const categories = BOOTSTRAP.oltp.categories || [];
+    const matchedCatId = p?.category_id
+        || categories.find(c => String(c.name).toLowerCase() === String(p?.category || '').toLowerCase())?.id
+        || '';
+    const catOpts = categories.length
+        ? categories.map(c => `<option value="${escapeHtml(c.id)}" data-name="${escapeHtml(c.name)}" ${String(c.id) === String(matchedCatId) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')
+        : ['Sembako', 'Minyak & Gula', 'Minuman', 'Kebutuhan Harian', 'Umum'].map(name => `<option value="" data-name="${escapeHtml(name)}" ${String(p?.category || 'Sembako') === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+
+    const supOpts = '<option value="">-- Pilih Pemasok (Opsional) --</option>'
+        + BOOTSTRAP.oltp.suppliers.map(s => `<option value="${escapeHtml(s.id)}" ${p?.supplier_id && String(s.id) === String(p.supplier_id) ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+
+    const presetUnits = ['Pcs', 'Kg', 'Liter', 'Dus', 'Bks', 'Sak', 'Botol', 'Pack'];
+    const currentUnit = p?.unit || 'Pcs';
+    if (!presetUnits.includes(currentUnit)) presetUnits.push(currentUnit);
+    const unitOpts = presetUnits.map(u => `<option value="${escapeHtml(u)}" ${u === currentUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('');
+
+    const currentStatus = !p || p.is_active ? 'ACTIVE' : 'INACTIVE';
+    const previewInner = p?.image_url
+        ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="w-100 h-100" style="object-fit:cover;" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none');"><i class="d-none bi bi-image fs-3 text-muted" aria-hidden="true"></i>`
+        : '<i class="bi bi-image fs-3 text-muted" aria-hidden="true"></i>';
+
+    openMgrModal(isEdit ? `Edit Produk — ${p.name}` : 'Tambah Produk Master (FR-03)', `
+        <form id="productMasterForm" onsubmit="submitProductForm(event, ${isEdit ? `'${escapeHtml(p.id)}'` : 'null'})">
+            <div class="d-flex align-items-center gap-3 p-2.5 bg-light border rounded-3 mb-3">
+                <div id="pfImagePreview" class="rounded-2 border bg-white d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width:76px;height:76px;">
+                    ${previewInner}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                    <label class="form-label small fw-semibold text-secondary mb-1" for="pfImage">Foto Barang (JPG, PNG, WebP)</label>
+                    <input type="file" class="form-control form-control-sm" id="pfImage" accept="image/jpeg,image/png,image/webp" onchange="previewProductImage(this)">
+                    <small class="text-muted d-block mt-1" style="font-size:0.72rem;">${isEdit ? 'Unggah gambar baru jika ingin mengganti foto eksisting.' : 'Opsional · Maksimal ukuran file mengikuti aturan server.'}</small>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6">${fl('Kode SKU *', `<input class="form-control" id="pfSku" required value="${escapeHtml(p?.sku || '')}" placeholder="Contoh: SEM-001">`)}</div>
+                <div class="col-6">${fl('Barcode (Opsional)', `<input class="form-control" id="pfBarcode" value="${escapeHtml(p?.barcode || '')}" placeholder="EAN-13 / Code128">`)}</div>
+            </div>
+            ${fl('Nama Produk *', `<input class="form-control" id="pfName" required value="${escapeHtml(p?.name || '')}" placeholder="Contoh: Beras Premium 5Kg">`)}
+            <div class="row g-2">
+                <div class="col-6">${fl('Kategori *', `<select class="form-select" id="pfCategory" required>${catOpts}</select>`)}</div>
+                <div class="col-6">${fl('Pemasok Utama', `<select class="form-select" id="pfSupplier">${supOpts}</select>`)}</div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6">${fl('Satuan *', `<select class="form-select" id="pfUnit" required>${unitOpts}</select>`)}</div>
+                <div class="col-6">${fl('Status Produk *', `
+                    <select class="form-select" id="pfStatus" required>
+                        <option value="ACTIVE" ${currentStatus === 'ACTIVE' ? 'selected' : ''}>ACTIVE (Aktif di Etalase)</option>
+                        <option value="INACTIVE" ${currentStatus === 'INACTIVE' ? 'selected' : ''}>INACTIVE (Nonaktif)</option>
+                    </select>`)}</div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6">${fl('Harga Modal / HPP (Rp) *', `<input type="number" class="form-control" id="pfCost" min="0" step="1" required value="${isEdit ? Number(p.current_cost || 0) : ''}">`)}</div>
+                <div class="col-6">${fl('Harga Jual (Rp) *', `<input type="number" class="form-control" id="pfPrice" min="0" step="1" required value="${isEdit ? Number(p.selling_price || 0) : ''}">`)}</div>
+            </div>
+            <div class="row g-2">
+                ${!isEdit ? `<div class="col-6">${fl('Stok Awal *', '<input type="number" class="form-control" id="pfInitialStock" min="0" value="0" required>')}</div>` : ''}
+                <div class="${!isEdit ? 'col-6' : 'col-12'}">${fl('Batas Stok Minimum *', `<input type="number" class="form-control" id="pfMinStock" min="0" required value="${isEdit ? Number(p.min_stock ?? p.reorder_point ?? 10) : 10}">`)}</div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="closeMgrModal()">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSaveProd">${isEdit ? 'Simpan Perubahan' : 'Simpan Produk'}</button>
+            </div>
+        </form>
+    `);
+}
+
+function previewProductImage(input) {
+    const box = $('#pfImagePreview');
+    if (!box) return;
+    if (productPreviewObjectUrl) {
+        URL.revokeObjectURL(productPreviewObjectUrl);
+        productPreviewObjectUrl = null;
+    }
+    const file = input?.files?.[0];
+    if (!file) return;
+    productPreviewObjectUrl = URL.createObjectURL(file);
+    box.innerHTML = `<img src="${productPreviewObjectUrl}" alt="Preview Foto Produk" class="w-100 h-100" style="object-fit:cover;">`;
+}
+
+async function submitProductForm(e, productId = null) {
+    e.preventDefault();
+    const isEdit = Boolean(productId);
+    const btn = $('#btnSaveProd');
+    if (btn) btn.disabled = true;
+
+    const fd = new FormData();
+    if (isEdit) fd.append('_method', 'PATCH');
+    fd.append('sku', ($('#pfSku')?.value || '').trim());
+    const barcode = ($('#pfBarcode')?.value || '').trim();
+    if (barcode !== '') fd.append('barcode', barcode);
+    fd.append('name', ($('#pfName')?.value || '').trim());
+
+    const catEl = $('#pfCategory');
+    const catId = catEl?.value || '';
+    const catName = catEl?.selectedOptions?.[0]?.dataset?.name || catEl?.selectedOptions?.[0]?.textContent || 'Umum';
+    if (catId !== '') fd.append('category_id', catId);
+    fd.append('category', catName);
+
+    const supId = $('#pfSupplier')?.value || '';
+    if (supId !== '') fd.append('supplier_id', supId);
+
+    fd.append('unit', ($('#pfUnit')?.value || 'Pcs').trim());
+    const statusVal = $('#pfStatus')?.value || 'ACTIVE';
+    fd.append('status', statusVal);
+    fd.append('is_active', statusVal === 'ACTIVE' ? '1' : '0');
+
+    const costVal = String(Number($('#pfCost')?.value || 0));
+    const priceVal = String(Number($('#pfPrice')?.value || 0));
+    const minStockVal = String(Number($('#pfMinStock')?.value || 0));
+    fd.append('current_cost', costVal);
+    fd.append('cost_price', costVal);
+    fd.append('selling_price', priceVal);
+    fd.append('price', priceVal);
+    fd.append('min_stock', minStockVal);
+    fd.append('reorder_point', minStockVal);
+
+    if (!isEdit) {
+        fd.append('initial_stock', String(Number($('#pfInitialStock')?.value || 0)));
+    }
+
+    const imgFile = $('#pfImage')?.files?.[0];
+    if (imgFile) {
+        fd.append('image', imgFile);
+    }
+
+    const endpoint = isEdit ? `/api/v1/products/${encodeURIComponent(productId)}` : '/api/v1/products';
+    try {
+        const res = await managerApi(endpoint, 'POST', fd);
+        closeMgrModal();
+        toast(res.message || (isEdit ? 'Data produk berhasil diperbarui.' : 'Produk baru berhasil disimpan.'));
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? `Endpoint Master Produk (${isEdit ? `PATCH ${endpoint}` : 'POST /api/v1/products'}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+const DM = () => cdTable(
+    'Daftar Anggota &amp; Peran RBAC',
+    tb(
+        ['Nama Anggota', 'No. Karyawan / Anggota', 'Divisi', 'Role', 'Keanggotaan', 'Piutang', 'Aksi'],
+        BOOTSTRAP.oltp.members.map(m => {
+            const mid = escapeHtml(m.id);
+            const isMemberActive = String(m.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+            return [
+                `<span class="fw-semibold text-dark">${escapeHtml(m.full_name)}</span>${m.email ? `<br><small class="text-muted">${escapeHtml(m.email)}</small>` : ''}`,
+                `<span class="font-monospace">${escapeHtml(m.employee_number || m.member_number || '-')}</span>`,
+                escapeHtml(m.department),
+                (m.roles || []).map(r => pl(r, r === 'MANAGER' ? 'r' : (r === 'CASHIER' ? 'pl' : 'i'))).join(' '),
+                pl(m.status, isMemberActive ? 'g' : 'r'),
+                pl(m.credit_status, m.credit_status === 'ACTIVE' ? 'g' : 'o'),
+                renderActionDropdown(`
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small" onclick="openEditMemberModal('${mid}')"><i class="bi bi-pencil-square text-primary"></i><span>Edit Anggota</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small ${isMemberActive ? 'text-danger' : 'text-success'}" onclick="toggleMemberAccountStatus('${mid}')"><i class="bi ${isMemberActive ? 'bi-person-slash' : 'bi-person-check'}"></i><span>${isMemberActive ? 'Nonaktifkan Anggota' : 'Aktifkan Anggota'}</span></button></li>
+                `, `Aksi ${m.full_name}`),
+            ];
+        }),
+        'Belum ada data anggota terdaftar.'
+    ),
+    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()"><i class="bi bi-plus-lg"></i> Tambah Anggota</button>`
+);
+
+function openAddMemberModal() {
+    openMemberFormModal(null);
+}
+
+function openEditMemberModal(memberId) {
+    openMemberFormModal(memberId);
+}
+
+function openMemberFormModal(memberId = null) {
+    const m = memberId ? BOOTSTRAP.oltp.members.find(x => String(x.id) === String(memberId)) : null;
+    const isEdit = Boolean(m);
+    const currentCode = m ? (m.employee_number || m.member_number || '') : '';
+    const primaryRole = Array.isArray(m?.roles) && m.roles.length ? String(m.roles[0]).toUpperCase() : 'MEMBER';
+    const currentStatus = String(m?.status || 'ACTIVE').toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+    openMgrModal(isEdit ? `Edit Anggota — ${m.full_name}` : 'Tambah Anggota Koperasi', `
+        <form id="memberMasterForm" onsubmit="submitMemberForm(event, ${isEdit ? `'${escapeHtml(m.id)}'` : 'null'})">
+            ${fl('Nama Lengkap *', `<input class="form-control" id="mfFullName" required value="${escapeHtml(m?.full_name || '')}" placeholder="Nama lengkap pegawai / anggota">`)}
+            <div class="row g-2">
+                <div class="col-12 col-md-6">${fl('Email *', `<input type="email" class="form-control" id="mfEmail" required value="${escapeHtml(m?.email || '')}" placeholder="nama@polman-bandung.ac.id">`)}</div>
+                <div class="col-12 col-md-6">${fl('Nomor Karyawan / Anggota *', `<input class="form-control" id="mfCode" required value="${escapeHtml(currentCode)}" placeholder="Contoh: EMP-001 atau MEM-001">`)}</div>
+            </div>
+            ${fl('Divisi / Unit Kerja *', `<input class="form-control" id="mfDepartment" required value="${escapeHtml(m?.department || '')}" placeholder="Contoh: Jurusan Teknik Mesin / Umum">`)}
+            <div class="row g-2">
+                <div class="col-6">${fl('Role RBAC *', `
+                    <select class="form-select" id="mfRole" required>
+                        <option value="MEMBER" ${primaryRole === 'MEMBER' ? 'selected' : ''}>MEMBER (Anggota)</option>
+                        <option value="CASHIER" ${primaryRole === 'CASHIER' ? 'selected' : ''}>CASHIER (Kasir)</option>
+                        <option value="MANAGER" ${primaryRole === 'MANAGER' ? 'selected' : ''}>MANAGER (Manajer)</option>
+                    </select>`)}</div>
+                <div class="col-6">${fl('Status Keanggotaan *', `
+                    <select class="form-select" id="mfStatus" required>
+                        <option value="ACTIVE" ${currentStatus === 'ACTIVE' ? 'selected' : ''}>ACTIVE (Aktif)</option>
+                        <option value="INACTIVE" ${currentStatus === 'INACTIVE' ? 'selected' : ''}>INACTIVE (Nonaktif)</option>
+                    </select>`)}</div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="closeMgrModal()">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSaveMember">${isEdit ? 'Simpan Perubahan' : 'Simpan Anggota'}</button>
+            </div>
+        </form>
+    `);
+}
+
+async function submitMemberForm(e, memberId = null) {
+    e.preventDefault();
+    const isEdit = Boolean(memberId);
+    const btn = $('#btnSaveMember');
+    if (btn) btn.disabled = true;
+
+    const existing = isEdit ? BOOTSTRAP.oltp.members.find(x => String(x.id) === String(memberId)) : null;
+    const codeVal = ($('#mfCode')?.value || '').trim();
+    const upperCode = codeVal.toUpperCase();
+    const roleVal = $('#mfRole')?.value || 'MEMBER';
+
+    const payload = {
+        full_name: ($('#mfFullName')?.value || '').trim(),
+        email: ($('#mfEmail')?.value || '').trim(),
+        employee_number: upperCode.startsWith('MEM-') ? (existing?.employee_number || null) : codeVal,
+        member_number: upperCode.startsWith('EMP-') ? (existing?.member_number || null) : codeVal,
+        department: ($('#mfDepartment')?.value || '').trim(),
+        role: roleVal,
+        roles: [roleVal],
+        status: $('#mfStatus')?.value || 'ACTIVE',
+    };
+
+    const endpoint = isEdit ? `/api/v1/members/${encodeURIComponent(memberId)}` : '/api/v1/members';
+    const method = isEdit ? 'PATCH' : 'POST';
+
+    try {
+        const res = await managerApi(endpoint, method, payload);
+        closeMgrModal();
+        toast(res.message || (isEdit ? 'Data anggota berhasil diperbarui.' : 'Anggota baru berhasil ditambahkan.'));
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? `Endpoint Master Anggota (${method} ${endpoint}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function toggleMemberAccountStatus(memberId) {
+    const m = BOOTSTRAP.oltp.members.find(x => String(x.id) === String(memberId));
+    if (!m) return;
+    const isCurrentlyActive = String(m.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+    const nextStatus = isCurrentlyActive ? 'INACTIVE' : 'ACTIVE';
+
+    try {
+        const res = await managerApi(`/api/v1/members/${encodeURIComponent(memberId)}`, 'PATCH', {
+            status: nextStatus,
+        });
+        m.status = nextStatus;
+        toast(res.message || `Status keanggotaan ${m.full_name} diubah menjadi ${nextStatus}.`);
+        route();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? `Endpoint ubah status anggota (PATCH /api/v1/members/${memberId}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            : err.message);
+    }
+}
+
+const DV = () => cdTable(
+    'Daftar Pemasok',
+    tb(
+        ['Kode', 'Nama Pemasok', 'Kontak', 'Alamat', 'Lead Time', 'Status', 'Aksi'],
+        BOOTSTRAP.oltp.suppliers.map(s => {
+            const sid = escapeHtml(s.id);
+            const isSupActive = Boolean(s.is_active);
+            return [
+                `<span class="font-monospace">${escapeHtml(s.code || '-')}</span>`,
+                `<span class="fw-semibold text-dark">${escapeHtml(s.name)}</span>`,
+                escapeHtml(s.phone || '-'),
+                `<span class="text-muted small d-inline-block text-truncate" style="max-width:220px;" title="${escapeHtml(s.address || '-')}">${escapeHtml(s.address || '-')}</span>`,
+                `${s.lead_time_days ?? 1} hari`,
+                pl(isSupActive ? 'Aktif' : 'Nonaktif', isSupActive ? 'g' : 'r'),
+                renderActionDropdown(`
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small" onclick="openEditSupplierModal('${sid}')"><i class="bi bi-pencil-square text-primary"></i><span>Edit Pemasok</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 small ${isSupActive ? 'text-danger' : 'text-success'}" onclick="toggleSupplierStatus('${sid}')"><i class="bi ${isSupActive ? 'bi-slash-circle' : 'bi-check-circle'}"></i><span>${isSupActive ? 'Nonaktifkan Pemasok' : 'Aktifkan Pemasok'}</span></button></li>
+                `, `Aksi ${s.name}`),
+            ];
+        }),
+        'Belum ada data pemasok tersimpan di tabel suppliers.'
+    ),
+    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddSupplierModal()"><i class="bi bi-plus-lg"></i> Tambah Pemasok</button>`
+);
+
+function openAddSupplierModal() {
+    openSupplierFormModal(null);
+}
+
+function openEditSupplierModal(supplierId) {
+    openSupplierFormModal(supplierId);
+}
+
+function openSupplierFormModal(supplierId = null) {
+    const s = supplierId ? BOOTSTRAP.oltp.suppliers.find(x => String(x.id) === String(supplierId)) : null;
+    const isEdit = Boolean(s);
+    const currentStatus = !s || s.is_active ? 'ACTIVE' : 'INACTIVE';
+
+    openMgrModal(isEdit ? `Edit Pemasok — ${s.name}` : 'Tambah Pemasok Baru', `
+        <form id="supplierMasterForm" onsubmit="submitSupplierForm(event, ${isEdit ? `'${escapeHtml(s.id)}'` : 'null'})">
+            <div class="row g-2">
+                <div class="col-5">${fl('Kode Pemasok *', `<input class="form-control" id="sfCode" required value="${escapeHtml(s?.code || '')}" placeholder="Contoh: SUP-001">`)}</div>
+                <div class="col-7">${fl('Nama Pemasok / Perusahaan *', `<input class="form-control" id="sfName" required value="${escapeHtml(s?.name || '')}" placeholder="Contoh: PT Sumber Makmur">`)}</div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6">${fl('Kontak / No. HP', `<input class="form-control" id="sfPhone" value="${escapeHtml(s?.phone || '')}" placeholder="08xxxxxxxxxx">`)}</div>
+                <div class="col-6">${fl('Status *', `
+                    <select class="form-select" id="sfStatus" required>
+                        <option value="ACTIVE" ${currentStatus === 'ACTIVE' ? 'selected' : ''}>ACTIVE (Aktif)</option>
+                        <option value="INACTIVE" ${currentStatus === 'INACTIVE' ? 'selected' : ''}>INACTIVE (Nonaktif)</option>
+                    </select>`)}</div>
+            </div>
+            ${fl('Alamat Pemasok', `<textarea class="form-control" id="sfAddress" rows="2" placeholder="Alamat lengkap gudang / kantor pemasok">${escapeHtml(s?.address || '')}</textarea>`)}
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="closeMgrModal()">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnSaveSupplier">${isEdit ? 'Simpan Perubahan' : 'Simpan Pemasok'}</button>
+            </div>
+        </form>
+    `);
+}
+
+async function submitSupplierForm(e, supplierId = null) {
+    e.preventDefault();
+    const isEdit = Boolean(supplierId);
+    const btn = $('#btnSaveSupplier');
+    if (btn) btn.disabled = true;
+
+    const statusVal = $('#sfStatus')?.value || 'ACTIVE';
+    const payload = {
+        code: ($('#sfCode')?.value || '').trim(),
+        name: ($('#sfName')?.value || '').trim(),
+        phone: ($('#sfPhone')?.value || '').trim() || null,
+        address: ($('#sfAddress')?.value || '').trim() || null,
+        status: statusVal,
+        is_active: statusVal === 'ACTIVE',
+    };
+
+    const endpoint = isEdit ? `/api/v1/suppliers/${encodeURIComponent(supplierId)}` : '/api/v1/suppliers';
+    const method = isEdit ? 'PATCH' : 'POST';
+
+    try {
+        const res = await managerApi(endpoint, method, payload);
+        closeMgrModal();
+        toast(res.message || (isEdit ? 'Data pemasok berhasil diperbarui.' : 'Pemasok baru berhasil disimpan.'));
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? `Endpoint Master Pemasok (${method} ${endpoint}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function toggleSupplierStatus(supplierId) {
+    const s = BOOTSTRAP.oltp.suppliers.find(x => String(x.id) === String(supplierId));
+    if (!s) return;
+    const nextActive = !Boolean(s.is_active);
+    try {
+        const res = await managerApi(`/api/v1/suppliers/${encodeURIComponent(supplierId)}`, 'PATCH', {
+            is_active: nextActive,
+            status: nextActive ? 'ACTIVE' : 'INACTIVE',
+        });
+        s.is_active = nextActive;
+        toast(res.message || `Status pemasok ${s.name} diubah menjadi ${nextActive ? 'Aktif' : 'Nonaktif'}.`);
+        route();
+    } catch (err) {
+        toast(err.status === 404 || err.status === 405
+            ? `Endpoint ubah status pemasok (PATCH /api/v1/suppliers/${supplierId}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            : err.message);
+    }
+}
+
+const IMPORT_STEPS = ['Upload & Pilih Jenis', 'Preview & Validasi', 'Konfirmasi Commit', 'Selesai'];
+
+const DI = () => `
+    <div class="mgr-stepper mb-3" id="stp"></div>
+    <div id="ib" class="mb-4"></div>
+    ${cdTable('Riwayat Batch Impor', tb(
+        ['Batch ID', 'Tipe Data', 'Nama File', 'Diterima', 'Ditolak', 'Status'],
+        BOOTSTRAP.oltp.import_batches.map(b => [
+            `<span class="font-monospace">${escapeHtml(String(b.id).slice(0, 8))}</span>`,
+            escapeHtml(b.import_type || b.entity_type || b.data_type || '-'),
+            escapeHtml(b.file_name || b.filename || b.original_filename || '-'),
+            b.valid_rows ?? b.accepted_count ?? 0,
+            b.error_rows ?? b.rejected_count ?? 0,
+            pl(b.status || '-', b.status === 'COMMITTED' || b.status === 'COMPLETED' ? 'g' : 'o'),
+        ]),
+        'Belum ada riwayat batch impor pada database.'
+    ))}
+`;
+
+function renderImportWizard() {
+    const stp = $('#stp');
+    const ib = $('#ib');
+    if (!stp || !ib) return;
+
+    stp.innerHTML = IMPORT_STEPS.map((s, i) => `<span class="mgr-step-pill ${i === state.importStep ? 'active' : (i < state.importStep ? 'done' : '')}">${escapeHtml(s)}</span>`).join('');
+
+    if (state.importStep === 0) {
+        ib.innerHTML = cd('Unggah File Excel / CSV (POST /api/v1/imports)', `
+            <form id="importUploadForm" onsubmit="submitImportUpload(event)">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">${fl('Jenis Data', `<select class="form-select" id="impType" onchange="toggleImportCutoffField(this.value)"><option value="PRODUK">Produk &amp; Harga</option><option value="ANGGOTA">Anggota Koperasi</option><option value="STOK">Stok Awal (Cut-Off)</option><option value="TRANSAKSI">Histori Transaksi</option></select>`)}</div>
+                    <div class="col-12 col-md-6">${fl('File XLSX / CSV', '<input class="form-control" type="file" id="impFile" accept=".xlsx,.xls,.csv" required>')}</div>
+                </div>
+                <div id="impCutoffWrap" class="d-none">
+                    ${fl('Tanggal Cut-Off Stok Awal (Wajib untuk Stok Awal — FR-05)', '<input class="form-control" type="date" id="impCutoffDate">')}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnUploadImport">Unggah &amp; Validasi Preview</button>
+            </form>
+        `);
+    } else if (state.importStep === 1) {
+        const pv = state.importPreview || {};
+        const errors = Array.isArray(pv.errors) ? pv.errors : [];
+        ib.innerHTML = cd('Pratinjau &amp; Validasi Baris (GET /api/v1/imports/{id}/preview)', `
+            <div class="d-flex gap-2 mb-3">
+                ${pl(`${pv.valid_count ?? 0} baris valid`, 'g')}
+                ${pl(`${errors.length} baris error`, errors.length ? 'r' : 'g')}
+            </div>
+            ${tb(['Baris', 'Identitas', 'Masalah'], errors.map(er => [er.row_number ?? '-', escapeHtml(er.identifier || '-'), pl(er.message || 'Error', 'r')]), 'Tidak ada error validasi.')}
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=0;renderImportWizard()">Kembali</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="state.importStep=2;renderImportWizard()">Lanjut ke Konfirmasi</button>
+            </div>
+        `);
+    } else if (state.importStep === 2) {
+        ib.innerHTML = cd('Konfirmasi Commit Idempotent (POST /api/v1/imports/{id}/commit)', `
+            <div class="alert alert-warning small">Histori sebelum tanggal cut-off tidak mengubah stok berjalan atau membuat piutang aktif.</div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="impConfirmCheck" onchange="$('#btnCommitImp').disabled=!this.checked">
+                <label class="form-check-label small fw-semibold" for="impConfirmCheck">
+                    Saya telah memeriksa pratinjau validasi dan menyetujui commit batch ini.
+                </label>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=1;renderImportWizard()">Kembali</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnCommitImp" disabled onclick="executeImportCommit()">Commit Sekarang</button>
+            </div>
+        `);
+    } else {
+        ib.innerHTML = cd('Impor Selesai', `
+            <div class="alert alert-success small mb-3">Batch impor berhasil di-commit ke database secara idempoten.</div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="state.importStep=0;renderImportWizard()">Impor Berkas Baru</button>
+        `);
+    }
+}
+
+function toggleImportCutoffField(val) {
+    const wrap = $('#impCutoffWrap');
+    const dateInput = $('#impCutoffDate');
+    const show = val === 'STOK';
+    if (wrap) wrap.classList.toggle('d-none', !show);
+    if (dateInput) dateInput.required = show;
+}
+
+async function submitImportUpload(e) {
+    e.preventDefault();
+    const fileInput = $('#impFile');
+    const typeVal = $('#impType')?.value;
+    const cutoffVal = $('#impCutoffDate')?.value;
+    if (!fileInput?.files?.length) {
+        toast('Pilih berkas XLSX/CSV terlebih dahulu.');
+        return;
+    }
+    if (typeVal === 'STOK' && !cutoffVal) {
+        toast('Tanggal cut-off wajib diisi untuk impor stok awal.');
+        return;
+    }
+
+    const btn = $('#btnUploadImport');
+    if (btn) btn.disabled = true;
+    try {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        fd.append('type', typeVal);
+        if (cutoffVal) fd.append('cut_off_date', cutoffVal);
+
+        const created = await managerApi('/api/v1/imports', 'POST', fd);
+        state.importBatch = created.data || created;
+        const batchId = state.importBatch?.id;
+        if (batchId) {
+            const previewRes = await managerApi(`/api/v1/imports/${encodeURIComponent(batchId)}/preview`);
+            state.importPreview = previewRes.data || previewRes;
+        }
+        state.importStep = 1;
+        renderImportWizard();
+    } catch (err) {
+        toast(err.status === 404
+            ? 'Endpoint Impor (/api/v1/imports) belum terpasang di routes/api.php (menunggu integrasi PIC C).'
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function executeImportCommit() {
+    const batchId = state.importBatch?.id;
+    if (!batchId) return;
+    const btn = $('#btnCommitImp');
+    if (btn) btn.disabled = true;
+    try {
+        const idemKey = `imp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const res = await managerApi(`/api/v1/imports/${encodeURIComponent(batchId)}/commit`, 'POST', {
+            idempotency_key: idemKey,
+        });
+        toast(res.message || 'Impor berhasil di-commit.');
+        state.importStep = 3;
+        renderImportWizard();
+    } catch (err) {
+        toast(err.message);
+        if (btn) btn.disabled = false;
+    }
+}
+
+/* ---------- 5. LAPORAN, BIAYA OPERASIONAL, ANALITIK & FORECAST ---------- */
+S.rep = () => {
+    const { start, end } = getPeriodRange(state.period);
+    return `${ph(
+        'Laporan & Analitik',
+        'Laporan keuangan terpadu, pencatatan biaya operasional, analitik produk, dan prediksi restock.',
+        `<a class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=pdf" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i><span>Ekspor PDF</span></a>
+        <a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=xlsx" target="_blank" rel="noopener"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a>`
+    )}${renderSubTabShell('rep', ['Keuangan', 'Biaya Operasional', 'Analitik', 'Forecast & Restock'], [RK, RB, RA, RF])}`;
+};
+
+H.rep = () => {
+    if (TB.rep === 0 || TB.rep === 2 || TB.rep === 3) loadReportsAndAnalytics();
+};
+
+async function loadReportsAndAnalytics() {
+    const { start, end } = getPeriodRange(state.period);
+    const q = `?period=${encodeURIComponent(state.period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const [finRes, sumRes, topRes, fcRes] = await Promise.allSettled([
+        managerApi(`/api/v1/reports/financial${q}`),
+        managerApi(`/api/v1/analytics/summary${q}`),
+        managerApi(`/api/v1/analytics/top-products${q}`),
+        managerApi(`/api/v1/analytics/forecasts?horizon=${state.forecastHorizon}`),
+    ]);
+    state.financialReport = finRes.status === 'fulfilled' ? (finRes.value.data || finRes.value) : null;
+    state.analyticsSummary = sumRes.status === 'fulfilled' ? (sumRes.value.data || sumRes.value) : null;
+    state.topProducts = topRes.status === 'fulfilled' ? (topRes.value.data || topRes.value) : null;
+    state.forecasts = fcRes.status === 'fulfilled' ? (fcRes.value.data || fcRes.value) : null;
+
+    if (TB.rep === 0 && $('#repFinancialWrap')) renderReportFinancialSection();
+    if (TB.rep === 3 && $('#repForecastWrap')) renderReportForecastSection();
+}
+
+const RK = () => `
+    <div class="mb-3">
+        <select class="form-select form-select-sm" style="width:auto;min-width:160px;" onchange="state.period=this.value;loadReportsAndAnalytics()" aria-label="Periode Laporan">
+            <option value="day" ${state.period === 'day' ? 'selected' : ''}>Harian</option>
+            <option value="week" ${state.period === 'week' ? 'selected' : ''}>Pekanan</option>
+            <option value="month" ${state.period === 'month' ? 'selected' : ''}>Bulanan</option>
+            <option value="year" ${state.period === 'year' ? 'selected' : ''}>Tahunan</option>
+        </select>
+    </div>
+    <div id="repFinancialWrap" class="text-muted small">Memuat ringkasan laporan keuangan...</div>
+`;
+
+function renderReportFinancialSection() {
+    const wrap = $('#repFinancialWrap');
+    if (!wrap) return;
+    const fin = state.financialReport || state.analyticsSummary;
+    if (!fin) {
+        const oltp = BOOTSTRAP.oltp.orders_summary;
+        const opexSum = BOOTSTRAP.oltp.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const gp = oltp.sales_revenue - oltp.cogs;
+        wrap.innerHTML = `
+            <div class="alert alert-light border small mb-3">Endpoint <code>GET /api/v1/reports/financial</code> belum tersedia pada branch ini. Menampilkan ringkasan OLTP transaksi selesai terkini.</div>
+            ${cdTable('Ringkasan Operasional (OLTP)', tb(
+                ['Komponen', 'Nilai'],
+                [
+                    ['Omzet Penjualan Selesai (COMPLETED)', rp(oltp.sales_revenue)],
+                    ['HPP Terjual (Snapshot)', rp(oltp.cogs)],
+                    ['Laba Kotor (Estimasi)', `<strong>${rp(gp)}</strong>`],
+                    ['Biaya Operasional Tercatat', rp(opexSum)],
+                    ['Estimasi Laba Bersih', `<strong class="text-success">${rp(gp - opexSum)}</strong>`],
+                    ['Pembayaran Terverifikasi (Kas Masuk)', rp(oltp.verified_payments)],
+                    ['Penjualan Kredit', rp(oltp.credit_sales)],
+                ]
+            ))}
+        `;
+        return;
+    }
+
+    const m = fin.metrics || {};
+    const cogsIncomplete = fin.data_quality ? !fin.data_quality.cogs_complete : false;
+    const expIncomplete = fin.data_quality ? !fin.data_quality.expenses_complete : false;
+    const banner = (fin.is_stale ? '<div class="alert alert-warning small mb-3">Data mart analitik berstatus <strong>stale</strong>. Periksa waktu pembaruan terakhir.</div>' : '')
+        + ((cogsIncomplete || expIncomplete) ? '<div class="alert alert-light border small mb-3">HPP atau biaya operasional belum lengkap. Laba bersih berstatus <strong>estimasi</strong>.</div>' : '');
+
+    wrap.innerHTML = banner + cdTable(`Laporan Keuangan (per ${escapeHtml(fin.last_updated_at || '-')})`, tb(
+        ['Komponen', 'Nilai'],
+        [
+            ['Omzet Penjualan Selesai', rp(m.sales_revenue)],
+            ['HPP Barang Terjual', rp(m.cogs)],
+            ['Laba Kotor', `<strong>${rp(m.gross_profit)}</strong>`],
+            ['Biaya Operasional', rp(m.operating_expenses)],
+            ['Estimasi Laba Bersih', `<strong class="text-success">${rp(m.estimated_net_profit)}</strong>`],
+            ['Kas Masuk Terverifikasi', rp(m.cash_receipts)],
+            ['Penjualan Piutang Baru', rp(m.new_credit_sales)],
+            ['Piutang Terbuka (Akhir Periode)', rp(m.receivables_outstanding_as_of_end)],
+            ['Piutang Overdue (Akhir Periode)', rp(m.overdue_outstanding_as_of_end)],
+        ]
+    ));
+}
+
+const RB = () => `
+    <div class="row g-3 g-xl-4">
+        <div class="col-12 col-lg-7">
+            ${cdTable('Daftar Biaya Operasional', tb(
+                ['Tanggal', 'Kategori', 'Deskripsi', 'Jumlah'],
+                BOOTSTRAP.oltp.expenses.map(e => [
+                    escapeHtml(String(e.expense_date || '-').slice(0, 10)),
+                    escapeHtml(e.category || '-'),
+                    escapeHtml(e.description || '-'),
+                    `<strong>${rp(e.amount)}</strong>`,
+                ]),
+                'Belum ada catatan biaya operasional di tabel operating_expenses.'
+            ))}
+        </div>
+        <div class="col-12 col-lg-5">
+            ${cd('Catat Biaya Operasional (FR-09)', `
+                <form id="expenseForm" onsubmit="submitOperatingExpense(event)">
+                    ${fl('Tanggal Biaya', `<input type="date" class="form-control" id="expDate" value="${escapeHtml(BOOTSTRAP.today_jakarta)}" required>`)}
+                    ${fl('Jenis / Kategori Biaya', '<select class="form-select" id="expCategory" required><option value="Listrik">Listrik &amp; Utilitas</option><option value="Sewa">Sewa Gerai</option><option value="Perlengkapan">ATK &amp; Perlengkapan</option><option value="Gaji">Honor Petugas</option><option value="Lainnya">Lainnya</option></select>')}
+                    ${fl('Deskripsi Biaya (Wajib — FR-09)', '<input class="form-control" id="expDesc" required maxlength="255" placeholder="Contoh: Tagihan listrik chiller November">')}
+                    ${fl('Jumlah (Rp)', '<input type="number" class="form-control" id="expAmount" min="1" step="100" required>')}
+                    ${fl('Bukti Pembayaran (Opsional)', '<input type="file" class="form-control" id="expProof" accept="image/*,.pdf">')}
+                    <button type="submit" class="btn btn-primary w-100" id="btnSaveExp">Simpan Biaya Operasional</button>
+                </form>
+            `)}
+        </div>
+    </div>
+`;
+
+async function submitOperatingExpense(e) {
+    e.preventDefault();
+    const btn = $('#btnSaveExp');
+    if (btn) btn.disabled = true;
+    try {
+        const fd = new FormData();
+        fd.append('expense_date', $('#expDate')?.value);
+        fd.append('category', $('#expCategory')?.value);
+        fd.append('description', $('#expDesc')?.value.trim());
+        fd.append('amount', $('#expAmount')?.value);
+        const proof = $('#expProof');
+        if (proof?.files?.length) fd.append('proof', proof.files[0]);
+
+        const res = await managerApi('/api/v1/operating-expenses', 'POST', fd);
+        toast(res.message || 'Biaya operasional berhasil dicatat.');
+        location.reload();
+    } catch (err) {
+        toast(err.status === 404
+            ? 'Endpoint POST /api/v1/operating-expenses belum terpasang di routes/api.php (menunggu integrasi PIC C).'
+            : err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+const RA = () => {
+    const outOfStock = BOOTSTRAP.oltp.products.filter(p => Number(p.available || 0) <= 0);
+    const deadStockCandidates = BOOTSTRAP.oltp.products.filter(p => Number(p.available || 0) > 0 && Number(p.sales_count || 0) === 0);
+
+    return `
+        <div class="row g-3 g-xl-4">
+            <div class="col-12 col-lg-6">
+                ${cdTable('Stok Habis / Kritis (Perlu Perhatian Segera)', tb(
+                    ['SKU', 'Produk', 'Tersedia', 'Status'],
+                    outOfStock.map(p => [escapeHtml(p.sku), escapeHtml(p.name), `0 ${escapeHtml(p.unit)}`, pl('Stok Habis', 'r')]),
+                    'Tidak ada produk yang stoknya habis.'
+                ))}
+            </div>
+            <div class="col-12 col-lg-6">
+                ${cdTable('Stok Mengendap / Dead Stock (Stok &gt; 0, Belum Terjual)', tb(
+                    ['SKU', 'Produk', 'Stok Tersedia', 'Terjual'],
+                    deadStockCandidates.map(p => [escapeHtml(p.sku), escapeHtml(p.name), `${p.available} ${escapeHtml(p.unit)}`, `${p.sales_count}`]),
+                    'Tidak ada barang dead stock dengan stok mengendap.'
+                ))}
+            </div>
+        </div>
+    `;
+};
+
+const RF = () => `
+    <div class="alert alert-light border small mb-3">
+        <i class="bi bi-shield-check text-success me-1"></i>
+        Forecast merupakan saran analitik. Sistem <strong>tidak pernah</strong> membuat pesanan pembelian otomatis tanpa persetujuan manual Manajer.
+    </div>
+    <div class="mgr-tabs mb-3">
+        <button type="button" class="btn-tab ${state.forecastHorizon === 7 ? 'active' : ''}" onclick="state.forecastHorizon=7;TB.rep=3;route()">Horizon 7 Hari</button>
+        <button type="button" class="btn-tab ${state.forecastHorizon === 30 ? 'active' : ''}" onclick="state.forecastHorizon=30;TB.rep=3;route()">Horizon 30 Hari</button>
+    </div>
+    <div id="repForecastWrap" class="text-muted small">Memuat hasil prediksi permintaan...</div>
+`;
+
+function renderReportForecastSection() {
+    const wrap = $('#repForecastWrap');
+    if (!wrap) return;
+    if (!state.forecasts) {
+        wrap.innerHTML = '<div class="alert alert-light border small mb-0">Endpoint <code>GET /api/v1/analytics/forecasts</code> belum aktif pada branch ini (menunggu integrasi PIC E).</div>';
+        return;
+    }
+    const items = state.forecasts.items || state.forecasts || [];
+    wrap.innerHTML = cdTable(`Rekomendasi Restock &amp; Evaluasi Model (Horizon ${state.forecastHorizon} Hari)`, tb(
+        ['Produk', 'Tersedia', 'Prediksi', 'Saran Beli', 'Evaluasi / Status'],
+        items.map(f => [
+            escapeHtml(f.name || f.sku || '-'),
+            f.available_stock ?? '-',
+            f.predicted_units ?? '-',
+            f.recommended_qty ?? 0,
+            f.insufficient_data ? pl('insufficient_data', 'o') : pl(`WAPE ${f.wape ?? '-'}%`, 'g'),
+        ]),
+        'Belum ada data prediksi permintaan.'
+    ));
+}
+
+/* ---------- 6. SISTEM & AUDIT LOG ---------- */
+S.sys = () => `${ph('Sistem & Jejak Audit', 'Konfigurasi waktu operasional, status analitik, dan catatan audit dari PostgreSQL.')}
+<div class="row g-3 g-xl-4 mb-4">
+    <div class="col-12 col-md-4">${statCardHtml('Zona Waktu Operasional', 'WIB (UTC+7)', 'Asia/Jakarta · Pekan dimulai Senin', 'bi-clock', '#ecfdf5', '#059669', 'text-dark')}</div>
+    <div class="col-12 col-md-4">${statCardHtml('Kebijakan Kredit (OLTP)', state.creditPolicy ? rp(state.creditPolicy.limit_amount) : 'Buka menu Piutang', 'Jatuh tempo terkunci 7 hari', 'bi-sliders', '#f3f4f6', '#4b5563', 'text-dark')}</div>
+    <div class="col-12 col-md-4">${statCardHtml('Ketahanan Analitik (AC-21)', state.analyticsSummary?.last_updated_at || 'OLTP Mandiri', 'Operasional berjalan walau ETL offline', 'bi-shield-check', '#ecfdf5', '#059669', 'text-success')}</div>
+</div>
+${cdTable('Audit Log Aktivitas Sistem (Tabel audit_logs)', tb(
+    ['Waktu (WIB)', 'Aktor', 'Aksi', 'Entitas', 'Target'],
+    BOOTSTRAP.oltp.audit_logs.map(a => [
+        escapeHtml(a.created_at),
+        escapeHtml(a.actor),
+        pl(a.action, 'i'),
+        escapeHtml(a.entity_type),
+        `<span class="font-monospace">${escapeHtml(String(a.entity_id).slice(0, 18))}</span>`,
+    ]),
+    'Belum ada rekaman pada tabel audit_logs.'
+))}`;
+
+/* ---------- BOOTSTRAP ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+    if (!location.hash) {
+        history.replaceState(null, '', '#' + (BOOTSTRAP.initial_page || 'home'));
+    }
+
+    document.querySelectorAll('.sidebar .nav-link[data-mgr-page]').forEach(link => {
+        link.addEventListener('click', e => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            const targetPage = link.dataset.mgrPage;
+            if (!targetPage || !S[targetPage]) return;
+            e.preventDefault();
+            if (Object.prototype.hasOwnProperty.call(TB, targetPage)) {
+                TB[targetPage] = 0;
+            }
+            BOOTSTRAP.initial_page = targetPage;
+            const nextUrl = `${link.pathname}#${targetPage}`;
+            if (`${location.pathname}${location.hash}` !== nextUrl) {
+                history.pushState({ mgrPage: targetPage }, '', nextUrl);
+            }
+            route();
+        });
+    });
+
+    window.addEventListener('popstate', () => route());
+    route();
+});
+</script>
+@endpush

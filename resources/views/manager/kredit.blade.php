@@ -56,7 +56,7 @@
                         <label for="inputGlobalLimit" class="form-label fw-bold text-dark small">Pagu Limit Piutang Global Seragam</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light text-muted fw-semibold">Rp</span>
-                            <input type="number" class="form-control fw-extrabold text-primary fs-5" id="inputGlobalLimit" value="{{ $globalLimit }}" step="50000" min="100000" required>
+                            <input type="number" class="form-control fw-extrabold text-primary fs-5" id="inputGlobalLimit" value="{{ $globalLimit }}" step="50000" min="0" required>
                         </div>
                         <div class="form-text small text-muted">Contoh nilai: Rp 1.000.000 (Diterapkan sama rata).</div>
                     </div>
