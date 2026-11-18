@@ -35,14 +35,19 @@ Route::post('/login', function (Request $request) {
     $role = $request->input('role', 'MEMBER');
     $username = $request->input('username', 'EMP-001');
 
+    // Ahmad Fauzi / Akun Pelanggan (MEMBER) dibatasi hanya role MEMBER
+    $isMember = ($username === 'EMP-001' || $role === 'MEMBER');
+    $assignedRole = $isMember ? 'MEMBER' : $role;
+    $availableRoles = $isMember ? ['MEMBER'] : [$role];
+
     session([
         'user' => [
             'id' => $username === 'EMP-001' ? 'EMP-001' : $username,
             'name' => $username === 'EMP-001' ? 'Ahmad Fauzi' : 'Anggota Koperasi',
             'username' => $username,
         ],
-        'active_role' => $role,
-        'available_roles' => ['MEMBER', 'CASHIER', 'MANAGER'],
+        'active_role' => $assignedRole,
+        'available_roles' => $availableRoles,
     ]);
 
     if ($request->wantsJson()) {
@@ -50,7 +55,7 @@ Route::post('/login', function (Request $request) {
             'success' => true,
             'message' => 'Berhasil masuk.',
             'user' => session('user'),
-            'role' => $role,
+            'role' => $assignedRole,
         ]);
     }
 
@@ -58,7 +63,7 @@ Route::post('/login', function (Request $request) {
         return redirect($redirectUrl)->with('success', 'Berhasil masuk.');
     }
 
-    return match ($role) {
+    return match ($assignedRole) {
         'CASHIER' => redirect()->route('cashier.pos')->with('success', 'Masuk ke Portal Kasir & Stok.'),
         'MANAGER' => redirect()->route('manager.dashboard')->with('success', 'Masuk ke Portal Analitik Manajer.'),
         default => redirect()->route('landing')->with('success', 'Masuk sebagai Anggota Koperasi (Ahmad Fauzi). Cek tagihan di menu Profil.'),
@@ -74,6 +79,11 @@ Route::match(['GET', 'POST'], '/logout', function (Request $request) {
 Route::post('/mock-switch-role', function (Request $request) {
     $role = $request->input('role', 'MEMBER');
     $validRoles = ['MEMBER', 'CASHIER', 'MANAGER'];
+
+    $availableRoles = session('available_roles', ['MEMBER']);
+    if (!in_array($role, $availableRoles)) {
+        return redirect()->route('landing')->with('error', 'Akses Ditolak: Akun Anggota/Pembeli tidak memiliki hak akses ke portal kasir atau manajer.');
+    }
 
     if (in_array($role, $validRoles)) {
         session(['active_role' => $role]);
@@ -103,7 +113,7 @@ Route::prefix('member')->name('member.')->group(function () {
 // --------------------------------------------------------------------------
 // 3. Portal Kasir / Petugas Toko (Stok Barang, POS & Verifikasi Pickup)
 // --------------------------------------------------------------------------
-Route::prefix('cashier')->name('cashier.')->group(function () {
+Route::prefix('cashier')->name('cashier.')->middleware('role:CASHIER')->group(function () {
     Route::get('/', [CashierController::class, 'index'])->name('index');
     Route::get('/pos', [CashierController::class, 'index'])->name('pos');
     Route::get('/stok', [CashierController::class, 'stok'])->name('stok');
@@ -115,12 +125,15 @@ Route::prefix('cashier')->name('cashier.')->group(function () {
 // 4. Portal Manajer Eksekutif (Analitik Penjualan Bulan Ini, Laba & Piutang)
 // --------------------------------------------------------------------------
 Route::prefix('manager')->name('manager.')->group(function () {
-    Route::get('/', [ManagerController::class, 'index'])->name('index');
-    Route::get('/dashboard', [ManagerController::class, 'index'])->name('dashboard');
-    Route::get('/kredit', [ManagerController::class, 'kredit'])->name('kredit');
-    Route::get('/piutang', [ManagerController::class, 'piutang'])->name('piutang');
-    Route::get('/produk', [ManagerController::class, 'produk'])->name('produk');
-    Route::get('/import', [ManagerController::class, 'import'])->name('import');
+    Route::view('/', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('index');
+    Route::view('/dashboard', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('dashboard');
+    Route::view('/kredit', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('kredit');
+    Route::view('/piutang', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('piutang');
+    Route::view('/produk', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 0])->name('produk');
+    Route::view('/import', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 3])->name('import');
+    Route::view('/laporan', 'manager.portal-v2', ['initialPage' => 'rep', 'initialTab' => 0])->name('laporan');
+    Route::view('/transaksi', 'manager.portal-v2', ['initialPage' => 'ops', 'initialTab' => 0])->name('transaksi');
+    Route::view('/sistem', 'manager.portal-v2', ['initialPage' => 'sys', 'initialTab' => 0])->name('sistem');
 });
 
 // --------------------------------------------------------------------------

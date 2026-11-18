@@ -16,36 +16,60 @@ class CheckRole
      */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // Pastikan pengguna sudah login (menggunakan sanctum / auth:sanctum)
+        // 1. Cek sesi web aktif (Session-based RBAC)
+        $sessionRole = session('active_role');
+        $sessionUser = session('user');
+
+        if ($sessionUser && $sessionRole) {
+            if (!in_array($sessionRole, $roles)) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Forbidden. Pengguna (MEMBER/Pembeli) tidak memiliki akses ke portal ini.'
+                    ], 403);
+                }
+
+                $portalName = in_array('MANAGER', $roles) ? 'Manajer' : (in_array('CASHIER', $roles) ? 'Kasir' : 'ini');
+                return redirect()->route('landing')->with('error', "Akses Ditolak: Anda masuk sebagai Anggota/Pembeli dan tidak memiliki hak akses ke portal {$portalName}.");
+            }
+
+            return $next($request);
+        }
+
+        // 2. Cek autentikasi token / Sanctum ($request->user())
         $user = $request->user();
 
-        if (!$user) {
+        if ($user) {
+            $hasRole = false;
+
+            if (method_exists($user, 'roles')) {
+                $hasRole = $user->roles()->whereIn('code', $roles)->exists();
+            } elseif (isset($user->role) && in_array($user->role, $roles)) {
+                $hasRole = true;
+            }
+
+            if (!$hasRole) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Forbidden. Anda tidak memiliki hak akses (Role) untuk melakukan aksi ini.'
+                    ], 403);
+                }
+
+                return redirect()->route('landing')->with('error', 'Akses Ditolak: Anda tidak memiliki izin untuk halaman ini.');
+            }
+
+            return $next($request);
+        }
+
+        // 3. Jika belum login sama sekali
+        if ($request->expectsJson()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. Silakan login terlebih dahulu.'
             ], 401);
         }
 
-        // Periksa apakah user memiliki salah satu dari role yang diizinkan
-        // (Asumsi relasi role pada model User menggunakan 'roles' atau kolom 'role_code')
-        $hasRole = false;
-
-        // Jika Anda menggunakan pengecekan relasi role banyak (Many-to-Many / user_roles)
-        if (method_exists($user, 'roles')) {
-            $hasRole = $user->roles()->whereIn('code', $roles)->exists();
-        } 
-        // Atau jika menggunakan pengecekan properti tunggal pada user
-        elseif (isset($user->role) && in_array($user->role, $roles)) {
-            $hasRole = true;
-        }
-
-        if (!$hasRole) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Forbidden. Anda tidak memiliki hak akses (Role) untuk melakukan aksi ini.'
-            ], 403);
-        }
-
-        return $next($request);
+        return redirect()->route('login')->with('warning', 'Silakan masuk terlebih dahulu untuk mengakses portal ini.');
     }
 }

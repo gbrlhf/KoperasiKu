@@ -1,5 +1,5 @@
 @php
-    $currentRole = session('active_role', 'MEMBER');
+    $currentRole = $uiRole ?? session('active_role', 'MEMBER');
     $availableRoles = session('available_roles', ['MEMBER', 'CASHIER', 'MANAGER']);
 
     $roleBadges = [
@@ -86,19 +86,32 @@
                     </ul>
                 </div>
 
+                @php
+                    $sessionUser = session('user');
+                    $displayName = $sessionUser['name'] ?? match($currentRole) {
+                        'CASHIER' => 'Petugas Kasir Gerai',
+                        'MANAGER' => 'Manajer Operasional',
+                        default => 'Ahmad Fauzi',
+                    };
+                    $displayId = $sessionUser['id'] ?? match($currentRole) {
+                        'CASHIER' => 'KASIR-01',
+                        'MANAGER' => 'MGR-01',
+                        default => 'EMP-001',
+                    };
+                @endphp
                 <!-- User Profile / Mock Session -->
                 <div class="dropdown">
                     <button class="btn btn-dark btn-sm dropdown-toggle d-flex align-items-center gap-2 border-0 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.8rem;">
                             <i class="bi bi-person-fill"></i>
                         </div>
-                        <span class="text-white small fw-medium">Ahmad Fauzi</span>
+                        <span class="text-white small fw-medium">{{ $displayName }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
-                        <li><span class="dropdown-item-text text-muted small">ID Anggota: EMP-001</span></li>
+                        <li><span class="dropdown-item-text text-muted small">ID: {{ $displayId }}</span></li>
                         <li><a class="dropdown-item small" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Ganti Akun Login</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item small text-danger" href="{{ route('login') }}"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
+                        <li><a class="dropdown-item small text-danger" href="{{ route('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
                     </ul>
                 </div>
 

@@ -15,14 +15,15 @@
         'resources/js/landing.js',
     ])
     @stack('styles')
+<link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118">
 </head>
-<body class="landing-page">
+<body class="ui-polished landing-page">
 
     {{-- Landing Navbar --}}
     @include('partials.landing.navbar')
 
     {{-- Main Landing Content --}}
-    <main>
+    <a class="skip-content" href="#main-content">Lewati ke katalog</a><main id="main-content" tabindex="-1">
         @yield('content')
     </main>
 
@@ -30,5 +31,6 @@
     @include('partials.landing.footer')
 
     @stack('scripts')
+<script src="{{ asset('js/usability.js') }}?v=20261118" defer></script>
 </body>
 </html>

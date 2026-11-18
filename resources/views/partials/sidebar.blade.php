@@ -1,5 +1,5 @@
 @php
-    $currentRole = session('active_role', 'MEMBER');
+    $currentRole = $uiRole ?? session('active_role', 'MEMBER');
 @endphp
 
 <div class="sidebar p-3 d-none d-md-block">

@@ -4,7 +4,7 @@
    - Kartu 1: Fasilitas Limit Belanja (Sisa Limit, Plafon Global, Tagihan Berjalan + Akordeon Faktur)
    - Kartu 2: Tiket Pesanan Siap Diambil (PKP-XXXXX + Barcode 1D/2D)
    - Kartu 3: Riwayat Pengambilan Terakhir (Ringkas)
-   - Navigasi Cepat: Akses Kasir, Manajer, & Ganti Akun
+   - Aksi Akun: Keluar Akun & Ganti Akun
    ============================================================================== --}}
 
 <div class="offcanvas offcanvas-end border-0 shadow-lg" tabindex="-1" id="memberProfileDrawer" aria-labelledby="memberProfileDrawerLabel" style="width: 440px; max-width: 92vw;">
@@ -212,27 +212,16 @@
             </div>
         @endif
 
-        <!-- 4. PINTASAN SISTEM & GANTI AKUN -->
-        <div class="p-2.5 rounded-3 bg-light border">
-            <small class="text-secondary fw-bold text-uppercase d-block mb-1.5" style="font-size: 0.68rem; letter-spacing: 0.03em;">Akses Cepat:</small>
-            <div class="d-flex flex-column gap-1.5">
-                <a href="{{ route('cashier.pos') }}" class="btn btn-white btn-sm text-start d-flex align-items-center justify-content-between py-1.5 px-2.5 border bg-white shadow-xs">
-                    <span class="d-flex align-items-center gap-2">
-                        <i class="bi bi-shop text-success"></i>
-                        <span class="fw-semibold text-dark small">Portal Kasir (POS & Pickup)</span>
-                    </span>
-                    <i class="bi bi-chevron-right text-muted small"></i>
-                </a>
-                <a href="{{ route('manager.dashboard') }}" class="btn btn-white btn-sm text-start d-flex align-items-center justify-content-between py-1.5 px-2.5 border bg-white shadow-xs">
-                    <span class="d-flex align-items-center gap-2">
-                        <i class="bi bi-graph-up-arrow text-danger"></i>
-                        <span class="fw-semibold text-dark small">Portal Manajer (Analitik BI)</span>
-                    </span>
-                    <i class="bi bi-chevron-right text-muted small"></i>
-                </a>
-                <a href="{{ route('login') }}" class="btn btn-link btn-sm text-start text-secondary text-decoration-none p-1 d-flex align-items-center gap-1.5 mt-0.5">
+        <!-- 4. AKSI AKUN ANGGOTA -->
+        <div class="pt-2">
+            <div class="d-flex gap-2">
+                <a href="{{ route('logout') }}" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
                     <i class="bi bi-box-arrow-right"></i>
-                    <span style="font-size: 0.75rem;">Ganti Akun Pengguna</span>
+                    <span>Keluar Akun</span>
+                </a>
+                <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Ganti Akun</span>
                 </a>
             </div>
         </div>

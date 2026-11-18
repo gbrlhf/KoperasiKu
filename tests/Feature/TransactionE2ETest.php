@@ -76,6 +76,25 @@ class TransactionE2ETest extends TestCase
         $this->assertEquals(28500, (float) $response->json('data.total_amount'));
     }
 
+    public function test_checkout_with_sku_ssu_001(): void
+    {
+        $response = $this->postJson('/checkout', [
+            'payment_choice' => 'CASH',
+            'channel' => 'ONLINE_PICKUP',
+            'items' => [
+                ['product_id' => 'SSU-001', 'quantity' => 2],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $pickupCode = $response->json('data.pickup_code');
+        $this->assertNotEmpty($pickupCode);
+    }
+
     public function test_pos_direct_sale_endpoint(): void
     {
         $response = $this->postJson('/cashier/pos-sale', [

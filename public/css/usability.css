@@ -1,0 +1,119 @@
+/* Shared usability layer: role-aware navigation, touch targets, readable content. */
+/* Manager reference theme shared across roles. Presentation only. */
+.ui-polished:not(.manager-v2){
+ --bs-primary:#4353e8;--bs-primary-rgb:67,83,232;--bs-link-color:#4353e8;--bs-link-hover-color:#303fc5;
+ --bs-body-color:#1b2150;--bs-border-color:#eceefa;--bs-light-rgb:247,248,255;
+ --brand-primary:#4353e8;--brand-primary-hover:#303fc5;--brand-primary-subtle:#eef0ff;--brand-primary-border:#dce0ff;
+ --text-primary:#1b2150;--text-secondary:#525d81;--text-muted:#687394;--bg-page:#f7f8ff;--border-light:#eceefa;
+ --radius-lg:22px;--shadow-card:0 4px 20px rgba(67,83,232,.05);
+ font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1b2150;
+ background:radial-gradient(ellipse at top right,#e5e9ff,transparent 65%),#f7f8ff!important;
+}
+.ui-polished:not(.manager-v2) .text-dark{color:#1b2150!important}
+.ui-polished:not(.manager-v2) .text-secondary,.ui-polished:not(.manager-v2) .text-muted{color:#687394!important}
+.ui-polished:not(.manager-v2) .card,.ui-polished .product-card{border:1px solid #eceefa!important;border-radius:22px!important;box-shadow:0 5px 24px #4353e80a!important}
+.ui-polished:not(.manager-v2) .card-header{background:#f7f8ff;border-color:#eceefa}
+.ui-polished:not(.manager-v2) .card-header:first-child{border-radius:21px 21px 0 0}
+.ui-polished:not(.manager-v2) .btn-primary{--bs-btn-bg:#4353e8;--bs-btn-border-color:#4353e8;--bs-btn-hover-bg:#303fc5;--bs-btn-hover-border-color:#303fc5;--bs-btn-active-bg:#303fc5;--bs-btn-disabled-bg:#4353e8;box-shadow:0 6px 14px #4353e82b}
+.ui-polished:not(.manager-v2) .btn-outline-primary{--bs-btn-color:#4353e8;--bs-btn-border-color:#dce0ff;--bs-btn-hover-bg:#4353e8;--bs-btn-hover-border-color:#4353e8;--bs-btn-active-bg:#4353e8}
+.ui-polished:not(.manager-v2) .form-control,.ui-polished:not(.manager-v2) .form-select{border-color:#e3e6f7;color:#1b2150;background-color:#fff}
+.ui-polished:not(.manager-v2) .form-control:focus,.ui-polished:not(.manager-v2) .form-select:focus{border-color:#818cff;box-shadow:0 0 0 3px #4353e815}
+.ui-polished:not(.manager-v2) .input-group-text{border-color:#e3e6f7;background:#f7f8ff;color:#687394}
+.ui-polished:not(.manager-v2) .nav-pills{--bs-nav-pills-link-active-bg:#4353e8}
+.ui-polished:not(.manager-v2) .nav-pills .nav-link{border-radius:14px}
+.ui-polished:not(.manager-v2) .nav-pills .nav-link.active{background:#4353e8!important;color:#fff!important;box-shadow:0 6px 16px #4353e824}
+.ui-polished:not(.manager-v2)>.navbar{background:#fff!important;border-color:#eceefa!important;box-shadow:0 4px 20px #4353e808;--bs-navbar-color:#1b2150;--bs-navbar-hover-color:#4353e8;padding-block:16px!important}
+.ui-polished:not(.manager-v2)>.navbar .text-white{color:#1b2150!important}
+.ui-polished:not(.manager-v2)>.navbar .bg-primary.text-white{color:#fff!important;border-radius:50%!important}
+.ui-polished:not(.manager-v2)>.navbar .text-white-50{color:#687394!important}
+.ui-polished:not(.manager-v2)>.navbar .btn-outline-light{color:#1b2150;border-color:#eceefa;background:#f7f8ff}
+.ui-polished:not(.manager-v2)>.navbar .btn-dark{background:#eef0ff;border-color:#e0e4ff;color:#1b2150}
+.ui-polished:not(.manager-v2)>.navbar .navbar-toggler-icon{filter:brightness(.35)}
+.ui-polished:not(.manager-v2) .sidebar{background:#f7f8ff;border-color:#eceefa;padding:20px 12px!important;width:164px;flex-basis:164px}
+.ui-polished:not(.manager-v2) .sidebar .nav-link{display:flex;flex-direction:column;gap:7px;text-align:center;font-size:12px;padding:16px 10px;margin-bottom:8px;color:#687394}
+.ui-polished:not(.manager-v2) .sidebar .nav-link i{margin:0!important;font-size:23px!important}
+.ui-polished:not(.manager-v2) .sidebar .nav-link:hover:not(.active){background:#eef0ff;color:#4353e8}
+.ui-polished:not(.manager-v2) .main-content{background:#fff;border:1px solid #eceefa;border-radius:26px;margin:20px 20px 20px 0;padding:28px!important;box-shadow:0 10px 35px #4353e808}
+.ui-polished:not(.manager-v2) .dropdown-menu{border:1px solid #eceefa;border-radius:16px;padding:8px;box-shadow:0 12px 35px #1b21501a}
+.ui-polished:not(.manager-v2) .dropdown-item{border-radius:9px;padding:10px 12px}
+.ui-polished:not(.manager-v2) .modal-content,.ui-polished:not(.manager-v2) .offcanvas{border-color:#eceefa;box-shadow:0 20px 70px #1b215021}
+.ui-polished:not(.manager-v2) .modal-header,.ui-polished:not(.manager-v2) .offcanvas-header{background:#f7f8ff;border-color:#eceefa}
+.ui-polished:not(.manager-v2) .table{--bs-table-color:#1b2150;--bs-table-border-color:#eceefa;--bs-table-hover-bg:#f7f8ff}
+.ui-polished.landing-page .storefront-header{background:#fff!important;border-color:#eceefa!important;box-shadow:0 5px 24px #4353e80a}
+.ui-polished.landing-page .storefront-search-bar{border:1px solid #eceefa;border-radius:99px;background:#f7f8ff}
+.ui-polished.landing-page .storefront-subnav{background:#f7f8ff;border-color:#eceefa}
+.ui-polished.landing-page .hero-main-banner{background:linear-gradient(135deg,#4353e8,#6572ff)!important;border-radius:26px;box-shadow:0 12px 28px #4353e830}
+.ui-polished.landing-page .hero-side-banner{background:#eef0ff!important;border:1px solid #e0e4ff;border-radius:26px;color:#1b2150}
+.ui-polished.landing-page .hero-side-banner .text-white{color:#1b2150!important}
+.ui-polished.landing-page .hero-side-banner .text-white-50{color:#525d81!important}
+.ui-polished.landing-page .hero-side-banner .border-white{border-color:#cdd3fa!important}
+.ui-polished.landing-page .category-circle-avatar{background:#eef0ff;border-color:#eceefa;color:#4353e8;border-radius:20px}
+.ui-polished.landing-page .product-thumbnail-box{background:#f7f8ff;border-radius:20px 20px 0 0}
+.ui-polished.landing-page .product-card:hover{border-color:#b7bfff!important;box-shadow:0 10px 28px #4353e81a!important}
+.ui-polished.landing-page .subnav-link.active{color:#4353e8;background:#eef0ff;border-radius:10px}
+@media(min-width:1600px){.ui-polished:not(.manager-v2)>.container-fluid{max-width:1600px}}
+@media(max-width:767px){
+ .ui-polished:not(.manager-v2) .main-content{margin:12px 8px;border-radius:20px;padding:18px 12px!important}
+ .ui-polished:not(.manager-v2)>.navbar{padding-block:10px!important}
+ .ui-polished .mobile-role-nav .btn-success{background:#4353e8;border-color:#4353e8}
+ .ui-polished.landing-page .hero-main-banner,.ui-polished.landing-page .hero-side-banner{border-radius:22px}
+}
+.ui-polished{--ui-accent:#4353e8;--ui-ink:#202952;--ui-line:#e5e8f5;accent-color:var(--ui-accent)}
+.ui-polished :focus-visible{outline:3px solid #818cf8!important;outline-offset:3px}
+.skip-content{position:fixed;top:-100px;left:16px;z-index:10000;padding:12px 18px;background:#fff;color:#2734a6;border-radius:12px;box-shadow:0 4px 20px #0002}
+.skip-content:focus{top:12px}
+.ui-polished .card{border-radius:18px;border-color:var(--ui-line);box-shadow:0 4px 20px #20295206}
+.ui-polished .form-control,.ui-polished .form-select{min-height:44px;border-radius:10px}
+.ui-polished .btn{min-height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:normal}
+.ui-polished .table th{font-size:.75rem;letter-spacing:.025em;padding:14px 12px;background:#f7f8ff;white-space:nowrap}
+.ui-polished .table td{padding:13px 12px;vertical-align:middle}
+.ui-polished .table-responsive,.ui-polished .tw{overscroll-behavior-x:contain;max-width:100%;overflow-x:auto}
+.ui-polished .main-content{flex:1 1 0%;min-width:0;max-width:1800px;margin-inline:auto}
+.ui-polished .main-content .badge{white-space:normal;line-height:1.4}
+.ui-polished .main-content .d-flex>*{min-width:0}
+.ui-polished .sidebar{width:230px;flex:0 0 230px}
+.ui-polished .sidebar .nav-link{min-height:46px;line-height:1.45}
+.ui-polished .modal-content{border-radius:18px}
+.ui-polished .modal-body{max-height:70dvh;overflow:auto}
+.ui-polished .offcanvas{max-width:100vw}
+.ui-polished img,.ui-polished video{max-width:100%}
+.ui-polished .row>*{min-width:0}
+.manager-v2 .app{height:calc(100dvh - 32px)}
+.manager-v2 button,.manager-v2 nav a,.manager-v2 input,.manager-v2 select{min-height:44px}
+.manager-v2 nav a{display:block;text-decoration:none}
+.manager-v2 .tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+.manager-v2 .tabs button{flex-shrink:0}
+.manager-v2 .md>div{max-height:85dvh;overscroll-behavior:contain}
+.manager-v2 .menu{max-width:calc(100vw - 24px)}
+.manager-v2 .ts{z-index:50;max-width:calc(100vw - 28px)}
+.manager-v2 .top{flex-wrap:wrap}.manager-v2 .sr{min-width:0}
+.ui-search-empty{padding:18px;text-align:center;color:#596586;background:#f7f8ff;border-radius:12px}
+@media(max-width:991px){.ui-polished .navbar-collapse{max-height:70dvh;overflow:auto}.ui-polished .main-content h1,.ui-polished .main-content h2{font-size:clamp(1.25rem,4.8vw,1.8rem)}}
+@media(max-width:767px){
+ .ui-polished .main-content{padding:16px 12px!important}
+ .ui-polished .main-content>.container-fluid{padding:0}
+ .mobile-role-nav{position:sticky;top:0;z-index:1010;scrollbar-width:thin;box-shadow:0 3px 10px #20295208}
+ .mobile-role-nav .btn{white-space:nowrap;min-height:44px;font-size:.8rem}
+ .ui-polished input,.ui-polished select,.ui-polished textarea{font-size:16px!important}
+ .ui-polished .modal-dialog{margin:10px}
+ .ui-polished .table-responsive .table{min-width:580px}
+ .ui-polished .navbar-brand{font-size:1.1rem}
+ .ui-polished .card-body{padding:16px}
+ .ui-polished .d-flex.gap-2:not(.text-nowrap){flex-wrap:wrap}
+ .ui-polished #cashierTab{display:grid;grid-template-columns:1fr;white-space:normal!important}
+ .ui-polished #cashierTab .nav-link{width:100%;min-height:44px;white-space:normal;text-align:left}
+ .ui-polished .main-content .d-flex.flex-wrap{row-gap:8px;column-gap:8px}
+ .ui-polished #emptyMemberState{padding:24px 16px!important}
+}
+@media(max-width:820px){
+ .manager-v2 .app{height:100dvh}
+ .manager-v2 nav{height:calc(72px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
+ .manager-v2 main{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+ .manager-v2 .sr{display:block!important;flex:1 1 100%;max-width:none;order:5}
+ .manager-v2 nav a{font-size:10px;min-width:44px;width:auto;flex:1}
+ .manager-v2 .ph{align-items:flex-start}.manager-v2 .ph>div{flex-basis:100%}
+ .manager-v2 .tw table{min-width:580px}
+ .manager-v2 .md{padding:10px}
+ .manager-v2 .ts{bottom:92px}
+}
+@media(prefers-reduced-motion:reduce){.ui-polished *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}

@@ -131,11 +131,20 @@ class TransactionService
     public function confirmPickup(string $orderId)
     {
         return DB::transaction(function () use ($orderId) {
-            $order = Order::lockForUpdate()
-                ->where('id', $orderId)
-                ->orWhere('pickup_code', $orderId)
-                ->orWhere('order_no', $orderId)
-                ->first();
+            $cleanOrderId = trim($orderId);
+            $isUuid = \Illuminate\Support\Str::isUuid($cleanOrderId);
+
+            $query = Order::lockForUpdate();
+            if ($isUuid) {
+                $query->where('id', $cleanOrderId)
+                    ->orWhere('pickup_code', $cleanOrderId)
+                    ->orWhere('order_no', $cleanOrderId);
+            } else {
+                $query->where('pickup_code', $cleanOrderId)
+                    ->orWhere('order_no', $cleanOrderId);
+            }
+
+            $order = $query->first();
 
             if (!$order) {
                 throw new \Exception("Pesanan dengan ID / Kode Pickup '{$orderId}' tidak ditemukan.", 404);
@@ -402,7 +411,24 @@ class TransactionService
     public function cancelOrder(string $orderId)
     {
         return DB::transaction(function () use ($orderId) {
-            $order = Order::lockForUpdate()->findOrFail($orderId);
+            $cleanOrderId = trim($orderId);
+            $isUuid = \Illuminate\Support\Str::isUuid($cleanOrderId);
+
+            $query = Order::lockForUpdate();
+            if ($isUuid) {
+                $query->where('id', $cleanOrderId)
+                    ->orWhere('pickup_code', $cleanOrderId)
+                    ->orWhere('order_no', $cleanOrderId);
+            } else {
+                $query->where('pickup_code', $cleanOrderId)
+                    ->orWhere('order_no', $cleanOrderId);
+            }
+
+            $order = $query->first();
+
+            if (!$order) {
+                throw new \Exception("Pesanan dengan ID / Kode '{$orderId}' tidak ditemukan.", 404);
+            }
 
             if ($order->status === 'COMPLETED') {
                 throw new \Exception("Pesanan yang sudah selesai (COMPLETED) tidak dapat dibatalkan.", 400);
@@ -446,15 +472,24 @@ class TransactionService
     public function findProduct(string $identifier)
     {
         $cleanId = trim($identifier);
+        $isUuid = \Illuminate\Support\Str::isUuid($cleanId);
 
-        $query = DB::table('products')
-            ->where('id', $cleanId)
-            ->orWhere('sku', $cleanId)
-            ->orWhere('barcode', $cleanId);
+        $query = DB::table('products');
 
-        if (Schema::hasColumn('products', 'prd_id')) {
-            $query->orWhere('prd_id', $cleanId);
-        }
+        $query->where(function ($q) use ($cleanId, $isUuid) {
+            if ($isUuid) {
+                $q->where('id', $cleanId)
+                  ->orWhere('sku', $cleanId)
+                  ->orWhere('barcode', $cleanId);
+            } else {
+                $q->where('sku', $cleanId)
+                  ->orWhere('barcode', $cleanId);
+            }
+
+            if (Schema::hasColumn('products', 'prd_id')) {
+                $q->orWhere('prd_id', $cleanId);
+            }
+        });
 
         $result = $query->first();
 
@@ -463,8 +498,8 @@ class TransactionService
                 'PRD-001' => 'SEM-001',
                 'PRD-002' => 'MNY-001',
                 'PRD-003' => 'GUL-001',
-                'PRD-004' => 'SSU-001',
-                'PRD-005' => 'TLR-001',
+                'PRD-004' => 'TLR-001',
+                'PRD-005' => 'SSU-001',
                 'PRD-006' => 'TPG-001',
                 'PRD-007' => 'KCP-001',
                 'PRD-008' => 'SRD-001',

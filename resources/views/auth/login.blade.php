@@ -80,9 +80,6 @@
                 <i class="bi bi-box-arrow-in-right me-2 fs-5" aria-hidden="true"></i>
                 <span>Masuk ke Sistem</span>
             </button>
-                <i class="bi bi-box-arrow-in-right me-2 fs-5" aria-hidden="true"></i>
-                <span>Masuk ke Sistem</span>
-            </button>
         </form>
 
         <div class="mt-4 pt-3 border-top text-center">
