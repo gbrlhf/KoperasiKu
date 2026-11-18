@@ -25,7 +25,10 @@
                     </span>
                 </div>
                 <small class="text-muted d-block" style="font-size: 0.74rem;">
-                    {{ $member['id'] ?? 'EMP-001' }} &bull; {{ $member['unit'] ?? 'POLMAN Bandung' }}
+                    @if(!empty($landingMemberCode))
+                        {{ $landingMemberCode }} &bull;
+                    @endif
+                    {{ $landingRoleLabel ?? 'Anggota' }} &bull; {{ $member['unit'] ?? 'POLMAN Bandung' }}
                 </small>
             </div>
         </div>
@@ -55,6 +58,36 @@
                     </a>
                 </div>
             </div>
+        @else
+        @if(empty($landingShowCreditWidget))
+        <!-- Info Akun Non-Member (Kasir / Manajer / Akun Tanpa Data Member Aktif) -->
+        <div class="card border rounded-3 p-3 mb-3 bg-light shadow-xs">
+            <div class="d-flex align-items-start gap-2.5">
+                <div class="rounded-2 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                    <i class="bi bi-shield-check fs-5" aria-hidden="true"></i>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                    <div class="fw-bold text-dark small mb-0.5">Akun {{ $landingRoleLabel ?? 'Petugas' }}</div>
+                    <p class="text-secondary small mb-2" style="font-size: 0.76rem;">
+                        Widget limit dan tagihan piutang 7 hari hanya ditampilkan untuk akun anggota koperasi aktif.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if(!empty($landingHasCashierRole))
+                            <a href="{{ route('cashier.pos') }}" class="btn btn-success btn-sm px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1.5">
+                                <i class="bi bi-upc-scan"></i>
+                                <span>Portal Kasir</span>
+                            </a>
+                        @endif
+                        @if(!empty($landingHasManagerRole))
+                            <a href="{{ route('manager.dashboard') }}" class="btn btn-success btn-sm px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1.5">
+                                <i class="bi bi-speedometer2"></i>
+                                <span>Portal Manajer</span>
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
         @else
         <!-- 1. KARTU FASILITAS LIMIT BELANJA (1 KartU Terpadu & Scannable) -->
         <div class="card border rounded-3 p-3 mb-3 bg-white shadow-xs">
@@ -151,6 +184,7 @@
             </div>
 
         </div>
+        @endif
 
         <!-- 2. KODE PICKUP PESANAN AKTIF (Jika Ada Pesanan Menunggu) -->
         @if(!empty($activeOrders))
@@ -305,7 +339,7 @@
                 <div class="p-2.5 rounded-2 bg-light border text-start small text-secondary">
                     <div class="d-flex justify-content-between mb-1">
                         <span>Penerima:</span>
-                        <strong class="text-dark">{{ $member['name'] ?? 'Ahmad Fauzi' }} ({{ $member['id'] ?? 'EMP-001' }})</strong>
+                        <strong class="text-dark">{{ $member['name'] ?? 'Ahmad Fauzi' }}{{ !empty($landingMemberCode) ? ' (' . $landingMemberCode . ')' : '' }}</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-1">
                         <span>Total Belanja:</span>

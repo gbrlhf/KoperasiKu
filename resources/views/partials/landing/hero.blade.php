@@ -104,14 +104,26 @@
                         </div>
                     </div>
 
-                    <!-- Member Limit & Tagihan Shortcut Button -->
-                    <button type="button" class="btn btn-warning text-dark btn-sm w-100 fw-bold py-2 mb-3 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
-                        <i class="bi bi-wallet2"></i>
-                        <span>Cek Limit & Tagihan Saya</span>
-                        @if(!empty($receivableStatus['has_debt']))
-                            <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }}</span>
-                        @endif
-                    </button>
+                    <!-- Member Limit & Tagihan Shortcut Button (disembunyikan untuk akun non-member saat login) -->
+                    @if(empty($isLoggedIn) || !empty($landingShowCreditWidget))
+                        <button type="button" class="btn btn-warning text-dark btn-sm w-100 fw-bold py-2 mb-3 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
+                            <i class="bi bi-wallet2"></i>
+                            <span>Cek Limit & Tagihan Saya</span>
+                            @if(!empty($landingShowCreditWidget) && !empty($receivableStatus['has_debt']))
+                                <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">Rp {{ number_format($receivableStatus['total_debt'], 0, ',', '.') }}</span>
+                            @endif
+                        </button>
+                    @elseif(!empty($landingHasManagerRole))
+                        <a href="{{ route('manager.dashboard') }}" class="btn btn-warning text-dark btn-sm w-100 fw-bold py-2 mb-3 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Kembali ke Portal Manajer</span>
+                        </a>
+                    @elseif(!empty($landingHasCashierRole))
+                        <a href="{{ route('cashier.pos') }}" class="btn btn-warning text-dark btn-sm w-100 fw-bold py-2 mb-3 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5">
+                            <i class="bi bi-upc-scan"></i>
+                            <span>Kembali ke Portal Kasir</span>
+                        </a>
+                    @endif
 
                     <div class="mt-auto d-flex align-items-center justify-content-between text-white-50 small pt-1">
                         <span style="font-size: 0.78rem;">

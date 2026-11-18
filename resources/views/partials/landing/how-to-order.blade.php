@@ -52,12 +52,14 @@
                     </p>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-shrink-0 ps-md-3">
-                <button type="button" class="btn btn-outline-primary px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2" data-bs-toggle="offcanvas" data-bs-target="#cartDrawer">
-                    <i class="bi bi-cart3 me-1"></i>
-                    <span>Buka Keranjang</span>
-                </button>
-            </div>
+            @if(!empty($landingShowCart))
+                <div class="d-flex align-items-center gap-2 flex-shrink-0 ps-md-3">
+                    <button type="button" class="btn btn-outline-primary px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2" data-bs-toggle="offcanvas" data-bs-target="#cartDrawer">
+                        <i class="bi bi-cart3 me-1"></i>
+                        <span>Buka Keranjang</span>
+                    </button>
+                </div>
+            @endif
         </div>
 
     </div>

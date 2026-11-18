@@ -20,12 +20,16 @@
     @include('partials.landing.faq')
 
     {{-- DRAWER & MODAL PEMESANAN LANGSUNG KONSUMEN / ANGGOTA --}}
-    @include('partials.landing.cart-drawer')
-    @include('partials.landing.checkout-modal')
+    @if(!empty($landingShowCart))
+        @include('partials.landing.cart-drawer')
+        @include('partials.landing.checkout-modal')
+    @endif
     @include('partials.landing.product-detail-modal')
     @include('partials.landing.login-required-modal')
     @include('partials.landing.member-profile-drawer')
-    @include('partials.landing.mobile-cart-bar')
+    @if(!empty($landingShowCart))
+        @include('partials.landing.mobile-cart-bar')
+    @endif
 
 @endsection
 

@@ -137,48 +137,56 @@
                             </div>
                         </div>
 
-                        <!-- Bottom Stepper & Action Controls -->
-                        <div class="pt-3 border-top mt-auto">
-                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="small fw-semibold text-dark">Atur Jumlah:</span>
-                                    <div class="btn-group btn-group-sm border rounded-2 bg-white shadow-xs">
-                                        <button type="button" class="btn btn-light px-2.5 py-1 text-secondary" id="modalQtyMinusBtn" onclick="changeModalQty(-1)" aria-label="Kurangi jumlah">
-                                            <i class="bi bi-dash fw-bold"></i>
-                                        </button>
-                                        <span class="px-3 py-1 bg-white fw-bold text-dark d-flex align-items-center" id="modalQtyDisplay" style="min-width: 36px; justify-content: center;">
-                                            1
+                        @if(!empty($landingShowCart))
+                            <!-- Bottom Stepper & Action Controls -->
+                            <div class="pt-3 border-top mt-auto">
+                                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="small fw-semibold text-dark">Atur Jumlah:</span>
+                                        <div class="btn-group btn-group-sm border rounded-2 bg-white shadow-xs">
+                                            <button type="button" class="btn btn-light px-2.5 py-1 text-secondary" id="modalQtyMinusBtn" onclick="changeModalQty(-1)" aria-label="Kurangi jumlah">
+                                                <i class="bi bi-dash fw-bold"></i>
+                                            </button>
+                                            <span class="px-3 py-1 bg-white fw-bold text-dark d-flex align-items-center" id="modalQtyDisplay" style="min-width: 36px; justify-content: center;">
+                                                1
+                                            </span>
+                                            <button type="button" class="btn btn-light px-2.5 py-1 text-secondary" id="modalQtyPlusBtn" onclick="changeModalQty(1)" aria-label="Tambah jumlah">
+                                                <i class="bi bi-plus fw-bold"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <small class="text-muted d-block" style="font-size: 0.72rem;">Subtotal Belanja:</small>
+                                        <span class="fs-5 fw-extrabold text-primary" id="modalSubtotalDisplay">
+                                            Rp 0
                                         </span>
-                                        <button type="button" class="btn btn-light px-2.5 py-1 text-secondary" id="modalQtyPlusBtn" onclick="changeModalQty(1)" aria-label="Tambah jumlah">
-                                            <i class="bi bi-plus fw-bold"></i>
-                                        </button>
                                     </div>
                                 </div>
 
-                                <div class="text-end">
-                                    <small class="text-muted d-block" style="font-size: 0.72rem;">Subtotal Belanja:</small>
-                                    <span class="fs-5 fw-extrabold text-primary" id="modalSubtotalDisplay">
-                                        Rp 0
-                                    </span>
+                                <!-- CTA Buttons: + Keranjang & Beli Langsung -->
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-primary w-100 fw-bold py-2 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" onclick="modalAddToCart()">
+                                            <i class="bi bi-cart-plus fs-6"></i>
+                                            <span>+ Keranjang</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-primary w-100 fw-bold py-2 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" onclick="modalBuyNow()">
+                                            <i class="bi bi-lightning-charge-fill fs-6"></i>
+                                            <span>Beli Langsung</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- CTA Buttons: + Keranjang & Beli Langsung -->
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <button type="button" class="btn btn-outline-primary w-100 fw-bold py-2 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" onclick="modalAddToCart()">
-                                        <i class="bi bi-cart-plus fs-6"></i>
-                                        <span>+ Keranjang</span>
-                                    </button>
-                                </div>
-                                <div class="col-6">
-                                    <button type="button" class="btn btn-primary w-100 fw-bold py-2 shadow-xs d-inline-flex align-items-center justify-content-center gap-1.5" onclick="modalBuyNow()">
-                                        <i class="bi bi-lightning-charge-fill fs-6"></i>
-                                        <span>Beli Langsung</span>
-                                    </button>
-                                </div>
+                        @else
+                            <div class="pt-3 border-top mt-auto">
+                                <span class="badge bg-light text-secondary border px-2.5 py-1.5 small fw-medium">
+                                    <i class="bi bi-eye me-1"></i> Mode pratinjau katalog (read-only) untuk petugas koperasi
+                                </span>
                             </div>
-                        </div>
+                        @endif
 
                     </div>
                 </div>
