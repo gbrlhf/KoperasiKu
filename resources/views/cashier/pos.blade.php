@@ -248,24 +248,38 @@
     </div>
 </div>
 
+@php
+    $activeTab = 'pos';
+    if (request()->routeIs('cashier.stok')) {
+        $activeTab = 'stock';
+    } elseif (request()->routeIs('cashier.antrian')) {
+        $activeTab = 'pickup';
+    } elseif (request()->routeIs('cashier.pos') || request()->routeIs('cashier.index')) {
+        $activeTab = 'pos';
+    }
+    if (request()->has('tab')) {
+        $activeTab = request()->get('tab');
+    }
+@endphp
+
 <!-- TABS OPERASIONAL KASIR -->
 <ul class="nav nav-pills mb-3 gap-2 border-bottom pb-3 overflow-x-auto flex-nowrap text-nowrap" id="cashierTab" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-semibold d-inline-flex align-items-center gap-2" id="stock-tab" data-bs-toggle="pill" data-bs-target="#stock-pane" type="button" role="tab">
-            <i class="bi bi-boxes"></i>
-            <span>Monitoring Stok Barang</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold d-inline-flex align-items-center gap-2" id="pos-tab" data-bs-toggle="pill" data-bs-target="#pos-pane" type="button" role="tab">
+        <button class="nav-link {{ $activeTab === 'pos' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="pos-tab" data-bs-toggle="pill" data-bs-target="#pos-pane" type="button" role="tab">
             <i class="bi bi-upc-scan"></i>
             <span>Point of Sale (POS) Kasir</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold d-inline-flex align-items-center gap-2" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup-pane" type="button" role="tab">
+        <button class="nav-link {{ $activeTab === 'pickup' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup-pane" type="button" role="tab">
             <i class="bi bi-qr-code-scan"></i>
-            <span>Verifikasi Pickup Pesanan ({{ count($pickupQueue) }})</span>
+            <span>Antrian Pickup Pesanan ({{ count($pickupQueue) }})</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ $activeTab === 'stock' ? 'active' : '' }} fw-semibold d-inline-flex align-items-center gap-2" id="stock-tab" data-bs-toggle="pill" data-bs-target="#stock-pane" type="button" role="tab">
+            <i class="bi bi-boxes"></i>
+            <span>Monitoring Stok Barang</span>
         </button>
     </li>
 </ul>
@@ -273,7 +287,7 @@
 <div class="tab-content" id="cashierTabContent">
     
     <!-- TAB 1: MONITORING STOK BARANG REAL-TIME -->
-    <div class="tab-pane fade show active" id="stock-pane" role="tabpanel">
+    <div class="tab-pane fade {{ $activeTab === 'stock' ? 'show active' : '' }}" id="stock-pane" role="tabpanel">
         <div class="card border-0 shadow-sm bg-white">
             <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                 <div>
@@ -362,7 +376,7 @@
     </div>
 
     <!-- TAB 2: POINT OF SALE (POS) TRANSAKSI KASIR -->
-    <div class="tab-pane fade" id="pos-pane" role="tabpanel">
+    <div class="tab-pane fade {{ $activeTab === 'pos' ? 'show active' : '' }}" id="pos-pane" role="tabpanel">
         <div class="row g-3">
             <!-- Left: POS Input & Item Selection -->
             <div class="col-12 col-lg-7">
@@ -391,40 +405,44 @@
                     </div>
                 </div>
 
-                <!-- Quick Pick Buttons Sembako Populer -->
+                <!-- Quick Pick Sembako Populer (Grid 8 Item Cepat) -->
                 <div class="card border-0 shadow-sm bg-white p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2.5">
-                        <h6 class="fw-bold text-dark mb-0 small">Pilihan Cepat Sembako Populer (1-Click Add):</h6>
-                        <small class="text-muted" style="font-size: 0.7rem;">Stok Gerai Kanayakan</small>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0 small"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Pilihan Cepat Sembako (1-Click Tambah)</h6>
+                            <small class="text-muted" style="font-size: 0.72rem;">Klik kartu barang untuk langsung memasukkan ke keranjang kasir</small>
+                        </div>
+                        <span class="badge bg-light text-secondary border small">Stok Gerai Kanayakan</span>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onclick="posAddToCart('Beras Premium Ramos 5 Kg', 74500, 'SEM-001')">
-                            <i class="bi bi-plus-circle text-primary"></i>
-                            <span>Beras Ramos (Rp 74.500)</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onclick="posAddToCart('Minyak Goreng Pouch 2 Liter', 36000, 'MNY-001')">
-                            <i class="bi bi-plus-circle text-primary"></i>
-                            <span>Minyak 2L (Rp 36.000)</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onclick="posAddToCart('Gula Pasir Kristal Putih 1 Kg', 17500, 'GLA-001')">
-                            <i class="bi bi-plus-circle text-primary"></i>
-                            <span>Gula 1kg (Rp 17.500)</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onclick="posAddToCart('Telur Ayam Negeri Fresh 1 Kg', 28500, 'TLR-001')">
-                            <i class="bi bi-plus-circle text-primary"></i>
-                            <span>Telur 1kg (Rp 28.500)</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onclick="posAddToCart('Tepung Terigu Segitiga Biru 1 Kg', 14000, 'TPG-001')">
-                            <i class="bi bi-plus-circle text-primary"></i>
-                            <span>Terigu 1kg (Rp 14.000)</span>
-                        </button>
+                    <div class="row g-2">
+                        @foreach(array_slice($stockItems, 0, 8) as $item)
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="p-2.5 rounded-3 bg-light border text-start h-100 d-flex flex-column justify-content-between cursor-pointer quick-pick-card" 
+                                     onclick="posAddToCart('{{ addslashes($item['name']) }}', {{ $item['sell_price'] }}, '{{ $item['sku'] }}')"
+                                     role="button" tabindex="0" title="Tambah {{ $item['name'] }}">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                                            <span class="font-monospace text-primary fw-bold" style="font-size: 0.68rem;">{{ $item['sku'] }}</span>
+                                            <span class="badge bg-white text-dark border py-0.5 px-1 font-monospace" style="font-size: 0.62rem;">{{ $item['available'] }} {{ $item['unit'] }}</span>
+                                        </div>
+                                        <div class="fw-semibold text-dark text-truncate small mb-1" style="font-size: 0.78rem;" title="{{ $item['name'] }}">
+                                            {{ $item['name'] }}
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary-subtle">
+                                        <span class="fw-bold text-dark font-monospace" style="font-size: 0.75rem;">Rp {{ number_format($item['sell_price'], 0, ',', '.') }}</span>
+                                        <span class="badge bg-success text-white rounded-circle p-1" style="font-size: 0.6rem;"><i class="bi bi-plus"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
 
-            <!-- Right: POS Cart & Checkout Receipt -->
+            <!-- Right: POS Cart & Checkout Receipt (Sticky) -->
             <div class="col-12 col-lg-5">
-                <div class="card border-0 shadow-sm bg-white p-3 p-md-4">
+                <div class="card border-0 shadow-sm bg-white p-3 p-md-4 pos-receipt-sticky">
                     <h6 class="fw-bold text-dark mb-3 border-bottom pb-2 d-flex justify-content-between align-items-center">
                         <span class="d-flex align-items-center gap-1.5">
                             <i class="bi bi-receipt text-primary"></i>
@@ -554,7 +572,7 @@
     </div>
 
     <!-- TAB 3: VERIFIKASI ANTRIAN PICKUP ONLINE -->
-    <div class="tab-pane fade" id="pickup-pane" role="tabpanel">
+    <div class="tab-pane fade {{ $activeTab === 'pickup' ? 'show active' : '' }}" id="pickup-pane" role="tabpanel">
         <div class="card border-0 shadow-sm bg-white">
             <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                 <div>

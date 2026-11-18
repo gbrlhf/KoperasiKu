@@ -2,7 +2,7 @@
     $currentRole = $uiRole ?? session('active_role', 'MEMBER');
 @endphp
 
-<div class="sidebar p-3 d-none d-md-block">
+<div class="sidebar p-3 d-none d-md-block sidebar-{{ strtolower($currentRole) }}">
     <div class="mb-3 px-2">
         <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.05em;">
             Portal {{ match($currentRole) {
@@ -41,7 +41,7 @@
             </li>
         @elseif($currentRole === 'CASHIER')
             <li class="nav-item">
-                <a href="{{ route('cashier.pos') }}" class="nav-link {{ request()->routeIs('cashier.pos') || request()->routeIs('cashier.index') ? 'active' : '' }}">
+                <a href="{{ route('cashier.pos') }}" class="nav-link {{ (request()->routeIs('cashier.pos') || (request()->routeIs('cashier.index') && !request()->routeIs('cashier.stok') && !request()->routeIs('cashier.antrian'))) ? 'active' : '' }}">
                     <i class="bi bi-upc-scan fs-5 me-1"></i>
                     <span>POS Kasir Langsung</span>
                 </a>

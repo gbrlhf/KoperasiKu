@@ -220,16 +220,14 @@
                     Arahkan Layar Ini ke Scanner Barcode Kasir Gerai
                 </small>
                 
-                <div class="p-4 bg-white border border-2 border-dark rounded-4 d-inline-block shadow-lg mx-auto" style="max-width: 90vw;">
-                    <div class="mb-3 d-flex justify-content-center">
-                        <canvas id="fsPickupQrCanvas" style="width: 220px; height: 220px; max-width: 65vw; max-height: 65vw;"></canvas>
+                <div class="p-4 bg-white border border-2 border-dark rounded-4 d-inline-block shadow-lg mx-auto" style="max-width: 90vw; width: 440px;">
+                    <div class="d-flex justify-content-center px-2 py-3 bg-white rounded">
+                        <svg id="fsPickupBarcodeSvg" class="w-100" style="max-height: 120px;"></svg>
                     </div>
-                    <div class="d-flex justify-content-center px-2">
-                        <svg id="fsPickupBarcodeSvg" style="max-width: 100%; height: auto; max-height: 90px;"></svg>
-                    </div>
-                    <div class="display-5 fw-extrabold text-dark font-monospace mt-2 tracking-wider" id="fsPickupCodeText">
+                    <div class="display-5 fw-extrabold text-dark font-monospace mt-3 tracking-wider" id="fsPickupCodeText">
                         PKP-84920
                     </div>
+                    <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.75rem;">Standar Scanner Barcode 1D (Code-128)</small>
                 </div>
 
                 <div class="mt-3 text-secondary small">

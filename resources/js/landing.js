@@ -846,7 +846,7 @@ window.copyMemberPickupCode = function (text, btn) {
     });
 };
 
-// Buka Modal Fullscreen Barcode (Kecerahan Maksimal untuk Scanner Kasir)
+// Buka Modal Fullscreen Barcode 1D (Kecerahan Maksimal untuk Scanner Kasir)
 window.openFullscreenPickupModal = function (code) {
     if (!code) code = 'PKP-84920';
     const badgeEl = document.getElementById('fsPickupCodeBadge');
@@ -854,36 +854,30 @@ window.openFullscreenPickupModal = function (code) {
     if (badgeEl) badgeEl.textContent = code;
     if (textEl) textEl.textContent = code;
 
-    // Render Barcode Code-128 via JsBarcode
+    // Otomatis tutup modal kode kecil jika sedang terbuka
+    ['pickupBarcodeModal', 'checkoutModal'].forEach(function (modalId) {
+        const modalEl = document.getElementById(modalId);
+        if (modalEl && window.bootstrap) {
+            const instance = window.bootstrap.Modal.getInstance(modalEl);
+            if (instance) {
+                instance.hide();
+            }
+        }
+    });
+
+    // Render Barcode 1D Code-128 via JsBarcode
     if (window.JsBarcode) {
         try {
             window.JsBarcode("#fsPickupBarcodeSvg", code, {
                 format: "CODE128",
                 lineColor: "#000000",
-                width: 2.8,
-                height: 80,
+                width: 3.0,
+                height: 95,
                 displayValue: false,
                 margin: 4
             });
         } catch (e) {
             console.error("Barcode render error:", e);
-        }
-    }
-
-    // Render QR Code via QRCode
-    if (window.QRCode) {
-        const canvas = document.getElementById('fsPickupQrCanvas');
-        if (canvas) {
-            window.QRCode.toCanvas(canvas, code, {
-                width: 220,
-                margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
-                }
-            }, function (error) {
-                if (error) console.error("QR render error:", error);
-            });
         }
     }
 

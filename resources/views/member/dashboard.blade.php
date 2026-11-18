@@ -812,38 +812,12 @@
                 </h4>
                 <p class="text-muted small mb-3">Tunjukkan layar ini langsung ke petugas kasir saat pengambilan pesanan.</p>
 
-                <!-- Real Scannable Barcode & QR Code Graphic -->
-                <div class="p-3 bg-white border rounded-3 d-inline-block shadow-sm mb-3 text-center w-100" style="max-width: 320px;">
-                    <!-- Nav Tabs Barcode 1D / QR 2D -->
-                    <ul class="nav nav-pills nav-fill bg-light p-1 rounded-2 mb-2.5" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active py-1 px-2 fw-semibold" style="font-size: 0.72rem;" id="tab-member-barcode" data-bs-toggle="pill" data-bs-target="#pane-member-barcode" type="button" role="tab">
-                                <i class="bi bi-upc me-1"></i> Barcode 1D (Garis)
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link py-1 px-2 fw-semibold" style="font-size: 0.72rem;" id="tab-member-qr" data-bs-toggle="pill" data-bs-target="#pane-member-qr" type="button" role="tab">
-                                <i class="bi bi-qr-code me-1"></i> QR Code 2D
-                            </button>
-                        </li>
-                    </ul>
-
-                    <div class="tab-content">
-                        <!-- Tab 1: Real 1D Code-128 Barcode -->
-                        <div class="tab-pane fade show active text-center" id="pane-member-barcode" role="tabpanel">
-                            <div class="p-2 bg-white rounded border">
-                                <svg id="memberPickupBarcodeSvg" class="w-100" style="max-height: 85px;"></svg>
-                            </div>
-                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Format: Code-128 (Standar Scanner Kasir)</small>
-                        </div>
-                        <!-- Tab 2: Real 2D QR Code -->
-                        <div class="tab-pane fade text-center" id="pane-member-qr" role="tabpanel">
-                            <div class="p-2 bg-white rounded border d-inline-block">
-                                <canvas id="memberPickupQrCanvas" style="width: 140px; height: 140px;"></canvas>
-                            </div>
-                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Format: QR Code (Dapat di-scan Kamera HP / POS)</small>
-                        </div>
+                <!-- Real Scannable Barcode 1D (Garis) Standar Scanner Kasir -->
+                <div class="p-3 bg-white border rounded-3 d-inline-block shadow-sm mb-3 text-center w-100" style="max-width: 340px;">
+                    <div class="p-2.5 bg-white rounded border">
+                        <svg id="memberPickupBarcodeSvg" class="w-100" style="max-height: 85px;"></svg>
                     </div>
+                    <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Format: Barcode 1D Code-128 (Standar Scanner Kasir)</small>
                 </div>
 
                 <script>
@@ -865,16 +839,6 @@
                                         background: "#ffffff"
                                     });
                                 } catch(e) { console.warn("JsBarcode member error", e); }
-                            }
-                            if (window.QRCode) {
-                                const canvas = document.getElementById('memberPickupQrCanvas');
-                                if (canvas) {
-                                    window.QRCode.toCanvas(canvas, code, {
-                                        width: 140,
-                                        margin: 2,
-                                        color: { dark: '#000000', light: '#ffffff' }
-                                    }, (err) => { if (err) console.warn(err); });
-                                }
                             }
                         });
                     }
