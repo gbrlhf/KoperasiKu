@@ -90,3 +90,14 @@ Route::get('/api/products/lookup', [POSController::class, 'lookup'])
 Route::get('/api/v1/products/lookup', [POSController::class, 'lookup'])
     ->middleware(['auth', 'role:CASHIER,MANAGER']);
 
+// --------------------------------------------------------------------------
+// 6. Export & Import Excel/CSV Portal Manajer
+// --------------------------------------------------------------------------
+Route::middleware(['auth', 'role:MANAGER'])->group(function () {
+    Route::get('/manager/excel/template', [\App\Http\Controllers\ManagerExcelController::class, 'downloadTemplate'])->name('manager.excel.template');
+    Route::get('/manager/excel/export', [\App\Http\Controllers\ManagerExcelController::class, 'exportData'])->name('manager.excel.export');
+    Route::get('/manager/excel/errors/{id}', [\App\Http\Controllers\ManagerExcelController::class, 'exportErrors'])->name('manager.excel.errors');
+    Route::post('/api/v1/imports', [\App\Http\Controllers\ManagerExcelController::class, 'uploadPreview']);
+    Route::get('/api/v1/imports/{id}/preview', [\App\Http\Controllers\ManagerExcelController::class, 'getPreview']);
+    Route::post('/api/v1/imports/{id}/commit', [\App\Http\Controllers\ManagerExcelController::class, 'commitBatch']);
+});
