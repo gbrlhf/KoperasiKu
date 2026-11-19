@@ -180,6 +180,7 @@
         'verified_payments' => 0.0,
         'cogs_incomplete' => false,
     ];
+    $oltpCompletedOrders = [];
     if (Schema::hasTable('orders')) {
         $completedOrders = DB::table('orders')->where('status', 'COMPLETED');
         $oltpOrdersSummary['completed_count'] = (int) (clone $completedOrders)->count();
@@ -195,10 +196,36 @@
                 ->first();
             $oltpOrdersSummary['cogs'] = (float) ($itemAgg->total_cogs ?? 0);
             $oltpOrdersSummary['cogs_incomplete'] = ((int) ($itemAgg->null_hpp_rows ?? 0)) > 0;
+
+            $oltpCompletedOrders = DB::table('orders as o')
+                ->leftJoin('order_items as oi', 'oi.order_id', '=', 'o.id')
+                ->leftJoin('products as p', 'p.id', '=', 'oi.product_id')
+                ->where('o.status', 'COMPLETED')
+                ->groupBy('o.id', 'o.total_amount', 'o.payment_choice', 'o.completed_at', 'o.created_at')
+                ->selectRaw('o.id, o.total_amount, o.payment_choice, COALESCE(o.completed_at, o.created_at) AS tx_at, COALESCE(SUM(oi.quantity * COALESCE(oi.hpp_snapshot, p.current_cost, 0)), 0) AS order_cogs')
+                ->get()
+                ->map(fn ($o) => [
+                    'date_jakarta' => \Carbon\Carbon::parse($o->tx_at)->timezone('Asia/Jakarta')->toDateString(),
+                    'total_amount' => (float) $o->total_amount,
+                    'payment_choice' => (string) $o->payment_choice,
+                    'cogs' => (float) $o->order_cogs,
+                ])
+                ->values()
+                ->all();
         }
     }
+    $oltpVerifiedPaymentsList = [];
     if (Schema::hasTable('payments')) {
         $oltpOrdersSummary['verified_payments'] = (float) DB::table('payments')->where('status', 'VERIFIED')->sum('amount');
+        $oltpVerifiedPaymentsList = DB::table('payments')
+            ->where('status', 'VERIFIED')
+            ->get(['amount', DB::raw('COALESCE(verified_at, created_at) AS pay_at')])
+            ->map(fn ($p) => [
+                'date_jakarta' => \Carbon\Carbon::parse($p->pay_at)->timezone('Asia/Jakarta')->toDateString(),
+                'amount' => (float) $p->amount,
+            ])
+            ->values()
+            ->all();
     }
 
     $managerBootstrap = [
@@ -223,6 +250,8 @@
             'policy_logs' => $oltpPolicyLogs,
             'audit_logs' => $oltpAuditLogs,
             'orders_summary' => $oltpOrdersSummary,
+            'completed_orders' => $oltpCompletedOrders,
+            'verified_payments' => $oltpVerifiedPaymentsList,
             'forecasts' => class_exists(\App\Services\Analytics\AnalyticsQueryService::class)
                 ? app(\App\Services\Analytics\AnalyticsQueryService::class)->forecasts(7)
                 : null,
@@ -542,20 +571,111 @@ async function managerApi(url, method = 'GET', body = null) {
     return data;
 }
 
+const MGR_PERIOD_OPTIONS = [
+    ['day', 'Hari Ini'],
+    ['week', 'Pekan Ini'],
+    ['month', 'Bulan Ini'],
+    ['year', 'Tahun Ini'],
+];
+
+function normalizePeriodKey(period = 'month') {
+    const p = String(period || 'month').toLowerCase().trim();
+    if (['day', 'today', 'daily', 'harian', 'hari_ini'].includes(p)) return 'day';
+    if (['week', 'this_week', 'weekly', 'pekanan', 'pekan_ini'].includes(p)) return 'week';
+    if (['year', 'this_year', 'yearly', 'tahunan', 'tahun_ini'].includes(p)) return 'year';
+    return 'month';
+}
+
 function getPeriodRange(period = 'month') {
-    const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const end = fmt(now);
-    const startDate = new Date(now);
-    if (period === 'day') return { start: end, end };
-    if (period === 'week') {
-        const day = startDate.getDay() || 7;
-        startDate.setDate(startDate.getDate() - (day - 1));
-        return { start: fmt(startDate), end };
+    const key = normalizePeriodKey(period);
+    const todayStr = BOOTSTRAP.today_jakarta || new Date().toISOString().slice(0, 10);
+    const [y, m, d] = todayStr.split('-').map(Number);
+    const baseDate = new Date(Date.UTC(y, m - 1, d));
+    const fmt = dt => `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+
+    if (key === 'day') return { start: todayStr, end: todayStr };
+    if (key === 'week') {
+        const dow = baseDate.getUTCDay() || 7; // Senin=1 .. Minggu=7
+        const monday = new Date(baseDate.getTime());
+        monday.setUTCDate(monday.getUTCDate() - (dow - 1));
+        return { start: fmt(monday), end: todayStr };
     }
-    if (period === 'year') return { start: `${now.getFullYear()}-01-01`, end };
-    return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end };
+    if (key === 'year') return { start: `${y}-01-01`, end: todayStr };
+    return { start: `${y}-${String(m).padStart(2, '0')}-01`, end: todayStr };
+}
+
+function renderPeriodButtonsHtml(activePeriod = state.period, scope = 'rep') {
+    const activeKey = normalizePeriodKey(activePeriod);
+    return `
+        <div class="mgr-tabs" role="group" aria-label="Filter Periode Laporan">
+            ${MGR_PERIOD_OPTIONS.map(([val, lbl]) => `
+                <button type="button"
+                        class="btn-tab mgr-period-btn ${activeKey === val ? 'active' : ''}"
+                        data-period="${val}"
+                        onclick="onManagerPeriodChange('${val}', '${scope}')">
+                    ${escapeHtml(lbl)}
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function syncPeriodControlsAndExports() {
+    const activeKey = normalizePeriodKey(state.period);
+    const { start, end } = getPeriodRange(activeKey);
+
+    document.querySelectorAll('.mgr-period-btn[data-period]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === activeKey);
+    });
+    const perSel = $('#per');
+    if (perSel && perSel.value !== activeKey) {
+        perSel.value = activeKey;
+    }
+
+    const pdfBtn = $('#btnExportPdf');
+    const xlsxBtn = $('#btnExportXlsx');
+    const qs = `period=${encodeURIComponent(activeKey)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    if (pdfBtn) pdfBtn.href = `/api/v1/reports/financial/export?${qs}&format=pdf`;
+    if (xlsxBtn) xlsxBtn.href = `/api/v1/reports/financial/export?${qs}&format=xlsx`;
+}
+
+function computeLocalOltpSummaryForPeriod(period = state.period) {
+    const { start, end } = getPeriodRange(period);
+    const orders = (BOOTSTRAP.oltp.completed_orders || []).filter(o => o.date_jakarta >= start && o.date_jakarta <= end);
+    const opexRows = (BOOTSTRAP.oltp.expenses || []).filter(e => {
+        const d = String(e.expense_date || '').slice(0, 10);
+        return d >= start && d <= end;
+    });
+    const payRows = (BOOTSTRAP.oltp.verified_payments || []).filter(p => p.date_jakarta >= start && p.date_jakarta <= end);
+
+    const sales_revenue = orders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+    const cash_sales = orders.filter(o => o.payment_choice !== 'CREDIT').reduce((s, o) => s + Number(o.total_amount || 0), 0);
+    const credit_sales = orders.filter(o => o.payment_choice === 'CREDIT').reduce((s, o) => s + Number(o.total_amount || 0), 0);
+    const cogs = orders.reduce((s, o) => s + Number(o.cogs || 0), 0);
+    const opex = opexRows.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const verified_payments = payRows.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    return {
+        start,
+        end,
+        completed_count: orders.length,
+        sales_revenue,
+        cash_sales,
+        credit_sales,
+        cogs,
+        opex,
+        verified_payments,
+    };
+}
+
+function onManagerPeriodChange(period, scope = 'rep') {
+    state.period = normalizePeriodKey(period);
+    syncPeriodControlsAndExports();
+    if (scope === 'home' || activePageId === 'home') {
+        loadExecutiveDashboard(state.period);
+    } else {
+        loadReportsAndAnalytics(state.period);
+    }
 }
 
 /* ---------- State Portal Manajer ---------- */
@@ -727,18 +847,10 @@ function statCardHtml(title, value, sub, iconClass, iconBg, iconColor, valClass 
 
 /* ---------- 1. BERANDA EKSEKUTIF ---------- */
 S.home = () => {
-    const periodOpts = [
-        ['day', 'Hari Ini'],
-        ['week', 'Pekan Ini'],
-        ['month', 'Bulan Ini'],
-        ['year', 'Tahun Ini'],
-    ];
     return `${ph(
         'Beranda & Ringkasan',
         `Selamat datang, ${BOOTSTRAP.user.first_name}. Ringkasan operasional, keuangan, piutang, dan analitik koperasi.`,
-        `<select class="form-select form-select-sm" style="width:auto;min-width:140px;" id="per" onchange="onHomePeriodChange(this.value)" aria-label="Pilih Periode">
-            ${periodOpts.map(([val, lbl]) => `<option value="${val}" ${state.period === val ? 'selected' : ''}>${lbl}</option>`).join('')}
-        </select>
+        `${renderPeriodButtonsHtml(state.period, 'home')}
         <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5" onclick="loadExecutiveDashboard(state.period)">
             <i class="bi bi-arrow-clockwise"></i>
             <span>Muat Ulang</span>
@@ -769,16 +881,16 @@ S.home = () => {
 };
 
 function onHomePeriodChange(period) {
-    state.period = period;
-    loadExecutiveDashboard(period);
+    onManagerPeriodChange(period, 'home');
 }
 
 H.home = () => loadExecutiveDashboard(state.period);
 
-async function loadExecutiveDashboard(period = 'month') {
-    state.period = period;
-    const { start, end } = getPeriodRange(period);
-    const query = `?period=${encodeURIComponent(period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+async function loadExecutiveDashboard(period = state.period || 'month') {
+    state.period = normalizePeriodKey(period);
+    syncPeriodControlsAndExports();
+    const { start, end } = getPeriodRange(state.period);
+    const query = `?period=${encodeURIComponent(state.period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
 
     const [ordersRes, recvRes, policyRes, finRes, summaryRes, topRes, forecastRes, agingRes] = await Promise.allSettled([
         managerApi('/api/v1/cashier/orders'),
@@ -814,14 +926,14 @@ function renderHomeDashboardContent() {
     const fin = state.financialReport || state.analyticsSummary || {};
     const m = fin.metrics || {};
     const hasAnalytics = Boolean(state.financialReport || state.analyticsSummary);
-    const oltpOrd = BOOTSTRAP.oltp.orders_summary;
+    const oltpOrd = computeLocalOltpSummaryForPeriod(state.period);
 
     const omzet = hasAnalytics && m.sales_revenue !== undefined ? Number(m.sales_revenue) : oltpOrd.sales_revenue;
     const cashSales = hasAnalytics && m.cash_sales_revenue !== undefined ? Number(m.cash_sales_revenue) : oltpOrd.cash_sales;
     const creditSales = hasAnalytics && m.new_credit_sales !== undefined ? Number(m.new_credit_sales) : oltpOrd.credit_sales;
     const cogs = hasAnalytics && m.cogs !== undefined ? Number(m.cogs) : oltpOrd.cogs;
     const grossProfit = hasAnalytics && m.gross_profit !== undefined ? Number(m.gross_profit) : (omzet - cogs);
-    const opex = hasAnalytics && m.operating_expenses !== undefined ? Number(m.operating_expenses) : BOOTSTRAP.oltp.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const opex = hasAnalytics && m.operating_expenses !== undefined ? Number(m.operating_expenses) : oltpOrd.opex;
     const netProfit = hasAnalytics && m.estimated_net_profit !== undefined ? Number(m.estimated_net_profit) : (grossProfit - opex);
     const marginPct = omzet > 0 ? ((grossProfit / omzet) * 100).toFixed(1) : '0.0';
     const cashIn = hasAnalytics && m.cash_receipts !== undefined ? Number(m.cash_receipts) : oltpOrd.verified_payments;
@@ -944,12 +1056,17 @@ function renderHomeDashboardContent() {
 
     const topBox = $('#homeTopProductsBox');
     if (topBox) {
-        if (state.topProducts && Array.isArray(state.topProducts.items || state.topProducts)) {
-            const items = (state.topProducts.items || state.topProducts).slice(0, 5);
+        const topList = state.topProducts && Array.isArray(state.topProducts.items || state.topProducts)
+            ? (state.topProducts.items || state.topProducts)
+            : null;
+        if (topList && topList.length > 0) {
+            const items = topList.slice(0, 5);
             topBox.innerHTML = tb(
                 ['Produk', 'Unit', 'Omzet'],
                 items.map(it => [escapeHtml(it.name || it.sku), it.units ?? it.sold_qty ?? 0, rp(it.sales_revenue ?? it.omzet ?? 0)])
             );
+        } else if (topList && topList.length === 0) {
+            topBox.innerHTML = '<div class="alert alert-light border small mb-0">Belum ada penjualan selesai pada periode ini.</div>';
         } else {
             const critical = [...BOOTSTRAP.oltp.products]
                 .sort((a, b) => a.available - b.available)
@@ -969,6 +1086,10 @@ function renderHomeDashboardContent() {
 function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
     const revCanvas = $('#homeRevenueChart');
     if (revCanvas && typeof Chart !== 'undefined') {
+        if (state.charts.homeRevenue) {
+            try { state.charts.homeRevenue.destroy(); } catch (_) {}
+            state.charts.homeRevenue = null;
+        }
         const trend = state.analyticsSummary?.trend || state.financialReport?.rows || null;
         const labels = Array.isArray(trend) && trend.length ? trend.map(r => r.label || r.period || r.date) : ['Periode Terpilih'];
         const revSeries = Array.isArray(trend) && trend.length ? trend.map(r => Number(r.sales_revenue || 0)) : [omzet];
@@ -992,13 +1113,17 @@ function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
         const note = $('#homeTrendNote');
         if (note) {
             note.textContent = Array.isArray(trend) && trend.length
-                ? 'Sumber: data tren penjualan periode berjalan.'
+                ? `Periode ${getPeriodRange(state.period).start} s/d ${getPeriodRange(state.period).end} · Omzet ${rp(omzet)}, HPP ${rp(cogs)}, Laba kotor ${rp(grossProfit)}.`
                 : `Agregat periode saat ini · Omzet ${rp(omzet)}, HPP ${rp(cogs)}, Laba kotor ${rp(grossProfit)}.`;
         }
     }
 
     const compCanvas = $('#homeCompositionChart');
     if (compCanvas && typeof Chart !== 'undefined') {
+        if (state.charts.homeComp) {
+            try { state.charts.homeComp.destroy(); } catch (_) {}
+            state.charts.homeComp = null;
+        }
         const total = cashSales + creditSales;
         const dataVals = total > 0 ? [cashSales, creditSales] : [0, 0];
         state.charts.homeComp = new Chart(compCanvas.getContext('2d'), {
@@ -2087,20 +2212,25 @@ async function executeImportCommit() {
 
 /* ---------- 5. LAPORAN, BIAYA OPERASIONAL, ANALITIK & FORECAST ---------- */
 S.rep = () => {
-    const { start, end } = getPeriodRange(state.period);
+    const activeKey = normalizePeriodKey(state.period);
+    const { start, end } = getPeriodRange(activeKey);
+    const qs = `period=${encodeURIComponent(activeKey)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     return `${ph(
         'Laporan & Analitik',
         'Laporan keuangan terpadu, pencatatan biaya operasional, analitik produk, serta prediksi permintaan dan restok.',
-        `<a class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=pdf" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i><span>Ekspor PDF</span></a>
-        <a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=xlsx" target="_blank" rel="noopener"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a>`
+        `<a id="btnExportPdf" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?${qs}&format=pdf" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i><span>Ekspor PDF</span></a>
+        <a id="btnExportXlsx" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?${qs}&format=xlsx" target="_blank" rel="noopener"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a>`
     )}${renderSubTabShell('rep', ['Keuangan', 'Biaya Operasional', 'Analitik', 'Prediksi Permintaan & Restok'], [RK, RB, RA, RF])}`;
 };
 
 H.rep = () => {
-    if (TB.rep === 0 || TB.rep === 2 || TB.rep === 3) loadReportsAndAnalytics();
+    syncPeriodControlsAndExports();
+    if (TB.rep === 0 || TB.rep === 2 || TB.rep === 3) loadReportsAndAnalytics(state.period);
 };
 
-async function loadReportsAndAnalytics() {
+async function loadReportsAndAnalytics(period = state.period || 'month') {
+    state.period = normalizePeriodKey(period);
+    syncPeriodControlsAndExports();
     const { start, end } = getPeriodRange(state.period);
     const q = `?period=${encodeURIComponent(state.period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     const [finRes, sumRes, topRes, fcRes] = await Promise.allSettled([
@@ -2112,20 +2242,17 @@ async function loadReportsAndAnalytics() {
     state.financialReport = finRes.status === 'fulfilled' ? (finRes.value.data || finRes.value) : null;
     state.analyticsSummary = sumRes.status === 'fulfilled' ? (sumRes.value.data || sumRes.value) : null;
     state.topProducts = topRes.status === 'fulfilled' ? (topRes.value.data || topRes.value) : null;
-    state.forecasts = fcRes.status === 'fulfilled' ? (fcRes.value.data || fcRes.value) : null;
+    state.forecasts = fcRes.status === 'fulfilled' ? (fcRes.value.data || fcRes.value) : state.forecasts;
 
     if (TB.rep === 0 && $('#repFinancialWrap')) renderReportFinancialSection();
+    if (TB.rep === 2 && $('#repAnalyticsLiveWrap')) renderReportAnalyticsSection();
     if (TB.rep === 3 && $('#repForecastWrap')) renderReportForecastSection();
 }
 
 const RK = () => `
-    <div class="mb-3">
-        <select class="form-select form-select-sm" style="width:auto;min-width:160px;" onchange="state.period=this.value;loadReportsAndAnalytics()" aria-label="Periode Laporan">
-            <option value="day" ${state.period === 'day' ? 'selected' : ''}>Harian</option>
-            <option value="week" ${state.period === 'week' ? 'selected' : ''}>Pekanan</option>
-            <option value="month" ${state.period === 'month' ? 'selected' : ''}>Bulanan</option>
-            <option value="year" ${state.period === 'year' ? 'selected' : ''}>Tahunan</option>
-        </select>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        ${renderPeriodButtonsHtml(state.period, 'rep')}
+        <small class="text-muted font-monospace" id="repPeriodRangeLabel">${escapeHtml(getPeriodRange(state.period).start)} s/d ${escapeHtml(getPeriodRange(state.period).end)}</small>
     </div>
     <div id="repFinancialWrap" class="text-muted small">Memuat ringkasan laporan keuangan...</div>
 `;
@@ -2133,23 +2260,26 @@ const RK = () => `
 function renderReportFinancialSection() {
     const wrap = $('#repFinancialWrap');
     if (!wrap) return;
+    const rangeLbl = $('#repPeriodRangeLabel');
+    const { start, end } = getPeriodRange(state.period);
+    if (rangeLbl) rangeLbl.textContent = `${start} s/d ${end}`;
+
     const fin = state.financialReport || state.analyticsSummary;
     if (!fin) {
-        const oltp = BOOTSTRAP.oltp.orders_summary;
-        const opexSum = BOOTSTRAP.oltp.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const oltp = computeLocalOltpSummaryForPeriod(state.period);
         const gp = oltp.sales_revenue - oltp.cogs;
         wrap.innerHTML = `
-            <div class="alert alert-light border small mb-3">Ringkasan laporan keuangan periodik belum tersedia. Menampilkan ringkasan transaksi selesai terkini.</div>
-            ${cdTable('Ringkasan Transaksi Selesai', tb(
+            <div class="alert alert-light border small mb-3">Menampilkan ringkasan transaksi selesai periode ${escapeHtml(oltp.start)} s/d ${escapeHtml(oltp.end)}.</div>
+            ${cdTable(`Ringkasan Transaksi (${escapeHtml(oltp.start)} s/d ${escapeHtml(oltp.end)})`, tb(
                 ['Komponen', 'Nilai'],
                 [
-                    ['Omzet Penjualan (Transaksi Selesai)', rp(oltp.sales_revenue)],
-                    ['HPP Terjual (Snapshot)', rp(oltp.cogs)],
+                    ['Omzet Penjualan Selesai', rp(oltp.sales_revenue)],
+                    ['HPP Barang Terjual', rp(oltp.cogs)],
                     ['Laba Kotor (Estimasi)', `<strong>${rp(gp)}</strong>`],
-                    ['Biaya Operasional Tercatat', rp(opexSum)],
-                    ['Estimasi Laba Bersih', `<strong class="text-success">${rp(gp - opexSum)}</strong>`],
-                    ['Pembayaran Terverifikasi (Kas Masuk)', rp(oltp.verified_payments)],
-                    ['Penjualan Kredit', rp(oltp.credit_sales)],
+                    ['Biaya Operasional Tercatat', rp(oltp.opex)],
+                    ['Estimasi Laba Bersih', `<strong class="text-success">${rp(gp - oltp.opex)}</strong>`],
+                    ['Kas Masuk Terverifikasi', rp(oltp.verified_payments)],
+                    ['Penjualan Piutang Baru', rp(oltp.credit_sales)],
                 ]
             ))}
         `;
@@ -2159,10 +2289,12 @@ function renderReportFinancialSection() {
     const m = fin.metrics || {};
     const cogsIncomplete = fin.data_quality ? !fin.data_quality.cogs_complete : false;
     const expIncomplete = fin.data_quality ? !fin.data_quality.expenses_complete : false;
+    const periodStart = fin.period?.start || start;
+    const periodEnd = fin.period?.end || end;
     const banner = (fin.is_stale ? '<div class="alert alert-warning small mb-3">Data analitik sedang dalam <strong>sinkronisasi tertunda</strong>. Periksa waktu pembaruan terakhir.</div>' : '')
         + ((cogsIncomplete || expIncomplete) ? '<div class="alert alert-light border small mb-3">HPP atau biaya operasional belum lengkap. Laba bersih berstatus <strong>estimasi</strong>.</div>' : '');
 
-    wrap.innerHTML = banner + cdTable(`Laporan Keuangan (per ${escapeHtml(fin.last_updated_at || '-')})`, tb(
+    wrap.innerHTML = banner + cdTable(`Laporan Keuangan (${escapeHtml(periodStart)} s/d ${escapeHtml(periodEnd)} · per ${escapeHtml(fin.last_updated_at || '-')})`, tb(
         ['Komponen', 'Nilai'],
         [
             ['Omzet Penjualan Selesai', rp(m.sales_revenue)],
@@ -2237,6 +2369,20 @@ const RA = () => {
     const deadStockCandidates = BOOTSTRAP.oltp.products.filter(p => Number(p.available || 0) > 0 && Number(p.sales_count || 0) === 0);
 
     return `
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            ${renderPeriodButtonsHtml(state.period, 'rep')}
+            <small class="text-muted font-monospace" id="repAnalyticsPeriodLabel">${escapeHtml(getPeriodRange(state.period).start)} s/d ${escapeHtml(getPeriodRange(state.period).end)}</small>
+        </div>
+        <div id="repAnalyticsLiveWrap" class="mb-4">
+            <div class="row g-3 g-xl-4">
+                <div class="col-12 col-lg-7">
+                    ${cd('Grafik Tren Penjualan &amp; Laba Kotor', '<div class="mgr-chart-wrap"><canvas id="repAnalyticsTrendChart"></canvas></div><small class="text-muted d-block mt-2" id="repAnalyticsTrendNote">Memuat tren penjualan...</small>')}
+                </div>
+                <div class="col-12 col-lg-5">
+                    ${cdTable('Produk Terlaris Periode Ini', '<div id="repTopProductsTableWrap" class="p-3 text-muted small">Memuat produk terlaris...</div>')}
+                </div>
+            </div>
+        </div>
         <div class="row g-3 g-xl-4">
             <div class="col-12 col-lg-6">
                 ${cdTable('Stok Habis / Kritis (Perlu Perhatian Segera)', tb(
@@ -2255,6 +2401,65 @@ const RA = () => {
         </div>
     `;
 };
+
+function renderReportAnalyticsSection() {
+    const { start, end } = getPeriodRange(state.period);
+    const lbl = $('#repAnalyticsPeriodLabel');
+    if (lbl) lbl.textContent = `${start} s/d ${end}`;
+
+    const trendCanvas = $('#repAnalyticsTrendChart');
+    if (trendCanvas && typeof Chart !== 'undefined') {
+        if (state.charts.repAnalyticsTrend) {
+            try { state.charts.repAnalyticsTrend.destroy(); } catch (_) {}
+            state.charts.repAnalyticsTrend = null;
+        }
+        const trend = state.financialReport?.rows || state.analyticsSummary?.trend || [];
+        const labels = trend.length ? trend.map(r => r.label || r.period || r.date) : [start];
+        const revSeries = trend.length ? trend.map(r => Number(r.sales_revenue || 0)) : [0];
+        const gpSeries = trend.length ? trend.map(r => Number(r.gross_profit || 0)) : [0];
+
+        state.charts.repAnalyticsTrend = new Chart(trendCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Omzet', data: revSeries, backgroundColor: '#059669', borderRadius: 6 },
+                    { label: 'Laba Kotor', data: gpSeries, backgroundColor: '#34d399', borderRadius: 6 },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+            },
+        });
+
+        const note = $('#repAnalyticsTrendNote');
+        if (note) {
+            const m = state.analyticsSummary?.metrics || state.financialReport?.metrics || {};
+            const omz = Number(m.sales_revenue ?? computeLocalOltpSummaryForPeriod(state.period).sales_revenue);
+            const gp = Number(m.gross_profit ?? (omz - computeLocalOltpSummaryForPeriod(state.period).cogs));
+            note.textContent = `Periode ${start} s/d ${end} · Total Omzet ${rp(omz)} · Laba Kotor ${rp(gp)}`;
+        }
+    }
+
+    const topWrap = $('#repTopProductsTableWrap');
+    if (topWrap) {
+        const items = Array.isArray(state.topProducts?.items || state.topProducts)
+            ? (state.topProducts?.items || state.topProducts)
+            : [];
+        topWrap.className = '';
+        topWrap.innerHTML = tb(
+            ['Produk', 'Terjual', 'Omzet'],
+            items.map(it => [
+                `<span class="fw-semibold text-dark">${escapeHtml(it.name || it.sku || '-')}</span><br><small class="text-muted font-monospace">${escapeHtml(it.sku || '')}</small>`,
+                `${it.units ?? it.sold_qty ?? 0} ${escapeHtml(it.unit || 'unit')}`,
+                `<strong class="tokped-price">${rp(it.sales_revenue ?? it.omzet ?? 0)}</strong>`,
+            ]),
+            `Belum ada penjualan produk pada periode ${start} s/d ${end}.`
+        );
+    }
+}
 
 const RF = () => `
     <div class="alert alert-light border small mb-3">

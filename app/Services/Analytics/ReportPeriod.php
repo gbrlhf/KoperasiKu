@@ -8,13 +8,23 @@ use Illuminate\Validation\ValidationException;
 
 class ReportPeriod
 {
+    public static function normalizePeriod(string $period): string
+    {
+        return match (strtolower(trim($period))) {
+            'day', 'today', 'daily', 'harian', 'hari_ini' => 'day',
+            'week', 'this_week', 'weekly', 'pekanan', 'pekan_ini' => 'week',
+            'year', 'this_year', 'yearly', 'tahunan', 'tahun_ini' => 'year',
+            default => 'month',
+        };
+    }
+
     /**
      * @return array{0: string, 1: string}
      */
     public static function fromRequest(Request $request): array
     {
         $today = CarbonImmutable::now('Asia/Jakarta');
-        $period = strtolower((string) $request->query('period', 'month'));
+        $period = self::normalizePeriod((string) $request->query('period', 'month'));
 
         $defaultStart = match ($period) {
             'day' => $today->toDateString(),
@@ -24,8 +34,8 @@ class ReportPeriod
         };
         $defaultEnd = $today->toDateString();
 
-        $from = (string) $request->query('start', $defaultStart);
-        $to = (string) $request->query('end', $defaultEnd);
+        $from = $request->filled('start') ? (string) $request->query('start') : $defaultStart;
+        $to = $request->filled('end') ? (string) $request->query('end') : $defaultEnd;
 
         if (! self::isValidDate($from) || ! self::isValidDate($to) || $to < $from) {
             throw ValidationException::withMessages([

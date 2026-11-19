@@ -74,21 +74,6 @@ class AnalyticsQueryService
             ->limit($limit)
             ->get();
 
-        if ($rows->isEmpty()) {
-            // Fallback ke seluruh transaksi COMPLETED atau sales_count produk
-            $rows = DB::table('products as p')
-                ->leftJoin('order_items as oi', 'oi.product_id', '=', 'p.id')
-                ->leftJoin('orders as o', function ($join) {
-                    $join->on('o.id', '=', 'oi.order_id')->where('o.status', '=', 'COMPLETED');
-                })
-                ->where('p.is_active', true)
-                ->groupBy('p.id', 'p.sku', 'p.name', 'p.category', 'p.unit', 'p.sales_count', 'p.selling_price', 'p.current_cost')
-                ->selectRaw('p.id, p.sku, p.name, p.category, p.unit, GREATEST(COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity ELSE 0 END), 0), COALESCE(p.sales_count, 0)) AS units, GREATEST(COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity * oi.unit_price_snapshot ELSE 0 END), 0), COALESCE(p.sales_count, 0) * p.selling_price) AS sales_revenue, GREATEST(COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity * COALESCE(oi.hpp_snapshot, p.current_cost, 0) ELSE 0 END), 0), COALESCE(p.sales_count, 0) * COALESCE(p.current_cost, 0)) AS cogs')
-                ->orderByDesc('units')
-                ->limit($limit)
-                ->get();
-        }
-
         return $rows->map(fn ($r) => [
             'sku' => $r->sku,
             'name' => $r->name,
@@ -609,7 +594,82 @@ class AnalyticsQueryService
 
     private function warehouseTrend(string $from, string $to, string $frequency = 'day'): array
     {
-        return $this->oltpTrend($from, $to, $frequency);
+        $sales = DB::table('analytics.fact_sales')
+            ->whereBetween('local_date', [$from, $to])
+            ->get(['local_date', 'gross_sales', 'cogs']);
+
+        $cash = DB::table('analytics.fact_cash_receipts')
+            ->whereBetween('local_date', [$from, $to])
+            ->get(['local_date', 'amount']);
+
+        $opex = DB::table('analytics.fact_operating_expenses')
+            ->whereBetween('local_date', [$from, $to])
+            ->get(['local_date', 'amount']);
+
+        $buckets = [];
+        $bucketKey = function (string $dateStr) use ($frequency): string {
+            $dt = CarbonImmutable::parse($dateStr, 'Asia/Jakarta');
+
+            return match ($frequency) {
+                'week' => $dt->startOfWeek(CarbonImmutable::MONDAY)->toDateString(),
+                'month' => $dt->format('Y-m'),
+                'year' => $dt->format('Y'),
+                default => $dt->toDateString(),
+            };
+        };
+        $ensureBucket = function (string $k) use (&$buckets): void {
+            if (! isset($buckets[$k])) {
+                $buckets[$k] = [
+                    'period' => $k,
+                    'date' => $k,
+                    'label' => $k,
+                    'sales_revenue' => 0.0,
+                    'cogs' => 0.0,
+                    'cash_receipts' => 0.0,
+                    'operating_expenses' => 0.0,
+                ];
+            }
+        };
+
+        foreach ($sales as $s) {
+            $k = $bucketKey((string) $s->local_date);
+            $ensureBucket($k);
+            $buckets[$k]['sales_revenue'] += (float) $s->gross_sales;
+            $buckets[$k]['cogs'] += (float) ($s->cogs ?? 0);
+        }
+        foreach ($cash as $c) {
+            $k = $bucketKey((string) $c->local_date);
+            $ensureBucket($k);
+            $buckets[$k]['cash_receipts'] += (float) $c->amount;
+        }
+        foreach ($opex as $e) {
+            $k = $bucketKey((string) $e->local_date);
+            $ensureBucket($k);
+            $buckets[$k]['operating_expenses'] += (float) $e->amount;
+        }
+
+        if (empty($buckets)) {
+            $ensureBucket($bucketKey($from));
+        }
+
+        ksort($buckets);
+
+        return array_values(array_map(function (array $b): array {
+            $gp = $b['sales_revenue'] - $b['cogs'];
+            $net = $gp - $b['operating_expenses'];
+
+            return [
+                'period' => $b['period'],
+                'date' => $b['date'],
+                'label' => $b['label'],
+                'sales_revenue' => $this->fmt($b['sales_revenue']),
+                'cogs' => $this->fmt($b['cogs']),
+                'gross_profit' => $this->fmt($gp),
+                'cash_receipts' => $this->fmt($b['cash_receipts']),
+                'operating_expenses' => $this->fmt($b['operating_expenses']),
+                'estimated_net_profit' => $this->fmt($net),
+            ];
+        }, $buckets));
     }
 
     /**
