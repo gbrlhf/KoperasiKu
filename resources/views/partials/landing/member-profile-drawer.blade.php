@@ -7,6 +7,31 @@
    - Aksi Akun: Keluar Akun & Ganti Akun
    ============================================================================== --}}
 
+@php
+    $drawerAuthUser = auth()->user();
+    $drawerSessionUser = session('user', []);
+    $drawerIsLoggedIn = !empty($isLoggedIn) && (!empty($drawerAuthUser) || !empty($drawerSessionUser));
+    $drawerRoles = array_values(array_unique(array_map('strtoupper', (array) session(
+        'available_roles',
+        $drawerAuthUser ? $drawerAuthUser->roleCodes() : []
+    ))));
+    $drawerActiveRole = strtoupper((string) session('active_role', $drawerRoles[0] ?? ($drawerIsLoggedIn ? 'MEMBER' : '')));
+    if ($drawerIsLoggedIn && !in_array($drawerActiveRole, ['CASHIER', 'MANAGER'], true)) {
+        $drawerActiveRole = 'MEMBER';
+    }
+    $landingRoleLabel = $landingRoleLabel ?? match($drawerActiveRole) {
+        'CASHIER' => 'Kasir',
+        'MANAGER' => 'Manajer',
+        default => 'Anggota',
+    };
+    $landingIsMemberRole = $landingIsMemberRole ?? ($drawerIsLoggedIn && $drawerActiveRole === 'MEMBER');
+    $drawerMemberRecord = $drawerAuthUser?->member;
+    $drawerHasActiveMember = $drawerMemberRecord
+        ? strtoupper((string) ($drawerMemberRecord->status ?? 'ACTIVE')) === 'ACTIVE'
+        : (!empty($drawerSessionUser['member_id']) || !empty($member));
+    $landingShowCreditWidget = $landingShowCreditWidget ?? ($drawerIsLoggedIn && $landingIsMemberRole && $drawerHasActiveMember);
+@endphp
+
 <div class="offcanvas offcanvas-end border-0 shadow-lg" tabindex="-1" id="memberProfileDrawer" aria-labelledby="memberProfileDrawerLabel" style="width: 440px; max-width: 92vw;">
     
     <!-- Drawer Header -->
@@ -36,7 +61,7 @@
     </div>
 
     <!-- Drawer Body -->
-    <div class="offcanvas-body p-3 p-md-4">
+    <div class="offcanvas-body p-3 p-md-4 overflow-x-hidden">
         @if(empty($isLoggedIn) || empty($member))
             <!-- Guest / Not Logged In View -->
             <div class="text-center py-5">
@@ -189,10 +214,10 @@
         @if(!empty($landingIsMemberRole))
         <!-- 2. KODE PICKUP PESANAN AKTIF (Jika Ada Pesanan Menunggu) -->
         @if(!empty($activeOrders))
-            <div class="card border border-primary-subtle rounded-3 p-3 mb-3 bg-primary-subtle bg-opacity-25 shadow-xs">
-                <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="card w-100 border border-primary-subtle rounded-3 p-3 mb-3 bg-primary-subtle bg-opacity-25 shadow-xs overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                     @if(($activeOrders[0]['status'] ?? '') === 'PENDING_PAYMENT')
-                        <span class="badge bg-warning text-dark fw-bold px-2 py-0.5 rounded-pill" style="font-size: 0.68rem;">
+                        <span class="badge bg-warning text-dark fw-bold px-2 py-0.5 rounded-pill text-wrap text-start" style="font-size: 0.68rem;">
                             <i class="bi bi-hourglass-split me-1"></i> MENUNGGU PEMBAYARAN / VERIFIKASI DI KASIR
                         </span>
                     @else
@@ -200,7 +225,7 @@
                             <i class="bi bi-box-seam me-1"></i> SIAP DIAMBIL DI GERAI
                         </span>
                     @endif
-                    <span class="font-monospace text-secondary small fw-bold">{{ $activeOrders[0]['order_no'] }}</span>
+                    <span class="font-monospace text-secondary small fw-bold text-break">{{ $activeOrders[0]['order_no'] }}</span>
                 </div>
 
                 <!-- Box Kode Pickup -->
@@ -211,9 +236,9 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center small text-secondary mb-2" style="font-size: 0.75rem;">
-                    <span>{{ $activeOrders[0]['items_count'] }} Barang ({{ $activeOrders[0]['items_summary'] }})</span>
-                    <strong class="text-primary">Rp {{ number_format($activeOrders[0]['total_amount'], 0, ',', '.') }}</strong>
+                <div class="d-flex justify-content-between align-items-center gap-2 small text-secondary mb-2" style="font-size: 0.75rem;">
+                    <span class="min-w-0 text-truncate" style="min-width: 0;">{{ $activeOrders[0]['items_count'] }} Barang ({{ $activeOrders[0]['items_summary'] }})</span>
+                    <strong class="text-primary flex-shrink-0 text-nowrap">Rp {{ number_format($activeOrders[0]['total_amount'], 0, ',', '.') }}</strong>
                 </div>
 
                 <!-- Action Buttons: Barcode & Copy -->
@@ -227,63 +252,78 @@
                         <span>Salin Kode</span>
                     </button>
                 </div>
+
+                @if(count($activeOrders) > 1)
+                    <div class="mt-2.5 pt-2 border-top border-primary-subtle">
+                        <small class="text-secondary fw-bold d-block mb-1.5" style="font-size: 0.7rem;">
+                            Pesanan Aktif Lainnya ({{ count($activeOrders) - 1 }}):
+                        </small>
+                        <div class="d-flex flex-column gap-1.5">
+                            @foreach(array_slice($activeOrders, 1) as $extraOrder)
+                                <div class="p-2 rounded-2 bg-white border d-flex justify-content-between align-items-center gap-2 overflow-hidden">
+                                    <div class="min-w-0 flex-grow-1" style="min-width: 0;">
+                                        <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                            <span class="badge bg-dark font-monospace">{{ $extraOrder['pickup_code'] }}</span>
+                                            <span class="text-muted font-monospace text-truncate" style="font-size: 0.68rem;">{{ $extraOrder['order_no'] }}</span>
+                                        </div>
+                                        <div class="text-secondary text-truncate mt-0.5" style="font-size: 0.7rem;" title="{{ $extraOrder['items_count'] }} Barang ({{ $extraOrder['items_summary'] }})">
+                                            {{ $extraOrder['items_count'] }} Barang ({{ $extraOrder['items_summary'] }})
+                                        </div>
+                                    </div>
+                                    <div class="text-end flex-shrink-0">
+                                        <strong class="text-primary d-block text-nowrap" style="font-size: 0.75rem;">Rp {{ number_format($extraOrder['total_amount'], 0, ',', '.') }}</strong>
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.68rem; min-height: auto;" onclick="copyMemberPickupCode('{{ $extraOrder['pickup_code'] }}', this)">
+                                            <i class="bi bi-clipboard"></i> Salin
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
         <!-- 3. RIWAYAT PENGAMBILAN TERAKHIR (Ringkas) -->
         @if(!empty($orderHistory))
-            <div class="card border rounded-3 p-3 mb-3 bg-white shadow-xs">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-secondary fw-bold text-uppercase small" style="font-size: 0.72rem; letter-spacing: 0.04em;">
-                        <i class="bi bi-clock-history text-secondary me-1"></i> Pesanan Terakhir Selesai
+            <div class="card w-100 border rounded-3 p-3 mb-3 bg-white shadow-xs overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <span class="text-secondary fw-bold text-uppercase small min-w-0 text-truncate" style="font-size: 0.72rem; letter-spacing: 0.04em; min-width: 0;">
+                        <i class="bi bi-clock-history text-secondary me-1"></i> Riwayat Pesanan ({{ count($orderHistory) }})
                     </span>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size: 0.64rem;">SELESAI</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill flex-shrink-0" style="font-size: 0.64rem;">RIWAYAT</span>
                 </div>
 
-                @foreach(array_slice($orderHistory, 0, 1) as $hist)
-                    <div class="p-2 rounded-2 bg-light border small">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="fw-bold font-monospace text-dark" style="font-size: 0.72rem;">{{ $hist['order_no'] }}</span>
-                            <strong class="text-primary" style="font-size: 0.78rem;">Rp {{ number_format($hist['total_amount'], 0, ',', '.') }}</strong>
+                <div class="d-flex flex-column gap-1.5">
+                    @foreach(array_slice($orderHistory, 0, 3) as $hist)
+                        <div class="p-2 rounded-2 bg-light border small overflow-hidden">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <span class="fw-bold font-monospace text-dark min-w-0 text-truncate" style="font-size: 0.72rem; min-width: 0;">{{ $hist['order_no'] }}</span>
+                                <strong class="text-primary flex-shrink-0 text-nowrap" style="font-size: 0.78rem;">Rp {{ number_format($hist['total_amount'], 0, ',', '.') }}</strong>
+                            </div>
+                            <div class="text-secondary text-truncate" style="font-size: 0.7rem;" title="{{ $hist['items_summary'] }}">{{ $hist['items_summary'] }}</div>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.66rem;">
+                                {{ ($hist['status'] ?? '') === 'CANCELLED' ? 'Dibatalkan' : 'Diambil pada: ' . $hist['picked_up_at'] }}
+                            </small>
                         </div>
-                        <div class="text-secondary text-truncate" style="font-size: 0.7rem;">{{ $hist['items_summary'] }}</div>
-                        <small class="text-muted d-block mt-1" style="font-size: 0.66rem;">Diambil pada: {{ $hist['picked_up_at'] }}</small>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
         @endif
         @endif
 
         <!-- 4. AKSI AKUN -->
-        <div class="pt-2">
-            <div class="d-flex gap-2">
-                <form class="flex-fill" method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Keluar Akun</span>
-                    </button>
-                </form>
-                @if(!empty($landingIsMemberRole))
-                    <form class="flex-fill" method="POST" action="{{ route('switch-account') }}">
-                        @csrf
-                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
-                            <i class="bi bi-arrow-repeat"></i>
-                            <span>Ganti Akun</span>
-                        </button>
-                    </form>
-                @endif
-            </div>
+        <div class="pt-2 mb-3">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Keluar Akun</span>
+                </button>
+            </form>
         </div>
 
         @endif
-    </div>
-
-    <!-- Drawer Footer -->
-    <div class="offcanvas-footer bg-light p-2.5 border-top text-center">
-        <small class="text-muted" style="font-size: 0.72rem;">
-            <i class="bi bi-geo-alt-fill text-danger me-1"></i> Gerai Kanayakan A11 &bull; Buka 07.00 - 18.00 WIB
-        </small>
     </div>
 
 </div>

@@ -11,8 +11,28 @@
         $landingAuthUser ? $landingAuthUser->roleCodes() : []
     ))));
     $landingActiveRole = strtoupper((string) session('active_role', $landingRoles[0] ?? ($landingIsLoggedIn ? 'MEMBER' : '')));
-    $landingIsStaffRole = $landingIsLoggedIn && in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true);
-    $landingShowCart = !$landingIsStaffRole;
+    if ($landingIsLoggedIn && !in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true)) {
+        $landingActiveRole = 'MEMBER';
+    }
+    $landingRoleLabel = $landingRoleLabel ?? match($landingActiveRole) {
+        'CASHIER' => 'Kasir',
+        'MANAGER' => 'Manajer',
+        default => 'Anggota',
+    };
+    $landingIsMemberRole = $landingIsMemberRole ?? ($landingIsLoggedIn && $landingActiveRole === 'MEMBER');
+    $landingIsStaffRole = $landingIsStaffRole ?? ($landingIsLoggedIn && in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true));
+    $landingShowCart = $landingShowCart ?? !$landingIsStaffRole;
+    $landingHasCashierRole = $landingHasCashierRole ?? ($landingIsLoggedIn && ($landingActiveRole === 'CASHIER' || in_array('CASHIER', $landingRoles, true)));
+    $landingHasManagerRole = $landingHasManagerRole ?? ($landingIsLoggedIn && ($landingActiveRole === 'MANAGER' || in_array('MANAGER', $landingRoles, true)));
+    $landingMemberRecord = $landingAuthUser?->member;
+    $landingHasActiveMember = $landingMemberRecord
+        ? strtoupper((string) ($landingMemberRecord->status ?? 'ACTIVE')) === 'ACTIVE'
+        : (!empty($landingSessionUser['member_id']) || (empty($landingAuthUser) && !empty($landingSessionUser) && $landingActiveRole === 'MEMBER'));
+    $landingShowCreditWidget = $landingShowCreditWidget ?? ($landingIsLoggedIn && $landingIsMemberRole && $landingHasActiveMember);
+    $rawLandingCode = (string) ($member['id'] ?? ($landingSessionUser['id'] ?? ''));
+    $landingMemberCode = $landingMemberCode ?? (($rawLandingCode !== '' && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $rawLandingCode))
+        ? $rawLandingCode
+        : null);
 @endphp
 
 @section('content')

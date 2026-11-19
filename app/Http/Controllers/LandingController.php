@@ -119,52 +119,138 @@ class LandingController extends Controller
             ],
         ];
 
-        // 9. Status Autentikasi Pengunjung (Default: Belum Login)
-        $isLoggedIn = session()->has('user');
-        $sessionUser = session('user');
+        // 9. Status Autentikasi Pengunjung & Peran Aktif (RBAC)
+        $sessionUser = session('user', []);
+        $identity = auth()->user();
+        $isLoggedIn = $identity !== null || ! empty($sessionUser);
 
         $member = null;
         $receivableStatus = null;
         $activeOrders = [];
         $orderHistory = [];
 
-        $identity = auth()->user();
-        $isLoggedIn = $identity !== null;
+        $profile = null;
         if ($identity) {
             $profile = $identity->member;
-            $member = ['id' => $profile?->employee_number ?? (string) $identity->id,
-                'name' => $profile?->full_name ?? $identity->email, 'unit' => $profile?->department ?? '-',
-                'email' => $identity->email, 'status' => $profile?->status ?? $identity->status];
+            if (! $profile && \Illuminate\Support\Facades\Schema::hasTable('members')) {
+                $profile = \App\Models\Member::where('user_id', $identity->id)->first();
+            }
+        }
+        if (! $profile && ! empty($sessionUser['member_id']) && \Illuminate\Support\Facades\Schema::hasTable('members')) {
+            $profile = \App\Models\Member::find($sessionUser['member_id']);
+        }
+
+        if ($identity || ! empty($sessionUser)) {
+            $member = [
+                'id' => $profile?->employee_number ?? $profile?->member_number ?? ($sessionUser['id'] ?? (string) $identity?->id),
+                'member_id' => $profile ? (string) $profile->id : ($sessionUser['member_id'] ?? null),
+                'name' => $profile?->full_name ?? ($sessionUser['name'] ?? $identity?->email ?? 'Anggota'),
+                'unit' => $profile?->department ?? '-',
+                'email' => $identity?->email ?? ($sessionUser['email'] ?? ''),
+                'status' => $profile?->status ?? $identity?->status ?? 'ACTIVE',
+            ];
+
             if ($profile) {
                 $credit = app(\App\Services\TransactionService::class)->getMemberCreditSummary((string) $profile->id);
                 $today = \Carbon\CarbonImmutable::today('Asia/Jakarta');
                 $invoices = $profile->receivables()->with('order')->where('outstanding_amount', '>', 0)->orderBy('due_date')->get();
                 $receivableStatus = array_merge($credit, [
-                    'has_debt' => $invoices->isNotEmpty(), 'total_debt' => $credit['outstanding_receivable'],
-                    'credit_limit' => $credit['global_limit'], 'is_overdue' => $credit['has_overdue'],
+                    'has_debt' => $invoices->isNotEmpty(),
+                    'total_debt' => $credit['outstanding_receivable'],
+                    'credit_limit' => $credit['global_limit'],
+                    'is_overdue' => $credit['has_overdue'],
                     'days_remaining' => $invoices->isEmpty() ? 0 : (int) $today->diffInDays($invoices->first()->due_date->toDateString(), false),
                     'limit_used_percent' => $credit['global_limit'] > 0 ? 100 * (1 - $credit['available_limit'] / $credit['global_limit']) : 0,
-                    'active_invoices' => $invoices->map(fn ($r) => ['invoice_no' => $r->order?->order_no ?? $r->id,
-                        'items_summary' => $r->order?->order_no ?? '-', 'amount' => $r->outstanding_amount,
-                        'due_date' => $r->due_date->format('d M Y'), 'days_left' => (int) $today->diffInDays($r->due_date->toDateString(), false),
-                        'status' => $r->effectiveStatus()])->all(),
+                    'active_invoices' => $invoices->map(fn ($r) => [
+                        'invoice_no' => $r->order?->order_no ?? $r->id,
+                        'items_summary' => $r->order?->order_no ?? '-',
+                        'amount' => $r->outstanding_amount,
+                        'due_date' => $r->due_date->format('d M Y'),
+                        'days_left' => (int) $today->diffInDays($r->due_date->toDateString(), false),
+                        'status' => $r->effectiveStatus(),
+                    ])->all(),
                 ]);
-                $orders = $profile->orders()->with('items')->latest()->get();
+
+                $hasOrderUserId = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'user_id');
+                $orders = \App\Models\Order::query()
+                    ->with('items')
+                    ->where(function ($q) use ($profile, $identity, $hasOrderUserId) {
+                        $q->where('member_id', $profile->id);
+                        if ($hasOrderUserId && $identity) {
+                            $q->orWhere('user_id', $identity->id);
+                        }
+                    })
+                    ->orderByDesc('created_at')
+                    ->get();
+
                 $mapOrder = function ($o) use ($products) {
-                    $items = $o->items->map(fn ($i) => ['name' => $products->firstWhere('id', $i->product_id)?->name ?? 'Produk', 'qty' => $i->quantity, 'unit' => $products->firstWhere('id', $i->product_id)?->unit ?? '-', 'price' => (float) $i->unit_price_snapshot]);
-                    return ['pickup_code' => $o->pickup_code, 'order_no' => $o->order_no ?? $o->id,
-                        'date' => $o->created_at->timezone('Asia/Jakarta')->format('d M Y H:i'), 'status' => $o->status,
-                        'status_label' => $o->status, 'status_step' => $o->status === 'READY_FOR_PICKUP' ? 3 : 1,
-                        'payment_method' => $o->payment_choice, 'payment_label' => $o->payment_choice,
-                        'total_amount' => (float) $o->total_amount, 'items_count' => $o->items->sum('quantity'),
-                        'items' => $items->all(), 'items_summary' => $items->pluck('name')->implode(', '),
+                    $items = $o->items->map(fn ($i) => [
+                        'name' => $products->firstWhere('id', $i->product_id)?->name ?? 'Produk',
+                        'qty' => $i->quantity,
+                        'unit' => $products->firstWhere('id', $i->product_id)?->unit ?? '-',
+                        'price' => (float) $i->unit_price_snapshot,
+                    ]);
+
+                    return [
+                        'pickup_code' => $o->pickup_code,
+                        'order_no' => $o->order_no ?? $o->id,
+                        'date' => $o->created_at?->timezone('Asia/Jakarta')->format('d M Y H:i') ?? '-',
+                        'status' => $o->status,
+                        'status_label' => $o->status,
+                        'status_step' => $o->status === 'READY_FOR_PICKUP' ? 3 : 1,
+                        'payment_method' => $o->payment_choice,
+                        'payment_label' => $o->payment_choice,
+                        'total_amount' => (float) $o->total_amount,
+                        'items_count' => $o->items->sum('quantity'),
+                        'items' => $items->all(),
+                        'items_summary' => $items->pluck('name')->implode(', '),
                         'picked_up_at' => $o->completed_at ? \Carbon\Carbon::parse($o->completed_at)->timezone('Asia/Jakarta')->format('d M Y H:i') : '-',
-                        'store_location' => 'Gerai koperasi', 'store_hours' => '-'];
+                        'store_location' => 'Gerai koperasi',
+                        'store_hours' => '-',
+                    ];
                 };
-                $activeOrders = $orders->whereIn('status', ['PENDING_PAYMENT','PENDING_PICKUP','READY_FOR_PICKUP'])->whereNotNull('pickup_code')->map($mapOrder)->values()->all();
-                $orderHistory = $orders->whereIn('status', ['COMPLETED','CANCELLED'])->map($mapOrder)->values()->all();
+
+                $activeOrders = $orders
+                    ->whereIn('status', ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'])
+                    ->whereNotNull('pickup_code')
+                    ->map($mapOrder)
+                    ->values()
+                    ->all();
+                $orderHistory = $orders
+                    ->whereIn('status', ['COMPLETED', 'CANCELLED'])
+                    ->map($mapOrder)
+                    ->values()
+                    ->all();
             }
         }
+
+        $landingRoles = array_values(array_unique(array_map('strtoupper', (array) session(
+            'available_roles',
+            $identity ? $identity->roleCodes() : []
+        ))));
+        $landingActiveRole = strtoupper((string) session('active_role', $landingRoles[0] ?? ($isLoggedIn ? 'MEMBER' : '')));
+        if ($isLoggedIn && ! in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true)) {
+            $landingActiveRole = 'MEMBER';
+        }
+
+        $landingRoleLabel = match ($landingActiveRole) {
+            'CASHIER' => 'Kasir',
+            'MANAGER' => 'Manajer',
+            default => 'Anggota',
+        };
+        $landingIsMemberRole = $isLoggedIn && $landingActiveRole === 'MEMBER';
+        $landingIsStaffRole = $isLoggedIn && in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true);
+        $landingShowCart = ! $landingIsStaffRole;
+        $landingHasCashierRole = $isLoggedIn && ($landingActiveRole === 'CASHIER' || in_array('CASHIER', $landingRoles, true));
+        $landingHasManagerRole = $isLoggedIn && ($landingActiveRole === 'MANAGER' || in_array('MANAGER', $landingRoles, true));
+        $landingHasActiveMember = $profile
+            ? strtoupper((string) ($profile->status ?? 'ACTIVE')) === 'ACTIVE'
+            : (! empty($sessionUser['member_id']) || (empty($identity) && ! empty($sessionUser) && $landingActiveRole === 'MEMBER'));
+        $landingShowCreditWidget = $isLoggedIn && $landingIsMemberRole && $landingHasActiveMember;
+        $rawLandingCode = (string) ($member['id'] ?? ($sessionUser['id'] ?? ''));
+        $landingMemberCode = ($rawLandingCode !== '' && ! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $rawLandingCode))
+            ? $rawLandingCode
+            : null;
 
         // Master lookup map & daftar lengkap semua produk koperasi
         $allProducts = array_merge($bestDeals, $groceryProducts, $householdProducts, $snackBeverages);
@@ -189,7 +275,15 @@ class LandingController extends Controller
             'member',
             'receivableStatus',
             'activeOrders',
-            'orderHistory'
+            'orderHistory',
+            'landingRoleLabel',
+            'landingIsMemberRole',
+            'landingIsStaffRole',
+            'landingShowCart',
+            'landingHasCashierRole',
+            'landingHasManagerRole',
+            'landingShowCreditWidget',
+            'landingMemberCode'
         ));
     }
 }

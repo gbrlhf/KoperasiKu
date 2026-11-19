@@ -769,9 +769,12 @@
                         <option value="PENDING_PICKUP">Siap Diambil (Kredit)</option>
                         <option value="READY_FOR_PICKUP">Siap Diambil (Lunas)</option>
                     </select>
-                    <div class="input-group input-group-sm" style="width: 210px; max-width: 100%;">
+                    <div class="input-group input-group-sm" style="width: 240px; max-width: 100%;">
                         <span class="input-group-text bg-light"><i class="bi bi-qr-code"></i></span>
-                        <input type="text" id="pickupFilterInput" class="form-control font-monospace text-uppercase" placeholder="Cari PKP- / ORD-..." oninput="filterPickupQueue(this.value)">
+                        <input type="text" id="pickupFilterInput" class="form-control font-monospace text-uppercase" placeholder="Cari PKP- / ORD-..." oninput="filterPickupQueue(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();handleIncomingBarcode(this.value);}">
+                        <button type="button" class="btn btn-primary fw-semibold px-2.5" onclick="handleIncomingBarcode(document.getElementById('pickupFilterInput')?.value || '')" title="Cari & Proses Kode Pickup dari Server">
+                            Proses
+                        </button>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 text-nowrap flex-shrink-0 px-3" onclick="location.assign('/cashier/antrian')">
                         <i class="bi bi-arrow-clockwise"></i>
@@ -820,8 +823,17 @@
                                 <td>
                                     <div class="d-flex flex-column gap-1">
                                         @if($q['payment_method'] === 'CASH')
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Tunai di Kasir</span>
-                                            <small class="text-muted" style="font-size: 0.68rem;">Bayar saat serah terima</small>
+                                            @if($canHandover)
+                                                <span class="badge bg-success text-white">
+                                                    <i class="bi bi-check-circle-fill me-0.5"></i> Tunai Lunas
+                                                </span>
+                                                <small class="text-success" style="font-size: 0.68rem;">Siap serah terima</small>
+                                            @else
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-cash-coin me-0.5"></i> Tunai (Belum Dibayar)
+                                                </span>
+                                                <small class="text-danger fw-semibold" style="font-size: 0.68rem;">Klik Catat Pembayaran dulu</small>
+                                            @endif
                                         @elseif($q['payment_method'] === 'CREDIT')
                                             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Piutang 7 Hari</span>
                                             <small class="text-success" style="font-size: 0.68rem;"><i class="bi bi-check-circle"></i> Plafon Disetujui</small>
@@ -838,24 +850,29 @@
                                                 <small class="text-danger" style="font-size: 0.68rem;">Mutasi tidak ditemukan</small>
                                             @else
                                                 <span class="badge bg-warning text-dark" id="badgeTransfer-{{ $q['pickup_code'] }}">
-                                                    <i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi
+                                                    <i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi Transfer
                                                 </span>
-                                                <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 mt-0.5 d-inline-flex align-items-center gap-1" id="btnVerify-{{ $q['pickup_code'] }}" @disabled(!$q['pending_payment_id']) style="font-size: 0.7rem;" onclick="openVerifyTransferModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), {{ $q['pending_payment_amount'] ?? 0 }}, @js($q['transfer_ref'] ?? ''))">
-                                                    <i class="bi bi-receipt-cutoff"></i>
-                                                    <span>Verifikasi Transfer</span>
-                                                </button>
+                                                <small class="text-danger fw-semibold" style="font-size: 0.68rem;">Wajib verifikasi mutasi dulu</small>
                                             @endif
                                         @endif
                                     </div>
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex align-items-center justify-content-end gap-1.5 flex-wrap">
-                                        @if(!$q['pending_payment_id'] && $q['remaining_amount'] > 0 && $q['payment_method'] !== 'CREDIT')
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="recordQueuedPayment(@js($q['pickup_code']))">Catat pembayaran</button>
+                                        @if(!$canHandover && $q['payment_method'] === 'CASH' && $q['remaining_amount'] > 0)
+                                            <button type="button" class="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1" onclick="recordQueuedPayment(@js($q['pickup_code']))">
+                                                <i class="bi bi-cash-stack"></i>
+                                                <span>1. Catat Pembayaran</span>
+                                            </button>
+                                        @elseif(!$canHandover && $q['payment_method'] === 'BANK_TRANSFER')
+                                            <button type="button" class="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1" id="btnVerify-{{ $q['pickup_code'] }}" onclick="openVerifyTransferModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), {{ $q['pending_payment_amount'] ?? $q['remaining_amount'] ?? $q['total_amount'] }}, @js($q['transfer_ref'] ?? ''))">
+                                                <i class="bi bi-receipt-cutoff"></i>
+                                                <span>1. Verifikasi Pembayaran</span>
+                                            </button>
                                         @endif
-                                        <button type="button" class="btn btn-sm {{ $canHandover ? 'btn-outline-success' : 'btn-outline-secondary opacity-50' }} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-{{ $q['pickup_code'] }}" {{ $canHandover ? '' : 'disabled' }} title="{{ $canHandover ? 'Serahkan barang ke pembeli' : 'Wajib verifikasi pembayaran transfer terlebih dahulu' }}" onclick="openPickupHandoverModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), @js($q['items_summary']), {{ $q['total_amount'] }}, @js($q['payment_method']))">
-                                            <i class="bi bi-check2-circle"></i>
-                                            <span>Serah Terima</span>
+                                        <button type="button" class="btn btn-sm {{ $canHandover ? 'btn-success' : 'btn-outline-secondary opacity-50' }} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-{{ $q['pickup_code'] }}" {{ $canHandover ? '' : 'disabled' }} title="{{ $canHandover ? 'Serahkan barang ke pembeli' : 'Wajib klik Catat / Verifikasi Pembayaran terlebih dahulu sebelum Konfirmasi Serah Terima' }}" onclick="openPickupHandoverModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), @js($q['items_summary']), {{ $q['total_amount'] }}, @js($q['payment_method']))">
+                                            <i class="bi {{ $canHandover ? 'bi-check2-circle' : 'bi-lock-fill' }}"></i>
+                                            <span>{{ $canHandover ? 'Konfirmasi Serah Terima' : '2. Serah Terima' }}</span>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 cancel-btn" id="btnCancel-{{ $q['pickup_code'] }}" title="Batalkan Pesanan (Lepas Reservasi Stok & Credit Hold)" onclick="openCancelOrderModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['items_summary']), {{ $q['total_amount'] }})">
                                             <i class="bi bi-x-circle"></i>
@@ -1124,8 +1141,13 @@
                     </div>
                 </div>
 
-                <label for="pickupCodeInput" class="form-label">Masukkan kode yang ditunjukkan anggota</label>
-                <input id="pickupCodeInput" class="form-control mb-2" maxlength="100" autocomplete="off" placeholder="PKP-...">
+                <label for="pickupCodeInput" class="form-label small fw-bold text-secondary mb-1">Masukkan kode yang ditunjukkan anggota</label>
+                <div class="input-group mb-2">
+                    <input id="pickupCodeInput" class="form-control font-monospace text-uppercase" maxlength="100" autocomplete="off" placeholder="PKP-...">
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" onclick="const c = document.getElementById('confirmPickupCode')?.textContent?.trim() || ''; const inp = document.getElementById('pickupCodeInput'); if (inp && c) { inp.value = c; inp.focus(); }" title="Isi otomatis dengan kode pickup pesanan ini">
+                        <i class="bi bi-check2-square me-1"></i>Cocokkan Kode
+                    </button>
+                </div>
                 <div id="pickupError" class="alert alert-danger d-none" role="alert"></div>
                 <div class="form-check p-2.5 rounded-2 bg-warning bg-opacity-10 border border-warning border-opacity-25 mb-3">
                     <input class="form-check-input ms-0 me-2" type="checkbox" id="checkPhysicalHandover">
@@ -2228,7 +2250,14 @@ function resetPosCartAfterSale() {
 // ==============================================================================
 function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary, totalAmount, paymentMethod) {
     const live = realPickupQueue.find(o => o.pickup_code === pickupCode);
-    if (!live?.can_handover) { showCashierError('Pesanan belum siap diserahkan.'); return; }
+    if (!live?.can_handover) {
+        if (live?.status === 'PENDING_PAYMENT') {
+            showCashierError(`Pesanan ${pickupCode} masih menunggu pembayaran. Silakan klik Catat / Verifikasi Pembayaran terlebih dahulu.`);
+        } else {
+            showCashierError(`Pesanan ${pickupCode} belum siap diserahkan (Status: ${live?.status || 'TIDAK DIKETAHUI'}).`);
+        }
+        return;
+    }
     document.getElementById('btnExecuteHandover').disabled = false;
 
     selectedPickupOrder = {
@@ -2286,17 +2315,29 @@ async function submitCashier(url, payload) {
             body: JSON.stringify({ ...payload, idempotency_key: key }),
         });
         const result = await response.json().catch(() => ({ message: 'Respons server tidak valid. Muat ulang sesi jika diperlukan.' }));
-        if (!response.ok || !result.success) throw new Error(result.message || 'Transaksi ditolak server.');
+        const firstValidationErr = result?.errors ? Object.values(result.errors).flat()[0] : null;
+        const errMessage = firstValidationErr || result?.message || 'Transaksi ditolak server.';
+        if (!response.ok || !result.success) throw new Error(errMessage);
         cashierRequestKeys.delete(signature);
         return result.data;
     } finally { cashierBusy = false; }
 }
 function inlineError(id, message) {
     const el = document.getElementById(id);
+    if (!el) return;
     el.textContent = message;
     el.classList.toggle('d-none', !message);
 }
-function showCashierError(message) { showScanToast('Transaksi belum berhasil', message); }
+function showCashierError(message) {
+    const specificMsg = String(message || 'Terjadi kendala saat memproses transaksi.');
+    const pickupPane = document.getElementById('pickup-pane');
+    if (pickupPane?.classList.contains('active')) {
+        showInlineAlert('pickupQueueErrorAlert', specificMsg);
+    } else {
+        showInlineAlert('posErrorAlert', specificMsg);
+    }
+    showScanToast(specificMsg, specificMsg, true);
+}
 async function executePickupHandover() {
     if (cashierBusy) return;
     const order = realPickupQueue.find(o => o.pickup_code === selectedPickupOrder?.code);
@@ -2409,10 +2450,38 @@ function toggleRejectTransferBox() {
 async function verifyQueuedTransfer(action) {
     if (!currentVerifyTransfer) return;
     const order = realPickupQueue.find(o => o.pickup_code === currentVerifyTransfer.code);
-    if (!order?.pending_payment_id) { showCashierError('Tidak ada pembayaran transfer pending.'); return; }
-    if (action === 'VERIFY' && !document.getElementById('vtfConfirmFundsCheck').checked) { showCashierError('Pastikan dana telah diterima.'); return; }
-    try { await submitCashier('/api/v1/payments/' + order.pending_payment_id + '/verify', { action }); location.assign('/cashier/antrian'); }
-    catch (err) { showCashierError(err.message); }
+    if (!order) {
+        showCashierError('Data pesanan tidak ditemukan di antrian.');
+        return;
+    }
+    hideInlineAlert('vtfErrorAlert');
+    if (action === 'VERIFY' && !document.getElementById('vtfConfirmFundsCheck').checked) {
+        const msg = 'Harap centang konfirmasi bahwa dana transfer telah resmi masuk ke rekening koperasi.';
+        showInlineAlert('vtfErrorAlert', msg);
+        showCashierError(msg);
+        return;
+    }
+    try {
+        let paymentId = order.pending_payment_id;
+        if (!paymentId) {
+            const refVal = (document.getElementById('vtfRefInput')?.value || '').trim() || ('TRF-' + order.pickup_code + '-' + Date.now().toString().slice(-4));
+            const payRes = await submitCashier('/api/v1/orders/' + order.id + '/payments', {
+                method: 'BANK_TRANSFER',
+                amount: order.remaining_amount || order.total_amount,
+                external_reference: refVal,
+            });
+            paymentId = payRes?.payment_id;
+            order.pending_payment_id = paymentId;
+        }
+        if (!paymentId) {
+            throw new Error('Gagal mencatat data pembayaran transfer untuk diverifikasi.');
+        }
+        await submitCashier('/api/v1/payments/' + paymentId + '/verify', { action });
+        location.assign('/cashier/antrian');
+    } catch (err) {
+        showInlineAlert('vtfErrorAlert', err.message);
+        showCashierError(err.message);
+    }
 }
 function executeApproveTransfer() { return verifyQueuedTransfer('VERIFY'); }
 function executeRejectTransfer() { return verifyQueuedTransfer('REJECT'); }
@@ -2495,13 +2564,24 @@ function flashScannerVisual() {
     }
 }
 
-function showScanToast(title, subtitle) {
-    document.getElementById('toastItemName').textContent = title;
-    document.getElementById('toastItemDetail').textContent = subtitle;
+function showScanToast(title, subtitle, isError = false) {
+    const error = isError || title === 'Transaksi belum berhasil';
+    const titleEl = document.getElementById('toastItemName');
+    const detailEl = document.getElementById('toastItemDetail');
+    if (titleEl) titleEl.textContent = error && title === subtitle ? 'Permintaan Tidak Dapat Diproses' : title;
+    if (detailEl) detailEl.textContent = subtitle;
     const toastEl = document.getElementById('posScanToast');
-    if (toastEl) { const icon = toastEl.querySelector('.rounded-circle'); const error = title === 'Transaksi belum berhasil'; if (icon) { icon.classList.toggle('bg-danger', error); icon.classList.toggle('bg-success', !error); icon.querySelector('i').className = error ? 'bi bi-exclamation-lg fs-5' : 'bi bi-check-lg fs-5'; } }
+    if (toastEl) {
+        const icon = toastEl.querySelector('.rounded-circle');
+        if (icon) {
+            icon.classList.toggle('bg-danger', error);
+            icon.classList.toggle('bg-success', !error);
+            const iEl = icon.querySelector('i');
+            if (iEl) iEl.className = error ? 'bi bi-exclamation-lg fs-5' : 'bi bi-check-lg fs-5';
+        }
+    }
     if (toastEl && window.bootstrap) {
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2800 });
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: error ? 4500 : 2800 });
         toast.show();
     }
 }
@@ -2993,11 +3073,103 @@ function submitManualBarcodeField() {
     }
 }
 
+function switchToPickupPane() {
+    const pickupTabEl = document.getElementById('pickup-tab');
+    if (pickupTabEl && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(pickupTabEl).show();
+    }
+    const panes = document.querySelectorAll('#cashierTabContent > .tab-pane');
+    if (panes && panes.forEach) {
+        panes.forEach(p => p.classList.remove('show', 'active'));
+    }
+    const pickupPane = document.getElementById('pickup-pane');
+    if (pickupPane && pickupPane.classList) {
+        pickupPane.classList.add('show', 'active');
+    }
+}
+
+function upsertPickupQueueRow(data) {
+    const tbody = document.getElementById('pickupQueueTableBody');
+    if (!tbody || typeof tbody.insertAdjacentHTML !== 'function') return;
+
+    const existingRow = document.getElementById('pickupRow-' + data.pickup_code);
+    if (existingRow && typeof existingRow.remove === 'function') {
+        existingRow.remove();
+    }
+
+    const canHandover = Boolean(data.can_handover);
+    const payStatus = data.payment_status || (data.payment_method === 'BANK_TRANSFER' ? 'PENDING_VERIFICATION' : (data.payment_method === 'CREDIT' ? 'CREDIT_APPROVED' : 'PENDING_CASH'));
+
+    let paymentBadgeHtml = '';
+    if (data.payment_method === 'CASH') {
+        paymentBadgeHtml = canHandover
+            ? `<span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-0.5"></i> Tunai Lunas</span><small class="text-success" style="font-size: 0.68rem;">Siap serah terima</small>`
+            : `<span class="badge bg-warning text-dark"><i class="bi bi-cash-coin me-0.5"></i> Tunai (Belum Dibayar)</span><small class="text-danger fw-semibold" style="font-size: 0.68rem;">Klik Catat Pembayaran dulu</small>`;
+    } else if (data.payment_method === 'CREDIT') {
+        paymentBadgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Piutang 7 Hari</span><small class="text-success" style="font-size: 0.68rem;"><i class="bi bi-check-circle"></i> Plafon Disetujui</small>`;
+    } else {
+        paymentBadgeHtml = payStatus === 'VERIFIED'
+            ? `<span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi</span>`
+            : `<span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi Transfer</span><small class="text-danger fw-semibold" style="font-size: 0.68rem;">Wajib verifikasi mutasi dulu</small>`;
+    }
+
+    const codeEsc = escapeHtml(data.pickup_code);
+    const nameEsc = escapeHtml(data.member_name);
+    const memberIdEsc = escapeHtml(data.member_id);
+    const itemsEsc = escapeHtml(data.items_summary);
+    const totalNum = Number(data.total_amount || 0);
+    const methodEsc = escapeHtml(data.payment_method);
+
+    let payActionBtn = '';
+    if (!canHandover && data.payment_method === 'CASH' && Number(data.remaining_amount || 0) > 0) {
+        payActionBtn = `<button type="button" class="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1" onclick="recordQueuedPayment('${codeEsc}')"><i class="bi bi-cash-stack"></i><span>1. Catat Pembayaran</span></button>`;
+    } else if (!canHandover && data.payment_method === 'BANK_TRANSFER') {
+        const amt = Number(data.pending_payment_amount || data.remaining_amount || data.total_amount || 0);
+        const refEsc = escapeHtml(data.transfer_ref || '');
+        payActionBtn = `<button type="button" class="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1" onclick="openVerifyTransferModal('${codeEsc}', '${nameEsc}', '${memberIdEsc}', ${amt}, '${refEsc}')"><i class="bi bi-receipt-cutoff"></i><span>1. Verifikasi Pembayaran</span></button>`;
+    }
+
+    const rowHtml = `
+        <tr class="live-order-row table-active" id="pickupRow-${codeEsc}" data-code="${codeEsc.toLowerCase()}" data-member="${(nameEsc + ' ' + memberIdEsc).toLowerCase()}" data-status="${escapeHtml(data.status)}">
+            <td>
+                <span class="badge bg-primary px-2.5 py-1 fs-7 font-monospace fw-bold">${codeEsc}</span>
+                <small class="text-muted d-block" style="font-size: 0.68rem;">${escapeHtml(data.created_at || 'Baru saja')}</small>
+            </td>
+            <td>
+                <span class="fw-bold text-dark">${nameEsc}</span>
+                <small class="text-muted d-block font-monospace">${memberIdEsc}</small>
+            </td>
+            <td><span class="text-secondary">${itemsEsc}</span></td>
+            <td class="fw-bold text-dark font-monospace">Rp ${totalNum.toLocaleString('id-ID')}</td>
+            <td><div class="d-flex flex-column gap-1">${paymentBadgeHtml}</div></td>
+            <td class="text-end">
+                <div class="d-flex align-items-center justify-content-end gap-1.5 flex-wrap">
+                    ${payActionBtn}
+                    <button type="button" class="btn btn-sm ${canHandover ? 'btn-success' : 'btn-outline-secondary opacity-50'} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-${codeEsc}" ${canHandover ? '' : 'disabled'} onclick="openPickupHandoverModal('${codeEsc}', '${nameEsc}', '${memberIdEsc}', '${itemsEsc}', ${totalNum}, '${methodEsc}')">
+                        <i class="bi ${canHandover ? 'bi-check2-circle' : 'bi-lock-fill'}"></i>
+                        <span>${canHandover ? 'Konfirmasi Serah Terima' : '2. Serah Terima'}</span>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 cancel-btn" id="btnCancel-${codeEsc}" onclick="openCancelOrderModal('${codeEsc}', '${nameEsc}', '${itemsEsc}', ${totalNum})">
+                        <i class="bi bi-x-circle"></i>
+                        <span class="d-none d-md-inline">Batal</span>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    tbody.insertAdjacentHTML('afterbegin', rowHtml);
+    const emptyRow = document.getElementById('pickupEmptyRow');
+    if (emptyRow && emptyRow.classList) emptyRow.classList.add('d-none');
+}
+
 let lookupBusy = false;
 async function handleIncomingBarcode(code, options = {}) {
     const clean = String(code || '').trim();
     if (!clean || lookupBusy || cashierBusy) return;
     lookupBusy = true;
+    hideInlineAlert('posErrorAlert');
+    hideInlineAlert('pickupQueueErrorAlert');
     try {
         const pickup = /^(PKP|ORD)-/i.test(clean);
         const url = pickup ? '/cashier/pickup-lookup?code=' : '/api/products/lookup?barcode=';
@@ -3006,19 +3178,28 @@ async function handleIncomingBarcode(code, options = {}) {
         if (!response.ok || !result.success) throw new Error(result.message || 'Kode tidak ditemukan.');
         const data = result.data;
         if (pickup) {
-            if (!['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(data.status)) { showCashierError('Pesanan ' + data.pickup_code + ' berstatus ' + data.status); return; }
+            if (!['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(data.status)) {
+                showCashierError('Pesanan ' + data.pickup_code + ' sudah berstatus ' + data.status + ' dan tidak dapat diproses ulang.');
+                return;
+            }
             const index = realPickupQueue.findIndex(o => o.id === data.id);
             if (index >= 0) realPickupQueue[index] = data; else realPickupQueue.push(data);
-            bootstrap.Tab.getOrCreateInstance(document.getElementById('pickup-tab')).show();
+            upsertPickupQueueRow(data);
+            switchToPickupPane();
             const action = () => {
                 dismissGopayScanSheet();
-                if (data.can_handover) openPickupHandoverModal(data.pickup_code, data.member_name, data.member_id, data.items_summary, data.total_amount, data.payment_method);
-                else if (data.pending_payment_id) openVerifyTransferModal(data.pickup_code, data.member_name, data.member_id, data.pending_payment_amount, data.transfer_ref);
-                else if (data.payment_method !== 'CREDIT') recordQueuedPayment(data.pickup_code);
-                else showCashierError('Fasilitas kredit pesanan tidak siap.');
+                if (data.can_handover) {
+                    openPickupHandoverModal(data.pickup_code, data.member_name, data.member_id, data.items_summary, data.total_amount, data.payment_method);
+                } else if (data.pending_payment_id || data.payment_method === 'BANK_TRANSFER') {
+                    openVerifyTransferModal(data.pickup_code, data.member_name, data.member_id, data.pending_payment_amount || data.remaining_amount || data.total_amount, data.transfer_ref || '');
+                } else if (data.payment_method !== 'CREDIT') {
+                    recordQueuedPayment(data.pickup_code);
+                } else {
+                    showCashierError('Fasilitas kredit pesanan tidak siap (Credit Hold tidak aktif).');
+                }
             };
             const scanner = document.getElementById('barcodeScannerModal');
-            if (scanner?.classList.contains('show') || scanner?.style.display === 'block') {
+            if (scanner?.classList?.contains('show') || scanner?.style?.display === 'block') {
                 scanner.addEventListener('hidden.bs.modal', action, { once: true });
                 stopBarcodeScanner();
                 bootstrap.Modal.getOrCreateInstance(scanner).hide();

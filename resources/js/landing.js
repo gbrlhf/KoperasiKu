@@ -273,10 +273,6 @@ window.handleModalLoginFormSubmit = function (event) {
             window.pendingActionAfterLogin = null;
         }
 
-        try {
-            sessionStorage.setItem('koperasiku_open_cart_after_login', '1');
-        } catch (e) {}
-
         window.location.reload();
     })
     .catch(err => {
@@ -345,6 +341,49 @@ window.openLoginModalFromProfile = function () {
     }, 300);
 };
 
+window.showCartAddedToast = function (productName, addedQty = 1) {
+    let toastEl = document.getElementById('storefrontCartToast');
+    if (!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.id = 'storefrontCartToast';
+        toastEl.setAttribute('role', 'status');
+        toastEl.setAttribute('aria-live', 'polite');
+        toastEl.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:1095;max-width:360px;width:calc(100% - 32px);background:#1e293b;color:#ffffff;border-radius:12px;padding:12px 16px;box-shadow:0 12px 28px rgba(15,23,42,0.22);display:flex;align-items:center;justify-content:space-between;gap:12px;transition:opacity 0.2s ease,transform 0.2s ease;opacity:0;transform:translateY(10px);pointer-events:none;';
+        document.body.appendChild(toastEl);
+    }
+
+    const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+    toastEl.innerHTML = `
+        <div class="d-flex align-items-center gap-2 min-w-0">
+            <span class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width:28px;height:28px;">
+                <i class="bi bi-check2 fw-bold"></i>
+            </span>
+            <div class="min-w-0 lh-sm">
+                <div class="fw-bold small text-truncate">${htmlEscape(productName || 'Produk')} (+${addedQty})</div>
+                <small class="text-white-50" style="font-size:0.72rem;">Ditambahkan ke keranjang (${totalQty} item)</small>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fw-semibold flex-shrink-0" style="min-height:30px;font-size:0.75rem;" onclick="window.openCartDrawer()">
+            Lihat
+        </button>
+    `;
+
+    toastEl.style.pointerEvents = 'auto';
+    toastEl.style.opacity = '1';
+    toastEl.style.transform = 'translateY(0)';
+
+    if (window.__cartToastTimer) {
+        clearTimeout(window.__cartToastTimer);
+    }
+    window.__cartToastTimer = setTimeout(() => {
+        if (toastEl) {
+            toastEl.style.opacity = '0';
+            toastEl.style.transform = 'translateY(10px)';
+            toastEl.style.pointerEvents = 'none';
+        }
+    }, 2600);
+};
+
 window.addToCart = function (id, name, price, unit, icon) {
     if (checkoutBusy) return;
     if (!window.isUserLoggedIn) {
@@ -362,13 +401,7 @@ window.addToCart = function (id, name, price, unit, icon) {
         cart.push({ id, name, price, unit, icon, qty: 1 });
     }
     saveCart();
-
-    // Buka drawer keranjang
-    const drawerEl = document.getElementById('cartDrawer');
-    if (drawerEl && window.bootstrap) {
-        const bsDrawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
-        bsDrawer.show();
-    }
+    window.showCartAddedToast(name, 1);
 };
 
 window.openCartDrawer = function () {
@@ -567,12 +600,7 @@ window.modalAddToCart = function () {
         if (bsModal) bsModal.hide();
     }
 
-    // Open Cart Drawer
-    const drawerEl = document.getElementById('cartDrawer');
-    if (drawerEl && window.bootstrap) {
-        const bsDrawer = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
-        bsDrawer.show();
-    }
+    window.showCartAddedToast(activeModalProduct.name, modalCurrentQty);
 };
 
 window.modalBuyNow = function () {
