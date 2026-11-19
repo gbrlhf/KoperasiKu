@@ -141,7 +141,13 @@
                             @endif
                             <li><hr class="dropdown-divider my-1"></li>
                             <li>
-                                <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item text-danger">Keluar (Logout)</button></form>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger py-2">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                        <span>Keluar (Logout)</span>
+                                    </button>
+                                </form>
                             </li>
                         </ul>
                     </div>
