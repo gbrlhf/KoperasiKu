@@ -554,9 +554,9 @@
 
     <!-- POINT OF SALE (POS) TRANSAKSI KASIR MINIMARKET -->
     <div class="tab-pane fade {{ $activeTab === 'pos' ? 'show active' : '' }}" id="pos-pane" role="tabpanel">
-        <div class="row g-3 g-lg-4 align-items-start">
+        <div class="row g-3 g-lg-4 align-items-stretch">
             <!-- Left (col-lg-8): Area Scan Barcode & Daftar Belanjaan Kasir -->
-            <div class="col-12 col-lg-8">
+            <div class="col-12 col-lg-8 d-flex flex-column">
                 <!-- Baris Atas: Card Scan Barcode & Pencarian Barang -->
                 <div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -590,7 +590,7 @@
                 </div>
 
                 <!-- Bagian Utama: Daftar Belanjaan Kasir (Tabel Transaksi) -->
-                <div class="card border-0 shadow-sm bg-white overflow-hidden">
+                <div class="card border-0 shadow-sm bg-white overflow-hidden flex-grow-1 d-flex flex-column">
                     <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center gap-2">
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-cart-check-fill text-success fs-5"></i>
@@ -606,7 +606,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive flex-grow-1">
                         <table class="table table-hover align-middle mb-0" id="posCartTable">
                             <thead class="table-light">
                                 <tr>
@@ -623,40 +623,6 @@
                                 <!-- Injected via JavaScript renderPosCart() -->
                             </tbody>
                         </table>
-                    </div>
-                </div>
-
-                <!-- Katalog Pilih Cepat Produk Gerai -->
-                <div class="card border-0 shadow-sm bg-white p-3 p-md-4 mt-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2.5">
-                        <h6 class="fw-bold text-dark mb-0 small">
-                            <i class="bi bi-grid-fill text-success me-1"></i> Pilih Cepat Produk Gerai
-                        </h6>
-                        <small class="text-muted" style="font-size: 0.72rem;">Klik kartu untuk menambah ke keranjang POS</small>
-                    </div>
-                    <div class="row g-2.5">
-                        @foreach($stockItems as $item)
-                            <div class="col-6 col-sm-4 col-xl-3 quick-pick-col" data-search="{{ strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['category']) }}">
-                                <div class="tokped-product-card h-100 d-flex flex-column justify-content-between"
-                                     onclick="posAddToCart(@js($item['name']), {{ $item['sell_price'] }}, @js($item['sku']))"
-                                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
-                                     role="button" tabindex="0" title="Tambah {{ $item['name'] }}">
-                                    <div>
-                                        <div class="d-flex justify-content-between align-items-center mb-1.5">
-                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.64rem;">{{ $item['sku'] }}</span>
-                                            <span class="small fw-semibold {{ $item['available'] <= 10 ? 'text-danger' : 'text-muted' }}" style="font-size: 0.68rem;">Stok {{ $item['available'] }}</span>
-                                        </div>
-                                        <div class="fw-semibold text-dark mb-2" style="font-size: 0.8rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.15rem;">
-                                            {{ $item['name'] }}
-                                        </div>
-                                    </div>
-                                    <div class="pt-2 border-top d-flex justify-content-between align-items-center gap-1">
-                                        <span class="fw-bold tokped-price" style="font-size: 0.84rem;">Rp{{ number_format($item['sell_price'], 0, ',', '.') }}</span>
-                                        <span class="btn btn-outline-success btn-sm py-0 px-2 tokped-add-btn" style="min-height: 26px; font-size: 0.72rem; border-radius: 6px;">+</span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
                     </div>
                 </div>
             </div>
@@ -2616,7 +2582,7 @@ function dismissGopayScanSheet() {
 
 function focusPosCart() {
     dismissGopayScanSheet();
-    const cartCard = document.querySelector('.card.border-0.shadow-sm.bg-white.mb-4');
+    const cartCard = document.getElementById('posCartTable')?.closest('.card') || document.querySelector('#pos-pane .card');
     if (cartCard) {
         cartCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
         cartCard.classList.add('border-primary');
