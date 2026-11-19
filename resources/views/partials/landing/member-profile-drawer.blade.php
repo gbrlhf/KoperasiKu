@@ -104,20 +104,20 @@
             <div class="p-2.5 rounded-2 bg-light border mb-2.5">
                 <div class="d-flex justify-content-between align-items-baseline">
                     <span class="text-muted small" style="font-size: 0.74rem;">Sisa Limit Belanja:</span>
-                    <span class="badge bg-success text-white rounded-pill" style="font-size: 0.65rem;">Siap Dipakai</span>
+                    <span class="badge bg-success text-white rounded-pill" style="font-size: 0.65rem;">{{ !empty($receivableStatus['eligible_for_credit']) ? 'Siap Dipakai' : 'Tidak tersedia' }}</span>
                 </div>
                 <div class="fs-4 fw-extrabold text-success mb-1">
-                    Rp {{ number_format($receivableStatus['available_limit'] ?? 852000, 0, ',', '.') }}
+                    Rp {{ number_format($receivableStatus['available_limit'] ?? 0, 0, ',', '.') }}
                 </div>
                 
                 <!-- Progress Meter -->
                 <div class="progress mb-1.5" style="height: 6px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: 85%;" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ max(0, min(100, 100 - ($receivableStatus['limit_used_percent'] ?? 100))) }}%;" aria-valuenow="{{ max(0, min(100, 100 - ($receivableStatus['limit_used_percent'] ?? 100))) }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
                 
                 <div class="d-flex justify-content-between text-muted" style="font-size: 0.7rem;">
-                    <span>Plafon: Rp 1.000.000</span>
-                    <span class="fw-semibold text-dark">85% Tersedia</span>
+                    <span>Plafon: Rp {{ number_format($receivableStatus['credit_limit'] ?? 0, 0, ',', '.') }}</span>
+                    <span class="fw-semibold text-dark">{{ round(max(0, 100 - ($receivableStatus['limit_used_percent'] ?? 100))) }}% Tersedia</span>
                 </div>
             </div>
 
@@ -126,18 +126,18 @@
                 <div class="col-6">
                     <div class="p-2 rounded-2 bg-white border">
                         <small class="text-secondary d-block" style="font-size: 0.68rem;">Tagihan Berjalan:</small>
-                        <strong class="text-danger small d-block">Rp {{ number_format($receivableStatus['total_debt'] ?? 148000, 0, ',', '.') }}</strong>
+                        <strong class="text-danger small d-block">Rp {{ number_format($receivableStatus['total_debt'] ?? 0, 0, ',', '.') }}</strong>
                         <small class="text-danger fw-semibold" style="font-size: 0.65rem;">
-                            <i class="bi bi-clock-history me-0.5"></i> Tempo 3 hari lagi
+                            <i class="bi bi-clock-history me-0.5"></i> {{ $receivableStatus['days_remaining'] ?? 0 }} hari menuju tempo
                         </small>
                     </div>
                 </div>
                 <div class="col-6">
                     <div class="p-2 rounded-2 bg-white border">
                         <small class="text-secondary d-block" style="font-size: 0.68rem;">Credit Hold (Pesanan):</small>
-                        <strong class="text-dark small d-block">Rp 0</strong>
+                        <strong class="text-dark small d-block">Rp {{ number_format($receivableStatus['active_credit_hold'] ?? 0, 0, ',', '.') }}</strong>
                         <small class="text-success fw-semibold" style="font-size: 0.65rem;">
-                            <i class="bi bi-check2 me-0.5"></i> Tidak ada ditahan
+                            <i class="bi bi-check2 me-0.5"></i> Reservasi kredit aktif
                         </small>
                     </div>
                 </div>
@@ -147,10 +147,10 @@
             <div class="border rounded-2 overflow-hidden bg-light">
                 <button class="btn btn-sm btn-link text-decoration-none text-dark w-100 d-flex justify-content-between align-items-center p-2 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInvoices" aria-expanded="false" aria-controls="collapseInvoices" style="font-size: 0.74rem;">
                     <span class="fw-semibold text-primary">
-                        <i class="bi bi-receipt me-1"></i> Rincian 2 Faktur Belum Lunas
+                        <i class="bi bi-receipt me-1"></i> Rincian {{ count($receivableStatus['active_invoices'] ?? []) }} Faktur Belum Lunas
                     </span>
                     <span class="d-inline-flex align-items-center gap-1 text-muted">
-                        <span>Rp 148.000</span>
+                        <span>Rp {{ number_format($receivableStatus['total_debt'] ?? 0, 0, ',', '.') }}</span>
                         <i class="bi bi-chevron-down small"></i>
                     </span>
                 </button>
@@ -251,6 +251,7 @@
         <!-- 4. AKSI AKUN -->
         <div class="pt-2">
             <div class="d-flex gap-2">
+<<<<<<< HEAD
                 <a href="{{ route('logout') }}" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Keluar Akun</span>
@@ -261,6 +262,10 @@
                         <span>Ganti Akun</span>
                     </a>
                 @endif
+=======
+                <form class="flex-fill" method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="btn btn-outline-danger btn-sm w-100">Keluar Akun</button></form>
+                <form class="flex-fill" method="POST" action="{{ route('switch-account') }}">@csrf<button type="submit" class="btn btn-outline-secondary btn-sm w-100">Ganti Akun</button></form>
+>>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
             </div>
         </div>
 
@@ -292,7 +297,7 @@
                 </span>
                 
                 <h4 class="fw-extrabold text-dark mb-1">
-                    {{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}
+                    {{ $activeOrders[0]['pickup_code'] ?? '' }}
                 </h4>
                 <p class="text-muted small mb-3">Tunjukkan layar ini langsung ke petugas kasir saat pengambilan pesanan.</p>
 
@@ -305,11 +310,11 @@
                 </div>
 
                 <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
-                    <button type="button" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="openFullscreenPickupModal('{{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}')">
+                    <button type="button" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="openFullscreenPickupModal('{{ $activeOrders[0]['pickup_code'] ?? '' }}')">
                         <i class="bi bi-arrows-fullscreen text-primary"></i>
                         <span>Mode Layar Penuh (Kecerahan Maksimal)</span>
                     </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="copyMemberPickupCode('{{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}', this)">
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="copyMemberPickupCode('{{ $activeOrders[0]['pickup_code'] ?? '' }}', this)">
                         <i class="bi bi-clipboard"></i>
                         <span>Salin Kode</span>
                     </button>
@@ -320,7 +325,7 @@
                     const modalEl = document.getElementById('pickupBarcodeModal');
                     if (modalEl) {
                         modalEl.addEventListener('shown.bs.modal', () => {
-                            const code = "{{ $activeOrders[0]['pickup_code'] ?? 'PKP-84920' }}";
+                            const code = "{{ $activeOrders[0]['pickup_code'] ?? '' }}";
                             if (window.JsBarcode) {
                                 try {
                                     window.JsBarcode("#drawerPickupBarcodeSvg", code, {
@@ -347,7 +352,7 @@
                     </div>
                     <div class="d-flex justify-content-between mb-1">
                         <span>Total Belanja:</span>
-                        <strong class="text-primary">Rp {{ number_format($activeOrders[0]['total_amount'] ?? 110500, 0, ',', '.') }}</strong>
+                        <strong class="text-primary">Rp {{ number_format($activeOrders[0]['total_amount'] ?? 0, 0, ',', '.') }}</strong>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Status:</span>

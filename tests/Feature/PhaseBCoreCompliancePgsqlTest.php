@@ -267,13 +267,13 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
 
         // Kasir yg sama dilarang confirmPickup atas pesanannya sendiri (Anti self-pickup)
         $this->actingAs($this->cashierMemberUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code')])
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'SELF_PICKUP_FORBIDDEN');
 
         // Kasir lain boleh confirmPickup
         $pickupRes = $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code')])
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertOk();
 
         $receivableId = $pickupRes->json('data.receivable_id');
@@ -322,7 +322,7 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
 
         // Pickup sebelum pembayaran terverifikasi harus ditolak
         $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup")
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PAYMENT_NOT_VERIFIED');
 
@@ -356,13 +356,13 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
 
         // Confirm pickup dengan idempotency key
         $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['idempotency_key' => 'pkp-idem-001'])
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['idempotency_key' => 'pkp-idem-001', 'pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertOk()
             ->assertJsonPath('data.status', 'COMPLETED');
 
         // Panggilan ulang dengan idempotency_key yang sama aman & tidak mengurangi stok 2x
         $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['idempotency_key' => 'pkp-idem-001'])
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['idempotency_key' => 'pkp-idem-001', 'pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertOk()
             ->assertJsonPath('data.idempotent', true);
 
@@ -386,7 +386,7 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
 
         $orderId = $checkoutRes->json('data.order_id');
         $pickupRes = $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup")
+            ->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkoutRes->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertOk();
 
         $receivableId = $pickupRes->json('data.receivable_id');
@@ -517,6 +517,119 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'ORDER_CANCELLED']);
     }
 
+    public function test_pickup_of_all_reserved_stock_preserves_database_check_constraint(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CASH',
+            'items' => [['product_id' => $this->productId, 'quantity' => 10]],
+        ])->assertStatus(201);
+        $id = $checkout->json('data.order_id');
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$id}/payments", [
+            'method' => 'CASH', 'amount' => 1000000,
+        ])->assertStatus(201);
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => $checkout->json('data.pickup_code'), 'handover_confirmed' => true,
+        ])->assertOk();
+        $this->assertDatabaseHas('inventory_balances', [
+            'product_id' => $this->productId, 'on_hand' => 0, 'reserved' => 0,
+        ]);
+    }
+
+    public function test_credit_pickup_and_cancel_reject_missing_hold(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CREDIT',
+            'items' => [['product_id' => $this->productId, 'quantity' => 1]],
+        ])->assertStatus(201);
+        $id = $checkout->json('data.order_id');
+        DB::table('credit_holds')->where('order_id', $id)->delete();
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => $checkout->json('data.pickup_code'), 'handover_confirmed' => true,
+        ])->assertStatus(422)->assertJsonPath('error_code', 'INVALID_CREDIT_HOLD');
+        $this->postJson("/api/v1/orders/{$id}/cancel")
+            ->assertStatus(422)->assertJsonPath('error_code', 'INVALID_CREDIT_HOLD');
+        $this->assertDatabaseHas('orders', ['id' => $id, 'status' => 'PENDING_PICKUP']);
+        $this->assertDatabaseHas('inventory_balances', [
+            'product_id' => $this->productId, 'on_hand' => 10, 'reserved' => 1,
+        ]);
+        $this->assertDatabaseMissing('receivables', ['order_id' => $id]);
+    }
+
+    public function test_credit_pickup_rejects_missing_reservation(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CREDIT',
+            'items' => [['product_id' => $this->productId, 'quantity' => 1]],
+        ])->assertStatus(201);
+        $id = $checkout->json('data.order_id');
+        DB::table('stock_reservations')->where('order_id', $id)->delete();
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => $checkout->json('data.pickup_code'), 'handover_confirmed' => true,
+        ])->assertStatus(422)->assertJsonPath('error_code', 'INVALID_RESERVATION');
+        $this->assertDatabaseHas('orders', ['id' => $id, 'status' => 'PENDING_PICKUP']);
+        $this->assertDatabaseHas('credit_holds', ['order_id' => $id, 'status' => 'ACTIVE']);
+        $this->assertDatabaseMissing('receivables', ['order_id' => $id]);
+    }
+
+    public function test_paid_order_cannot_be_cancelled_without_refund_workflow(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CASH',
+            'items' => [['product_id' => $this->productId, 'quantity' => 1]],
+        ])->assertStatus(201);
+        $id = $checkout->json('data.order_id');
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$id}/payments", [
+            'method' => 'CASH', 'amount' => 100000,
+        ])->assertStatus(201);
+        $this->postJson("/api/v1/orders/{$id}/cancel")
+            ->assertStatus(409)->assertJsonPath('error_code', 'REFUND_REQUIRED');
+        $this->assertDatabaseHas('orders', ['id' => $id, 'status' => 'READY_FOR_PICKUP']);
+        $this->assertDatabaseHas('inventory_balances', [
+            'product_id' => $this->productId, 'on_hand' => 10, 'reserved' => 1,
+        ]);
+    }
+
+    public function test_pickup_requires_matching_code_and_explicit_handover(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CREDIT', 'items' => [['product_id' => $this->productId, 'quantity' => 1]],
+        ])->assertStatus(201);
+        $id = $checkout->json('data.order_id');
+        $code = $checkout->json('data.pickup_code');
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => $code, 'handover_confirmed' => false,
+        ])->assertStatus(422);
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => 'WRONG-CODE', 'handover_confirmed' => true,
+        ])->assertStatus(422)->assertJsonPath('error_code', 'INVALID_PICKUP_CODE');
+        $this->assertDatabaseHas('stock_reservations', ['order_id' => $id, 'status' => 'ACTIVE']);
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => $code, 'handover_confirmed' => true,
+        ])->assertOk();
+        $this->assertDatabaseHas('stock_reservations', ['order_id' => $id, 'status' => 'FULFILLED']);
+    }
+
+    public function test_aliases_cannot_bypass_stock_check(): void
+    {
+        $this->actingAs($this->memberUser)->postJson('/api/v1/orders', [
+            'payment_method' => 'CASH', 'items' => [
+                ['product_id' => $this->productId, 'quantity' => 6],
+                ['product_id' => 'TST-BRS-01', 'quantity' => 6],
+            ],
+        ])->assertStatus(422)->assertJsonPath('error_code', 'INSUFFICIENT_STOCK');
+        $this->assertDatabaseHas('inventory_balances', ['product_id' => $this->productId, 'on_hand' => 10, 'reserved' => 0]);
+    }
+
+    public function test_pos_transfer_requires_attestation_and_detects_price_change(): void
+    {
+        $payload = ['payment_method' => 'BANK_TRANSFER', 'items' => [['product_id' => $this->productId, 'quantity' => 1]]];
+        $this->actingAs($this->cashierUser)->postJson('/api/v1/pos/sale', $payload)
+            ->assertStatus(422)->assertJsonPath('error_code', 'PAYMENT_NOT_VERIFIED');
+        $this->postJson('/api/v1/pos/sale', $payload + ['transfer_verified' => true, 'expected_total' => '99999.99'])
+            ->assertStatus(409)->assertJsonPath('error_code', 'PRICE_CHANGED');
+        $this->assertDatabaseHas('inventory_balances', ['product_id' => $this->productId, 'on_hand' => 10, 'reserved' => 0]);
+    }
+
     public function test_transaction_rollback_on_failure(): void
     {
         $beforeOrders = DB::table('orders')->count();
@@ -564,5 +677,57 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
         $this->withoutVite()->actingAs($this->managerUser)->get('/manager/dashboard')
             ->assertOk()
             ->assertSee('manager-v2');
+    }
+
+    public function test_qa_live_pickup_lookup_and_confirm_once(): void
+    {
+        $checkout = $this->actingAs($this->memberUser)->postJson('/checkout', [
+            'payment_choice' => 'CREDIT', 'expected_total' => '100000.00',
+            'items' => [['product_id' => $this->productId, 'quantity' => 1]],
+        ])->assertCreated();
+        $code = $checkout->json('data.pickup_code');
+        $id = $checkout->json('data.order_id');
+        $url = '/cashier/pickup-lookup?code='.urlencode(strtolower($code));
+        $this->getJson($url)->assertStatus(403);
+        $this->actingAs($this->cashierUser)->getJson($url)->assertOk()
+            ->assertJsonPath('data.id', $id)->assertJsonPath('data.can_handover', true);
+        $this->getJson('/cashier/pickup-lookup?code=NOT-A-REAL-CODE')->assertNotFound();
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", [
+            'pickup_code' => 'PKP-INVALID', 'handover_confirmed' => true,
+        ])->assertStatus(422);
+        $body = ['pickup_code' => $code, 'handover_confirmed' => true, 'idempotency_key' => 'qa-handover-1'];
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", $body)->assertOk();
+        $this->postJson("/api/v1/orders/{$id}/confirm-pickup", $body)->assertOk();
+        $this->getJson($url)->assertOk()->assertJsonPath('data.status', 'COMPLETED')->assertJsonPath('data.can_handover', false);
+        $this->assertEquals(9, DB::table('inventory_balances')->where('product_id', $this->productId)->value('on_hand'));
+        $this->assertEquals(0, DB::table('inventory_balances')->where('product_id', $this->productId)->value('reserved'));
+    }
+
+    public function test_qa_price_change_and_insufficient_tender_do_not_mutate_stock(): void
+    {
+        $items = [['product_id' => $this->productId, 'quantity' => 1]];
+        $this->actingAs($this->memberUser)->postJson('/checkout', [
+            'payment_choice' => 'CASH', 'expected_total' => '99999.00', 'items' => $items,
+        ])->assertStatus(409)->assertJsonPath('error_code', 'PRICE_CHANGED');
+        $this->actingAs($this->cashierUser)->postJson('/cashier/pos-sale', [
+            'payment_choice' => 'CASH', 'expected_total' => '100000.00', 'cash_received' => '99999.00', 'items' => $items,
+        ])->assertStatus(422)->assertJsonPath('error_code', 'INSUFFICIENT_CASH');
+        $this->assertEquals(10, DB::table('inventory_balances')->where('product_id', $this->productId)->value('on_hand'));
+        $this->assertEquals(0, DB::table('inventory_balances')->where('product_id', $this->productId)->value('reserved'));
+        $this->postJson('/cashier/pos-sale', [
+            'payment_choice' => 'CASH', 'expected_total' => '100000.00', 'cash_received' => '100000.00', 'items' => $items,
+        ])->assertCreated();
+        $this->assertEquals(9, DB::table('inventory_balances')->where('product_id', $this->productId)->value('on_hand'));
+    }
+
+    public function test_qa_switch_account_invalidates_old_identity(): void
+    {
+        $this->actingAs($this->cashierUser)->post('/switch-account')->assertRedirect(route('login'));
+        $this->assertGuest();
+        $this->assertNull(session('user'));
+        $this->postJson('/api/v1/auth/login', [
+            'username' => 'EMP-TST-01', 'password' => 'password123', 'role' => 'MEMBER',
+        ])->assertOk()->assertJsonPath('role', 'MEMBER');
+        $this->assertAuthenticatedAs($this->memberUser);
     }
 }

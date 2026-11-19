@@ -281,26 +281,26 @@ class PhaseB6RemediationPgsqlTest extends TestCase
 
         // Confirm pickup Order A
         $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderAId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A'])
+            ->postJson("/api/v1/orders/{$orderAId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A', 'pickup_code' => $pickupA, 'handover_confirmed' => true])
             ->assertOk()
             ->assertJsonPath('data.order_id', $orderAId);
 
         // Same order via pickup_code instead of UUID replays cleanly
         $this->actingAs($this->cashierUser)
-            ->postJson('/cashier/confirm-pickup', ['pickup_code' => $pickupA, 'idempotency_key' => 'b6-pkp-A'])
+            ->postJson('/cashier/confirm-pickup', ['pickup_code' => $pickupA, 'idempotency_key' => 'b6-pkp-A', 'handover_confirmed' => true])
             ->assertOk()
             ->assertJsonPath('data.idempotent', true)
             ->assertJsonPath('data.order_id', $orderAId);
 
         // Cross-order key reuse (Order A's pickup key sent against Order B) MUST fail with 409 IDEMPOTENCY_CONFLICT!
         $this->actingAs($this->cashierUser)
-            ->postJson("/api/v1/orders/{$orderBId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A'])
+            ->postJson("/api/v1/orders/{$orderBId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A', 'pickup_code' => $orderB->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertStatus(409)
             ->assertJsonPath('error_code', 'IDEMPOTENCY_CONFLICT');
 
         // Different cashier reusing Order A's pickup key MUST fail with 403 FORBIDDEN!
         $this->actingAs($this->otherCashierUser)
-            ->postJson("/api/v1/orders/{$orderAId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A'])
+            ->postJson("/api/v1/orders/{$orderAId}/confirm-pickup", ['idempotency_key' => 'b6-pkp-A', 'pickup_code' => $pickupA, 'handover_confirmed' => true])
             ->assertStatus(403)
             ->assertJsonPath('error_code', 'FORBIDDEN');
 

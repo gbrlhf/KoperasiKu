@@ -141,10 +141,7 @@
                             @endif
                             <li><hr class="dropdown-divider my-1"></li>
                             <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2 text-danger py-2" href="{{ route('logout') }}">
-                                    <i class="bi bi-box-arrow-right"></i>
-                                    <span>Keluar (Logout)</span>
-                                </a>
+                                <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item text-danger">Keluar (Logout)</button></form>
                             </li>
                         </ul>
                     </div>
@@ -184,6 +181,7 @@
                 </div>
                 <div class="d-flex flex-column gap-1">
                     @if(!empty($isLoggedIn) && !empty($member))
+<<<<<<< HEAD
                         @if(!empty($landingHasCashierRole))
                             <a href="{{ route('cashier.pos') }}" class="subnav-link text-success fw-bold">
                                 <i class="bi bi-upc-scan me-1"></i>
@@ -209,6 +207,16 @@
                             <i class="bi bi-box-arrow-right me-1"></i>
                             <span>Keluar (Logout)</span>
                         </a>
+=======
+                        <button type="button" class="btn btn-link subnav-link text-start text-primary fw-bold p-0 border-0 text-decoration-none" data-bs-toggle="offcanvas" data-bs-target="#memberProfileDrawer">
+                            <i class="bi bi-person-vcard text-primary me-1"></i>
+                            <span>Profil & Tagihan ({{ $member['name'] }})</span>
+                            @if(!empty($receivableStatus['has_debt']))
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">{{ !empty($receivableStatus['is_overdue']) ? 'Lewat tempo' : 'Ada tagihan' }}</span>
+                            @endif
+                        </button>
+                        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="subnav-link text-danger">Keluar (Logout)</button></form>
+>>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                     @else
                         <a href="{{ route('login') }}" class="subnav-link text-primary fw-bold">
                             <i class="bi bi-box-arrow-in-right me-1"></i>

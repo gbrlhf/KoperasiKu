@@ -27,6 +27,9 @@ class POSController extends Controller
                 'payment_choice' => 'required_without:payment_method|string|in:CASH,BANK_TRANSFER,CREDIT',
                 'payment_method' => 'required_without:payment_choice|string|in:CASH,BANK_TRANSFER,CREDIT',
                 'external_reference' => 'nullable|string|max:100',
+                'transfer_verified' => 'nullable|boolean',
+                'expected_total' => 'nullable|numeric|min:0.01',
+                'cash_received' => 'nullable|numeric|min:0',
                 'idempotency_key' => 'nullable|string|max:100',
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|string',
@@ -53,8 +56,11 @@ class POSController extends Controller
                 'member_id' => $memberId,
                 'payment_choice' => strtoupper((string) ($validated['payment_method'] ?? $validated['payment_choice'])),
                 'external_reference' => $validated['external_reference'] ?? null,
+                'transfer_verified' => $request->boolean('transfer_verified'),
                 'idempotency_key' => $validated['idempotency_key'] ?? null,
                 'items' => $validated['items'],
+                'expected_total' => $validated['expected_total'] ?? null,
+                'cash_received' => $validated['cash_received'] ?? null,
             ];
 
             $result = $this->transactionService->posSale(
@@ -92,15 +98,19 @@ class POSController extends Controller
      */
     public function lookup(Request $request)
     {
-        $barcode = trim((string) ($request->query('barcode') ?? $request->query('q') ?? ''));
+        $input = $request->validate(['barcode' => 'nullable|string|max:150', 'q' => 'nullable|string|max:150']);
+        $barcode = trim((string) ($input['barcode'] ?? $input['q'] ?? ''));
         if ($barcode === '') {
             return response()->json(['success' => false, 'message' => 'Parameter barcode wajib diisi.'], 422);
         }
 
-        $product = Product::where('barcode', $barcode)
-            ->orWhere('sku', $barcode)
+        $product = Product::where('is_active', true)->where(fn ($query) => $query->whereRaw('UPPER(barcode) = ?', [strtoupper($barcode)])->orWhereRaw('UPPER(sku) = ?', [strtoupper($barcode)]))
             ->with('inventory')
-            ->first();
+            ->limit(2)->get();
+        if ($product->count() > 1) {
+            return response()->json(['success' => false, 'message' => 'Kode ambigu. Gunakan SKU unik atau hubungi manajer.'], 409);
+        }
+        $product = $product->first();
 
         if (!$product) {
             return response()->json(['success' => false, 'message' => 'Barang dengan barcode/SKU tersebut tidak ditemukan.'], 404);

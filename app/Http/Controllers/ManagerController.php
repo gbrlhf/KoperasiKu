@@ -23,6 +23,19 @@ class ManagerController extends Controller
     /**
      * Dashboard Utama Eksekutif Manajer
      */
+    public function operational(): \Illuminate\View\View
+    {
+        $policy = \App\Models\CreditPolicy::where('active', true)->latest('effective_at')->first();
+        $members = \App\Models\Member::with('creditAccount')->orderBy('full_name')->get();
+        $receivables = \App\Models\Receivable::with(['member','order'])->orderBy('due_date')->get();
+        $orders = \App\Models\Order::latest()->limit(100)->get();
+        $open = $receivables->sum('outstanding_amount');
+        $overdue = $receivables->filter(fn ($r) => $r->effectiveStatus() === 'OVERDUE')->sum('outstanding_amount');
+        $revenue = \App\Models\Order::where('status', 'COMPLETED')->sum('total_amount');
+        $cash = \App\Models\Payment::where('status', 'VERIFIED')->sum('amount');
+        return view('manager.operational', compact('policy','members','receivables','orders','open','overdue','revenue','cash'));
+    }
+
     public function index(): View
     {
         // KPI Finansial & Operasional Bulan Ini (November 2026)

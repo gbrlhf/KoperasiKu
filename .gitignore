@@ -11,8 +11,13 @@
 .env.production
 .env.*
 !.env.example
+<<<<<<< HEAD
 !.env.*.example
 !.env.testing
+=======
+.env.testing
+!.env.testing.example
+>>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
 
 # ------------------------------------------------------------------------------
 # Laravel / PHP & Composer

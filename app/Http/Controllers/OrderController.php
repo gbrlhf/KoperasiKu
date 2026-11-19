@@ -24,6 +24,7 @@ class OrderController extends Controller
                 'payment_choice' => 'required_without:payment_method|string|in:CASH,BANK_TRANSFER,CREDIT',
                 'payment_method' => 'required_without:payment_choice|string|in:CASH,BANK_TRANSFER,CREDIT',
                 'idempotency_key' => 'nullable|string|max:100',
+                'expected_total' => 'nullable|numeric|min:0.01',
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|string',
                 'items.*.quantity' => 'required|integer|min:1',
@@ -45,6 +46,7 @@ class OrderController extends Controller
                 'payment_choice' => strtoupper((string) ($validated['payment_method'] ?? $validated['payment_choice'])),
                 'idempotency_key' => $validated['idempotency_key'] ?? null,
                 'items' => $validated['items'],
+                'expected_total' => $validated['expected_total'] ?? null,
             ];
 
             $order = $this->transactionService->checkout($payload, 'ONLINE_PICKUP', (string) $user->id);
@@ -97,7 +99,7 @@ class OrderController extends Controller
             return response()->json(['success' => true, 'data' => []]);
         }
 
-        $orders = Order::with(['items'])
+        $orders = Order::with(['items:id,order_id,product_id,quantity,unit_price_snapshot'])
             ->where('member_id', $member->id)
             ->orderByDesc('created_at')
             ->get();
@@ -114,7 +116,7 @@ class OrderController extends Controller
     public function cashierOrders(Request $request)
     {
         $statusFilter = $request->query('status');
-        $query = Order::with(['items'])->orderByDesc('created_at');
+        $query = Order::with(['items:id,order_id,product_id,quantity,unit_price_snapshot'])->orderByDesc('created_at');
 
         if ($statusFilter) {
             $query->where('status', strtoupper((string) $statusFilter));
@@ -237,6 +239,11 @@ class OrderController extends Controller
         }
 
         try {
+            $validated = $request->validate([
+                'pickup_code' => 'required|string|max:100',
+                'handover_confirmed' => 'required|accepted',
+                'idempotency_key' => 'nullable|string|max:100',
+            ]);
             $user = $request->user();
             $idempotencyKey = $request->input('idempotency_key');
 
@@ -244,7 +251,9 @@ class OrderController extends Controller
                 (string) $orderId,
                 $user?->id ? (string) $user->id : null,
                 $user?->member?->id ? (string) $user->member->id : null,
-                $idempotencyKey ? (string) $idempotencyKey : null
+                $idempotencyKey ? (string) $idempotencyKey : null,
+                $validated['pickup_code'],
+                true
             );
 
             return response()->json([
@@ -252,6 +261,8 @@ class OrderController extends Controller
                 'message' => 'Pesanan berhasil diselesaikan (Pickup dikonfirmasi).',
                 'data' => $result
             ], 200);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (BusinessRuleException $e) {
             return response()->json([
                 'success' => false,

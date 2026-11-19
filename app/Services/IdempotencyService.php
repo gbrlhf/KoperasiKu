@@ -70,7 +70,14 @@ class IdempotencyService
         $normalizedOperation = strtoupper($operation);
 
         if ($key === null) {
-            $result = DB::transaction(fn () => $work());
+            try {
+                $result = DB::transaction(fn () => $work(), 3);
+            } catch (QueryException $e) {
+                if ($this->isUniqueViolation($e) && str_contains($this->extractConstraintName($e) ?? '', 'external_reference')) {
+                    throw new BusinessRuleException('Referensi transfer sudah pernah tercatat (Duplikasi).', 422, 'DUPLICATE_PAYMENT');
+                }
+                throw $e;
+            }
 
             return [
                 'status' => (int) $result['status'],
@@ -89,6 +96,9 @@ class IdempotencyService
 
         try {
             $result = DB::transaction(function () use ($key, $normalizedOperation, $userId, $targetResourceId, $requestHash, $work) {
+                if (DB::getDriverName() === 'pgsql') {
+                    DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['koperadata.idempotency:' . $key]);
+                }
                 // Re-check dengan lock jika baris sudah ter-commit tepat sebelum transaksi ini
                 $existingInTx = IdempotencyKey::where('idempotency_key', $key)->lockForUpdate()->first();
                 if ($existingInTx) {
@@ -115,7 +125,7 @@ class IdempotencyService
                     'body' => $computed['body'],
                     'replayed' => false,
                 ];
-            });
+            }, 3);
 
             if (isset($result['replayed_record'])) {
                 return $this->validateAndReplay(

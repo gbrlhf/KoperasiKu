@@ -24,10 +24,10 @@
             @csrf
             
             <div class="mb-3">
-                <label for="username" class="form-label fw-semibold small text-secondary">Nomor Anggota / ID Karyawan</label>
+                <label for="username" class="form-label fw-semibold small text-secondary">Nomor Anggota / ID Karyawan / Email</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0 px-3"><i class="bi bi-person" aria-hidden="true"></i></span>
-                    <input type="text" class="form-control border-start-0 ps-1" id="username" name="username" placeholder="Contoh: EMP-001" required value="">
+                    <input type="text" class="form-control border-start-0 ps-1" id="username" name="username" placeholder="Contoh: EMP-001" required autocomplete="username" value="{{ old('username', old('email', '')) }}">
                 </div>
             </div>
 
@@ -40,16 +40,16 @@
                 </div>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0 px-3"><i class="bi bi-lock" aria-hidden="true"></i></span>
-                    <input type="password" class="form-control border-start-0 ps-1" id="password" name="password" placeholder="••••••••" required value="">
+                    <input type="password" class="form-control border-start-0 ps-1" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" value="">
                 </div>
             </div>
 
             <div class="mb-4">
                 <label for="role" class="form-label fw-semibold small text-secondary mb-1">Pilih Peran Akses Awal</label>
                 <select class="form-select" id="role" name="role">
-                    <option value="MEMBER">Anggota Koperasi (MEMBER)</option>
-                    <option value="CASHIER">Kasir & Petugas Gerai (CASHIER)</option>
-                    <option value="MANAGER">Manajer Koperasi (MANAGER)</option>
+                    <option value="MEMBER" @selected(old('role', 'MEMBER') === 'MEMBER')>Anggota Koperasi (MEMBER)</option>
+                    <option value="CASHIER" @selected(old('role', 'MEMBER') === 'CASHIER')>Kasir & Petugas Gerai (CASHIER)</option>
+                    <option value="MANAGER" @selected(old('role', 'MEMBER') === 'MANAGER')>Manajer Koperasi (MANAGER)</option>
                 </select>
                 <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">Peran dapat dialihkan kapan saja via pemilih konteks di navbar atas.</div>
             </div>
@@ -81,7 +81,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center" onclick="saveLoginRemembered()">
+            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center">
                 <i class="bi bi-box-arrow-in-right me-2 fs-5" aria-hidden="true"></i>
                 <span>Masuk ke Sistem</span>
             </button>
@@ -99,15 +99,15 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        const saved = localStorage.getItem('koperasiku_remembered_member');
+        const saved = localStorage.getItem('koperasiku_verified_member_v2');
         if (saved) {
             const member = JSON.parse(saved);
             const box = document.getElementById('rememberedAccountBox');
             const nameEl = document.getElementById('loginRememberedName');
             const idEl = document.getElementById('loginRememberedId');
-            if (box && nameEl && idEl && member.name) {
+            if (box && nameEl && idEl && member.name && member.id) {
                 nameEl.textContent = member.name;
-                idEl.textContent = (member.id || 'EMP-001') + ' • Pernah Masuk';
+                idEl.textContent = member.id + ' • Pernah Masuk';
                 box.classList.remove('d-none');
             }
         }
@@ -116,10 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function applyRememberedAccount() {
     try {
-        const saved = localStorage.getItem('koperasiku_remembered_member');
+        const saved = localStorage.getItem('koperasiku_verified_member_v2');
         if (saved) {
             const member = JSON.parse(saved);
-            document.getElementById('username').value = member.id || 'EMP-001';
+            if (!member.id) return;
+            document.getElementById('username').value = member.id;
             document.getElementById('password').value = '';
             document.getElementById('role').value = 'MEMBER';
             document.getElementById('password')?.focus();
@@ -129,20 +130,11 @@ function applyRememberedAccount() {
 
 function forgetLoginAccount() {
     try {
-        localStorage.removeItem('koperasiku_remembered_member');
+        localStorage.removeItem('koperasiku_verified_member_v2');
         const box = document.getElementById('rememberedAccountBox');
         if (box) box.classList.add('d-none');
     } catch (e) {}
 }
 
-function saveLoginRemembered() {
-    const username = document.getElementById('username')?.value || 'EMP-001';
-    try {
-        localStorage.setItem('koperasiku_remembered_member', JSON.stringify({
-            id: username,
-            name: username === 'EMP-001' ? 'Ahmad Fauzi' : username
-        }));
-    } catch (e) {}
-}
 </script>
 @endsection

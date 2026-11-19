@@ -92,8 +92,8 @@ class ConcurrencyPgsqlTest extends TestCase
                 [$memberId2, $prodId, 3, 'CASH', $userId2]
             );
 
-            $okCount = count(array_filter($results, fn ($r) => str_starts_with($r, 'OK:')));
-            $errCount = count(array_filter($results, fn ($r) => str_starts_with($r, 'ERR:INSUFFICIENT_STOCK:')));
+            $okCount = count(array_filter($results, fn($r) => str_starts_with($r, 'OK:')));
+            $errCount = count(array_filter($results, fn($r) => str_starts_with($r, 'ERR:INSUFFICIENT_STOCK:')));
 
             $this->assertSame(1, $okCount, 'Harus tepat 1 checkout stok lolos: ' . implode(' | ', $results));
             $this->assertSame(1, $errCount, 'Harus tepat 1 checkout stok ditolak INSUFFICIENT_STOCK: ' . implode(' | ', $results));
@@ -201,8 +201,8 @@ class ConcurrencyPgsqlTest extends TestCase
                 [$memberId, $prodId, 3, 'CREDIT', $userId]
             );
 
-            $okCount = count(array_filter($results, fn ($r) => str_starts_with($r, 'OK:')));
-            $errCount = count(array_filter($results, fn ($r) => str_starts_with($r, 'ERR:CREDIT_LIMIT_EXCEEDED:')));
+            $okCount = count(array_filter($results, fn($r) => str_starts_with($r, 'OK:')));
+            $errCount = count(array_filter($results, fn($r) => str_starts_with($r, 'ERR:CREDIT_LIMIT_EXCEEDED:')));
 
             $this->assertSame(1, $okCount, 'Harus tepat 1 checkout kredit lolos: ' . implode(' | ', $results));
             $this->assertSame(1, $errCount, 'Harus tepat 1 checkout kredit ditolak CREDIT_LIMIT_EXCEEDED: ' . implode(' | ', $results));
@@ -283,7 +283,7 @@ class ConcurrencyPgsqlTest extends TestCase
             ]);
             DB::table('inventory_balances')->insert([
                 'product_id' => $prodId,
-                'on_hand' => 10,
+                'on_hand' => 2,
                 'reserved' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -294,7 +294,7 @@ class ConcurrencyPgsqlTest extends TestCase
                 [$memberId, $prodId, 2, 'CASH', $userId, $idemKey]
             );
 
-            $okResults = array_values(array_filter($results, fn ($r) => str_starts_with($r, 'OK:')));
+            $okResults = array_values(array_filter($results, fn($r) => str_starts_with($r, 'OK:')));
             $this->assertCount(2, $okResults, 'Kedua request paralel idempotent wajib berhasil mengembalikan order yang sama: ' . implode(' | ', $results));
 
             $id1 = substr($okResults[0], 3);
@@ -381,14 +381,9 @@ class ConcurrencyPgsqlTest extends TestCase
                 $cashierUserId
             );
 
-            $env = array_merge(getenv() ?: [], $_ENV, [
-                'DB_CONNECTION' => 'pgsql',
-                'DB_HOST' => '127.0.0.1',
-                'DB_PORT' => '5433',
-                'DB_DATABASE' => 'koperadata_test',
-                'DB_USERNAME' => 'postgres',
-                'DB_PASSWORD' => 'secret',
-            ]);
+
+            $env = $this->workerEnvironment();
+
             $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
 
             $p1 = proc_open([PHP_BINARY, '-r', $receiveCode], $descriptors, $pipes1, base_path(), $env);
@@ -397,8 +392,12 @@ class ConcurrencyPgsqlTest extends TestCase
             $out1 = trim((string) stream_get_contents($pipes1[1])) . trim((string) stream_get_contents($pipes1[2]));
             $out2 = trim((string) stream_get_contents($pipes2[1])) . trim((string) stream_get_contents($pipes2[2]));
 
-            fclose($pipes1[0]); fclose($pipes1[1]); fclose($pipes1[2]);
-            fclose($pipes2[0]); fclose($pipes2[1]); fclose($pipes2[2]);
+            fclose($pipes1[0]);
+            fclose($pipes1[1]);
+            fclose($pipes1[2]);
+            fclose($pipes2[0]);
+            fclose($pipes2[1]);
+            fclose($pipes2[2]);
             proc_close($p1);
             proc_close($p2);
 
@@ -447,14 +446,8 @@ class ConcurrencyPgsqlTest extends TestCase
             );
         };
 
-        $env = array_merge(getenv() ?: [], $_ENV, [
-            'DB_CONNECTION' => 'pgsql',
-            'DB_HOST' => '127.0.0.1',
-            'DB_PORT' => '5433',
-            'DB_DATABASE' => 'koperadata_test',
-            'DB_USERNAME' => 'postgres',
-            'DB_PASSWORD' => 'secret',
-        ]);
+
+        $env = $this->workerEnvironment();
 
         $descriptors = [
             0 => ['pipe', 'r'],
@@ -468,11 +461,32 @@ class ConcurrencyPgsqlTest extends TestCase
         $out1 = trim((string) stream_get_contents($pipes1[1])) . trim((string) stream_get_contents($pipes1[2]));
         $out2 = trim((string) stream_get_contents($pipes2[1])) . trim((string) stream_get_contents($pipes2[2]));
 
-        fclose($pipes1[0]); fclose($pipes1[1]); fclose($pipes1[2]);
-        fclose($pipes2[0]); fclose($pipes2[1]); fclose($pipes2[2]);
+        fclose($pipes1[0]);
+        fclose($pipes1[1]);
+        fclose($pipes1[2]);
+        fclose($pipes2[0]);
+        fclose($pipes2[1]);
+        fclose($pipes2[2]);
         proc_close($p1);
         proc_close($p2);
 
         return [$out1, $out2];
+    }
+    private function workerEnvironment(): array
+    {
+        $connection = config('database.connections.pgsql');
+        if (DB::connection()->getDatabaseName() !== 'koperadata_test' || $connection['database'] !== 'koperadata_test') {
+            throw new \RuntimeException('KESALAHAN KEAMANAN: worker hanya boleh memakai koperadata_test.');
+        }
+        return array_merge(getenv() ?: [], $_ENV, [
+            'APP_ENV' => 'testing',
+            'DB_CONNECTION' => 'pgsql',
+            'DB_HOST' => (string) $connection['host'],
+            'DB_PORT' => (string) $connection['port'],
+            'DB_DATABASE' => 'koperadata_test',
+            'DB_USERNAME' => (string) $connection['username'],
+            'DB_PASSWORD' => (string) $connection['password'],
+            'DB_URL' => '',
+        ]);
     }
 }

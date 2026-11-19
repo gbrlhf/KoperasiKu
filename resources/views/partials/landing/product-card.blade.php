@@ -63,6 +63,7 @@
             </span>
         </div>
 
+<<<<<<< HEAD
         @if(!empty($landingShowCart))
             <!-- Tombol + Keranjang Tokopedia -->
             <div class="pt-2 mt-1">
@@ -72,5 +73,14 @@
                 </button>
             </div>
         @endif
+=======
+        <!-- Tombol + Keranjang Tokopedia -->
+        <div class="pt-2 mt-1">
+            <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-bold py-1.5 d-inline-flex align-items-center justify-content-center gap-1.5 btn-add-cart-tokopedia shadow-xs" onclick="addToCart(@js($item['id']), @js($item['name']), @js($item['price']), @js($item['unit']), @js($item['icon']))" @disabled($item['available_stock'] <= 0) aria-label="Tambah {{ $item['name'] }} ke keranjang">
+                <i class="bi bi-cart-plus"></i>
+                <span>+ Keranjang</span>
+            </button>
+        </div>
+>>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
     </div>
 </div>

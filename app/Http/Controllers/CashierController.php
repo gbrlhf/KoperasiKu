@@ -3,6 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Member;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Services\TransactionService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -18,158 +23,66 @@ class CashierController extends Controller
 {
     public function index(): View
     {
-        // TODO: integrasi langsung dengan GET /api/v1/products, GET /api/v1/cashier/orders, POST /api/v1/pos/sales
+        $stockItems = DB::table('products as p')
+            ->leftJoin('inventory_balances as b', 'b.product_id', '=', 'p.id')
+            ->leftJoin('categories as c', 'c.id', '=', 'p.category_id')
+            ->where('p.is_active', true)
+            ->select('p.id', 'p.sku', 'p.barcode', 'p.name', 'p.selling_price', 'p.unit', 'p.reorder_point', 'c.name as category', 'b.on_hand', 'b.reserved')
+            ->orderBy('p.sku')->get()->map(function ($p) {
+                $available = (int) $p->on_hand - (int) $p->reserved;
+                return ['id' => (string) $p->id, 'sku' => $p->sku, 'barcode' => $p->barcode ?? $p->sku, 'name' => $p->name,
+                    'category' => $p->category ?? '-', 'sell_price' => (float) $p->selling_price,
+                    'on_hand' => (int) $p->on_hand, 'reserved' => (int) $p->reserved, 'available' => $available,
+                    'unit' => $p->unit, 'status' => $available <= 0 ? 'OUT' : ($available <= $p->reorder_point ? 'LOW' : 'SAFE')];
+            });
+        $stockSummary = ['total_sku' => $stockItems->count(), 'safe_stock_count' => $stockItems->where('status', 'SAFE')->count(),
+            'low_stock_count' => $stockItems->where('status', 'LOW')->count(), 'out_of_stock_count' => $stockItems->where('status', 'OUT')->count(),
+            'total_reserved_items' => $stockItems->sum('reserved')];
+        $pickupQueue = Order::with('items')->where('channel', 'ONLINE_PICKUP')
+            ->whereIn('status', ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'])
+            ->whereNotNull('pickup_code')->orderBy('created_at')->limit(100)->get()->map(fn ($order) => $this->pickupData($order))->all();
+        $membersDirectory = Member::whereRaw('UPPER(status) = ?', ['ACTIVE'])->orderBy('full_name')->get()->map(function ($member) {
+            $summary = app(TransactionService::class)->getMemberCreditSummary((string) $member->id);
+            return ['id' => (string) $member->id, 'name' => $member->full_name, 'unit' => $member->employee_number,
+                'status' => $summary['eligible_for_credit'] ? 'TERVERIFIKASI' : 'DIBEKUKAN',
+                'available_limit' => $summary['available_limit'], 'total_limit' => $summary['global_limit'],
+                'is_overdue' => $summary['has_overdue'], 'overdue_days' => $summary['has_overdue'] ? (int) \Carbon\CarbonImmutable::parse($member->receivables()->where('outstanding_amount', '>', 0)->min('due_date'), 'Asia/Jakarta')->diffInDays(\Carbon\CarbonImmutable::today('Asia/Jakarta')) : 0,
+                'unpaid_invoices' => $member->receivables()->where('outstanding_amount', '>', 0)->count()];
+        })->all();
+        return view('cashier.pos', compact('stockSummary', 'stockItems', 'pickupQueue', 'membersDirectory'));
+    }
 
-        // Ringkasan Stok Gerai
-        $stockSummary = [
-            'total_sku' => 48,
-            'safe_stock_count' => 42,
-            'low_stock_count' => 6,
-            'out_of_stock_count' => 0,
-            'total_reserved_items' => 38,
-        ];
+    public function pickupLookup(Request $request)
+    {
+        $data = $request->validate(['code' => 'required|string|max:100']);
+        $code = strtoupper(trim($data['code']));
+        $order = Order::with('items')->where('channel', 'ONLINE_PICKUP')
+            ->where(fn ($q) => $q->whereRaw('UPPER(pickup_code) = ?', [$code])->orWhereRaw('UPPER(order_no) = ?', [$code]))->first();
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Kode pickup tidak ditemukan.'], 404);
+        }
+        return response()->json(['success' => true, 'data' => $this->pickupData($order)]);
+    }
 
-        // Master Stok Barang Real-Time
-        $stockItems = [
-            [
-                'sku' => 'SEM-001',
-                'barcode' => '89999991001',
-                'name' => 'Beras Premium Ramos 5 Kg',
-                'category' => 'Sembako & Beras',
-                'cost_price' => 68000,
-                'sell_price' => 74500,
-                'on_hand' => 45,
-                'reserved' => 13,
-                'available' => 32,
-                'unit' => 'Sak',
-                'status' => 'SAFE',
-            ],
-            [
-                'sku' => 'MNY-001',
-                'barcode' => '89999991002',
-                'name' => 'Minyak Goreng Pouch 2 Liter',
-                'category' => 'Minyak & Bumbu',
-                'cost_price' => 32500,
-                'sell_price' => 36000,
-                'on_hand' => 26,
-                'reserved' => 8,
-                'available' => 18,
-                'unit' => 'Pouch',
-                'status' => 'SAFE',
-            ],
-            [
-                'sku' => 'GUL-001',
-                'barcode' => '89999991003',
-                'name' => 'Gula Pasir Kristal Putih 1 Kg',
-                'category' => 'Sembako & Beras',
-                'cost_price' => 15200,
-                'sell_price' => 17500,
-                'on_hand' => 52,
-                'reserved' => 7,
-                'available' => 45,
-                'unit' => 'Bungkus',
-                'status' => 'SAFE',
-            ],
-            [
-                'sku' => 'TLR-001',
-                'barcode' => '89999991005',
-                'name' => 'Telur Ayam Negeri Fresh 1 Kg',
-                'category' => 'Produk Segar',
-                'cost_price' => 25000,
-                'sell_price' => 28500,
-                'on_hand' => 30,
-                'reserved' => 5,
-                'available' => 25,
-                'unit' => 'Kg',
-                'status' => 'SAFE',
-            ],
-            [
-                'sku' => 'KPI-001',
-                'barcode' => '89999991008',
-                'name' => 'Kopi Bubuk Arabika Robusta 250 gr',
-                'category' => 'Susu & Minuman',
-                'cost_price' => 27000,
-                'sell_price' => 32000,
-                'on_hand' => 18,
-                'reserved' => 4,
-                'available' => 14,
-                'unit' => 'Bungkus',
-                'status' => 'LOW',
-            ],
-            [
-                'sku' => 'SBN-001',
-                'barcode' => '89999991011',
-                'name' => 'Deterjen Bubuk Konsentrat 800 gr',
-                'category' => 'Sabun & Cuci',
-                'cost_price' => 18000,
-                'sell_price' => 21000,
-                'on_hand' => 18,
-                'reserved' => 3,
-                'available' => 15,
-                'unit' => 'Bungkus',
-                'status' => 'SAFE',
-            ],
-        ];
-
-        // Daftar Antrian Pickup yang Siap Diambil di Kasir
-        $pickupQueue = [
-            [
-                'id' => 'ORD-1082',
-                'pickup_code' => 'PKP-84920',
-                'member_id' => 'EMP-001',
-                'member_name' => 'Ahmad Fauzi',
-                'created_at' => '16 Nov 2026 09:15',
-                'items_summary' => 'Beras Ramos 5kg (1), Minyak Goreng 2L (1)',
-                'payment_method' => 'CASH',
-                'total_amount' => 110500,
-                'payment_status' => 'PENDING_CASH',
-                'status' => 'PENDING_PICKUP',
-            ],
-            [
-                'id' => 'ORD-1083',
-                'pickup_code' => 'PKP-73194',
-                'member_id' => 'EMP-014',
-                'member_name' => 'Budi Santoso',
-                'created_at' => '16 Nov 2026 10:04',
-                'items_summary' => 'Gula Pasir 1kg (2), Telur Ayam 1kg (1)',
-                'payment_method' => 'CREDIT',
-                'total_amount' => 63500,
-                'payment_status' => 'CREDIT_APPROVED',
-                'status' => 'PENDING_PICKUP',
-            ],
-            [
-                'id' => 'ORD-1084',
-                'pickup_code' => 'PKP-51922',
-                'member_id' => 'EMP-028',
-                'member_name' => 'Dewi Lestari',
-                'created_at' => '16 Nov 2026 11:20',
-                'items_summary' => 'Susu UHT 1L (2), Kopi Robusta (1)',
-                'payment_method' => 'BANK_TRANSFER',
-                'total_amount' => 71000,
-                'payment_status' => 'PENDING_VERIFICATION',
-                'transfer_ref' => 'TRX-BCA-51922',
-                'status' => 'PENDING_PICKUP',
-            ],
-            [
-                'id' => 'ORD-1085',
-                'pickup_code' => 'PKP-91823',
-                'member_id' => 'EMP-035',
-                'member_name' => 'Dr. Hendra Wijaya',
-                'created_at' => '16 Nov 2026 12:45',
-                'items_summary' => 'Beras Ramos 5kg (1), Gula Pasir 1kg (1)',
-                'payment_method' => 'BANK_TRANSFER',
-                'total_amount' => 92000,
-                'payment_status' => 'VERIFIED',
-                'transfer_ref' => 'TRX-MANDIRI-91823',
-                'status' => 'PENDING_PICKUP',
-            ],
-        ];
-
-        return view('cashier.pos', compact(
-            'stockSummary',
-            'stockItems',
-            'pickupQueue'
-        ));
+    private function pickupData(Order $order): array
+    {
+        $member = Member::find($order->member_id);
+        $pending = Payment::where('order_id', $order->id)->where('status', 'PENDING_VERIFICATION')->oldest()->first();
+        $verified = Payment::where('order_id', $order->id)->where('status', 'VERIFIED')->sum('amount');
+        $hold = $order->creditHold;
+        $ready = $order->payment_choice === 'CREDIT'
+            ? $order->status === 'PENDING_PICKUP' && $hold?->status === 'ACTIVE'
+            : $order->status === 'READY_FOR_PICKUP';
+        return ['id' => (string) $order->id, 'pickup_code' => $order->pickup_code,
+            'member_id' => $member?->employee_number ?? '-', 'member_name' => $member?->full_name ?? '-',
+            'created_at' => $order->created_at->timezone('Asia/Jakarta')->format('d M Y H:i'),
+            'items_summary' => $order->items->map(fn ($item) => (DB::table('products')->where('id', $item->product_id)->value('name') ?? 'Produk') . ' (' . $item->quantity . ')')->implode(', '),
+            'items_count' => $order->items->sum('quantity'), 'payment_method' => $order->payment_choice,
+            'total_amount' => (float) $order->total_amount, 'status' => $order->status, 'can_handover' => $ready,
+            'payment_status' => $ready ? ($order->payment_choice === 'CREDIT' ? 'CREDIT_APPROVED' : 'VERIFIED') : ($pending ? 'PENDING_VERIFICATION' : 'PENDING_PAYMENT'),
+            'transfer_ref' => $pending?->external_reference, 'pending_payment_id' => $pending?->id,
+            'pending_payment_amount' => $pending ? (float) $pending->amount : null,
+            'remaining_amount' => max(0, (float) $order->total_amount - (float) $verified - (float) ($pending?->amount ?? 0))];
     }
 
     public function antrian(): View
@@ -184,154 +97,24 @@ class CashierController extends Controller
 
     public function piutang(): View
     {
-        $globalCreditLimit = 1000000;
-
-        $debtorMembers = [
-            [
-                'id' => 'EMP-001',
-                'name' => 'Ahmad Fauzi',
-                'unit' => 'Teknik Mesin & Manufaktur POLMAN',
-                'phone' => '0812-8821-9042',
-                'status' => 'TERVERIFIKASI',
-                'has_overdue' => false,
-                'global_limit' => 1000000,
-                'total_debt' => 148000,
-                'available_limit' => 852000,
-                'earliest_due_date' => '19 Nov 2026',
-                'days_remaining' => 3,
-                'invoices' => [
-                    [
-                        'id' => 'INV-2026-1108',
-                        'order_no' => 'ORD-2026-1108-01',
-                        'pickup_date' => '12 Nov 2026',
-                        'due_date' => '19 Nov 2026',
-                        'days_left' => 3,
-                        'items_summary' => 'Beras Premium Ramos 5 Kg (1)',
-                        'original_amount' => 74500,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 74500,
-                        'status' => 'OPEN',
-                    ],
-                    [
-                        'id' => 'INV-2026-1111',
-                        'order_no' => 'ORD-2026-1111-03',
-                        'pickup_date' => '14 Nov 2026',
-                        'due_date' => '21 Nov 2026',
-                        'days_left' => 5,
-                        'items_summary' => 'Minyak Goreng 2L (1), Telur 1kg (1)',
-                        'original_amount' => 73500,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 73500,
-                        'status' => 'OPEN',
-                    ],
-                ],
-            ],
-            [
-                'id' => 'EMP-028',
-                'name' => 'Dewi Lestari',
-                'unit' => 'Administrasi Keuangan POLMAN',
-                'phone' => '0813-7729-1102',
-                'status' => 'TERVERIFIKASI',
-                'has_overdue' => false,
-                'global_limit' => 1000000,
-                'total_debt' => 420000,
-                'available_limit' => 580000,
-                'earliest_due_date' => '17 Nov 2026',
-                'days_remaining' => 1,
-                'invoices' => [
-                    [
-                        'id' => 'INV-2026-1105',
-                        'order_no' => 'ORD-2026-1105-02',
-                        'pickup_date' => '10 Nov 2026',
-                        'due_date' => '17 Nov 2026',
-                        'days_left' => 1,
-                        'items_summary' => 'Beras Ramos 5kg (2), Minyak 2L (2)',
-                        'original_amount' => 221000,
-                        'paid_amount' => 71000,
-                        'remaining_amount' => 150000,
-                        'status' => 'PARTIALLY_PAID',
-                    ],
-                    [
-                        'id' => 'INV-2026-1109',
-                        'order_no' => 'ORD-2026-1109-01',
-                        'pickup_date' => '13 Nov 2026',
-                        'due_date' => '20 Nov 2026',
-                        'days_left' => 4,
-                        'items_summary' => 'Susu UHT 1L (4), Gula Pasir 2kg (1)',
-                        'original_amount' => 170000,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 170000,
-                        'status' => 'OPEN',
-                    ],
-                    [
-                        'id' => 'INV-2026-1113',
-                        'order_no' => 'ORD-2026-1113-04',
-                        'pickup_date' => '15 Nov 2026',
-                        'due_date' => '22 Nov 2026',
-                        'days_left' => 6,
-                        'items_summary' => 'Deterjen Bubuk 800gr (2), Sabun Cuci (2)',
-                        'original_amount' => 100000,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 100000,
-                        'status' => 'OPEN',
-                    ],
-                ],
-            ],
-            [
-                'id' => 'EMP-035',
-                'name' => 'Dr. Hendra Wijaya',
-                'unit' => 'Dosen Rekayasa Perancangan POLMAN',
-                'phone' => '0811-2299-8811',
-                'status' => 'TERVERIFIKASI',
-                'has_overdue' => true,
-                'global_limit' => 1000000,
-                'total_debt' => 375000,
-                'available_limit' => 625000,
-                'earliest_due_date' => '09 Nov 2026',
-                'days_remaining' => -7,
-                'invoices' => [
-                    [
-                        'id' => 'INV-2026-1102',
-                        'order_no' => 'ORD-2026-1102-01',
-                        'pickup_date' => '02 Nov 2026',
-                        'due_date' => '09 Nov 2026',
-                        'days_left' => -7,
-                        'items_summary' => 'Beras Ramos 5kg (2), Minyak 2L (2), Telur 1kg (2)',
-                        'original_amount' => 275000,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 275000,
-                        'status' => 'OVERDUE',
-                    ],
-                    [
-                        'id' => 'INV-2026-1110',
-                        'order_no' => 'ORD-2026-1110-02',
-                        'pickup_date' => '14 Nov 2026',
-                        'due_date' => '21 Nov 2026',
-                        'days_left' => 5,
-                        'items_summary' => 'Kopi Robusta 250gr (2), Susu Kental Manis (3)',
-                        'original_amount' => 100000,
-                        'paid_amount' => 0,
-                        'remaining_amount' => 100000,
-                        'status' => 'OPEN',
-                    ],
-                ],
-            ],
-            [
-                'id' => 'EMP-014',
-                'name' => 'Siti Rahma',
-                'unit' => 'Logistik & Pengadaan POLMAN',
-                'phone' => '0815-6677-2211',
-                'status' => 'TERVERIFIKASI',
-                'has_overdue' => false,
-                'global_limit' => 1000000,
-                'total_debt' => 0,
-                'available_limit' => 1000000,
-                'earliest_due_date' => '-',
-                'days_remaining' => 0,
-                'invoices' => [],
-            ],
-        ];
-
-        return view('cashier.piutang', compact('debtorMembers', 'globalCreditLimit'));
+        $globalCreditLimit = (float) (\App\Models\CreditPolicy::where('active', true)->latest('effective_at')->value('limit_amount') ?? 0);
+        $today = \Carbon\CarbonImmutable::today('Asia/Jakarta');
+        $debtorMembers = Member::orderBy('full_name')->get()->map(function ($m) use ($today) {
+            $credit = app(TransactionService::class)->getMemberCreditSummary((string) $m->id);
+            $invoices = $m->receivables()->with('order')->where('outstanding_amount', '>', 0)->orderBy('due_date')->get();
+            return ['id' => (string) $m->id, 'name' => $m->full_name, 'unit' => $m->employee_number ?? '-',
+                'phone' => '-', 'status' => $credit['credit_account_status'], 'has_overdue' => $credit['has_overdue'],
+                'global_limit' => $credit['global_limit'], 'total_debt' => $credit['outstanding_receivable'],
+                'available_limit' => $credit['available_limit'], 'active_hold' => $credit['active_credit_hold'], 'earliest_due_date' => $invoices->first()?->due_date?->format('d M Y'),
+                'days_remaining' => $invoices->isEmpty() ? 0 : (int) $today->diffInDays($invoices->first()->due_date->toDateString(), false),
+                'invoices' => $invoices->map(fn ($r) => ['id' => (string) $r->id, 'order_no' => $r->order?->order_no ?? '-',
+                    'pickup_date' => $r->order?->completed_at ? \Carbon\Carbon::parse($r->order->completed_at)->format('d M Y') : '-',
+                    'due_date' => $r->due_date->format('d M Y'), 'days_left' => (int) $today->diffInDays($r->due_date->toDateString(), false),
+                    'items_summary' => $r->order?->order_no ?? '-', 'original_amount' => $r->original_amount,
+                    'paid_amount' => $r->original_amount - $r->outstanding_amount, 'remaining_amount' => $r->outstanding_amount,
+                    'status' => $r->effectiveStatus()])->all()];
+        })->all();
+        $pendingTransfers = Payment::whereNull('order_id')->where('method', 'BANK_TRANSFER')->where('status', 'PENDING_VERIFICATION')->with('member')->oldest()->get();
+        return view('cashier.piutang', compact('debtorMembers', 'globalCreditLimit', 'pendingTransfers'));
     }
 }

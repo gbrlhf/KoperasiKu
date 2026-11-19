@@ -126,7 +126,8 @@ class AuthController extends Controller
             ], 200);
         }
 
-        if ($redirectUrl = $request->input('redirect_url')) {
+        $redirectUrl = $request->input('redirect_url');
+        if (is_string($redirectUrl) && str_starts_with($redirectUrl, '/') && !str_starts_with($redirectUrl, '//') && !str_contains($redirectUrl, '\\')) {
             return redirect($redirectUrl)->with('success', 'Berhasil masuk.');
         }
 
@@ -156,6 +157,12 @@ class AuthController extends Controller
         }
 
         return redirect()->route('landing')->with('info', 'Anda telah keluar dari akun.');
+    }
+
+    public function switchAccount(Request $request)
+    {
+        $this->logout($request);
+        return redirect()->route('login')->with('info', 'Silakan masuk menggunakan akun lain.');
     }
 
     public function switchRole(Request $request)
