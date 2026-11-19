@@ -380,13 +380,6 @@
 </style>
 @endpush
 
-@section('header')
-<div>
-    <h4 class="fw-bold mb-1 text-dark" id="mgrPageHeading">Portal Manajer &amp; Analitik Koperasi</h4>
-    <p class="text-secondary small mb-0">Pusat kendali transaksi, piutang anggota, master stok, dan laporan analitik koperasi.</p>
-</div>
-@endsection
-
 @section('content')
 <div id="managerPortalRoot" data-ui="manager-v2">
     <div id="pg"></div>
@@ -492,10 +485,10 @@ const tb = (headers, rows, emptyMsg = 'Tidak ada data untuk ditampilkan.') => {
 const fl = (label, inputHtml) => `<div class="mb-3"><label class="form-label small fw-semibold text-secondary mb-1">${label}</label>${inputHtml}</div>`;
 
 const ph = (title, subtitle, rightHtml = '') => `
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-1 mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
         <div class="min-w-0">
-            <h5 class="fw-bold text-dark mb-0">${escapeHtml(title)}</h5>
-            ${subtitle ? `<small class="text-muted">${escapeHtml(subtitle)}</small>` : ''}
+            <h4 class="fw-bold mb-1 text-dark">${escapeHtml(title)}</h4>
+            ${subtitle ? `<p class="text-secondary small mb-0">${escapeHtml(subtitle)}</p>` : ''}
         </div>
         ${rightHtml ? `<div class="d-flex align-items-center gap-2 flex-wrap">${rightHtml}</div>` : ''}
     </div>
@@ -600,8 +593,10 @@ function syncSidebarActive(pageId) {
 
 const go = id => { location.hash = id; };
 const tabs = (pg, labels) => `
-    <div class="mgr-tabs mb-3" role="tablist">
-        ${labels.map((lbl, i) => `<button type="button" role="tab" class="btn-tab ${TB[pg] == i ? 'active' : ''}" onclick="TB.${pg}=${i};route()">${escapeHtml(lbl)}</button>`).join('')}
+    <div class="mt-3 mb-3">
+        <div class="mgr-tabs" role="tablist">
+            ${labels.map((lbl, i) => `<button type="button" role="tab" class="btn-tab ${TB[pg] == i ? 'active' : ''}" onclick="TB.${pg}=${i};route()">${escapeHtml(lbl)}</button>`).join('')}
+        </div>
     </div>
 `;
 
@@ -724,8 +719,8 @@ S.home = () => {
         ['year', 'Tahun Ini'],
     ];
     return `${ph(
-        `Halo, ${BOOTSTRAP.user.first_name}`,
-        'Ringkasan operasional, keuangan, piutang, dan analitik koperasi.',
+        'Beranda & Ringkasan',
+        `Selamat datang, ${BOOTSTRAP.user.first_name}. Ringkasan operasional, keuangan, piutang, dan analitik koperasi.`,
         `<select class="form-select form-select-sm" style="width:auto;min-width:140px;" id="per" onchange="onHomePeriodChange(this.value)" aria-label="Pilih Periode">
             ${periodOpts.map(([val, lbl]) => `<option value="${val}" ${state.period === val ? 'selected' : ''}>${lbl}</option>`).join('')}
         </select>
@@ -1001,7 +996,7 @@ function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
 
 /* ---------- 2. TRANSAKSI & STOK (TANPA POS SIMULASI ACAK) ---------- */
 S.ops = () => `${ph(
-    'Transaksi & Operasional Gerai',
+    'Transaksi & Operasional',
     'Pantau antrian order dari server dan kondisi persediaan gerai.'
 )}${renderSubTabShell('ops', ['Pesanan & Pickup', 'Persediaan Stok'], [SO, SK])}`;
 
