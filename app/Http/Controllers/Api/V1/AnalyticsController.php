@@ -100,6 +100,18 @@ class AnalyticsController extends Controller
         return response()->json($this->analytics->readSnapshot(fn () => $this->analytics->aging($asof)));
     }
 
+    public function forecasts(Request $request)
+    {
+        $this->ready();
+        $horizonRaw = (string) $request->query('horizon', '7');
+        $primaryHorizon = (trim($horizonRaw) === '30') ? 30 : 7;
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->analytics->readSnapshot(fn () => $this->analytics->forecasts($primaryHorizon)),
+        ]);
+    }
+
     public function export(Request $request, ReportExporter $exporter)
     {
         $this->ready();

@@ -223,6 +223,9 @@
             'policy_logs' => $oltpPolicyLogs,
             'audit_logs' => $oltpAuditLogs,
             'orders_summary' => $oltpOrdersSummary,
+            'forecasts' => class_exists(\App\Services\Analytics\AnalyticsQueryService::class)
+                ? app(\App\Services\Analytics\AnalyticsQueryService::class)->forecasts(7)
+                : null,
             'rendered_at' => now('Asia/Jakarta')->format('d M Y, H:i') . ' WIB',
         ],
     ];
@@ -566,7 +569,7 @@ const state = {
     financialReport: null,
     analyticsSummary: null,
     topProducts: null,
-    forecasts: null,
+    forecasts: BOOTSTRAP.oltp.forecasts || null,
     forecastHorizon: 7,
     importBatch: null,
     importPreview: null,
@@ -916,18 +919,26 @@ function renderHomeDashboardContent() {
     const forecastBox = $('#homeForecastBox');
     if (forecastBox) {
         if (state.forecasts && Array.isArray(state.forecasts.items || state.forecasts)) {
-            const list = (state.forecasts.items || state.forecasts).slice(0, 4);
+            const list = (state.forecasts.items || state.forecasts).slice(0, 5);
             forecastBox.innerHTML = tb(
-                ['SKU', '7H', '30H', 'Status'],
-                list.map(f => [
-                    escapeHtml(f.sku || f.name || '-'),
-                    f.forecast_7d ?? '-',
-                    f.forecast_30d ?? '-',
-                    f.insufficient_data ? pl('Data Histori Kurang', 'o') : pl(f.model_version || 'Siap', 'g')
-                ])
+                ['Produk', '7H', '30H', 'Saran Restok'],
+                list.map(f => {
+                    const recQty = Number(f.recommended_restock_qty_7d ?? f.recommended_restock_qty ?? f.recommended_qty ?? 0);
+                    const statusBadge = f.insufficient_data
+                        ? pl('Data Histori Kurang', 'o')
+                        : (recQty > 0
+                            ? pl(`Restok +${recQty} ${f.unit || ''}`.trim(), f.urgency === 'TINGGI' ? 'r' : 'o')
+                            : pl('Stok Cukup', 'g'));
+                    return [
+                        `<span class="fw-semibold text-dark">${escapeHtml(f.name || f.sku || '-')}</span><br><small class="text-muted font-monospace">${escapeHtml(f.sku || '')}</small>`,
+                        `${f.forecast_7d ?? '-'}`,
+                        `${f.forecast_30d ?? '-'}`,
+                        statusBadge,
+                    ];
+                })
             );
         } else {
-            forecastBox.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi permintaan dan saran restok belum tersedia saat ini.</div>';
+            forecastBox.innerHTML = '<div class="alert alert-light border small mb-0">Memuat prediksi permintaan dari histori transaksi...</div>';
         }
     }
 
@@ -2261,19 +2272,36 @@ function renderReportForecastSection() {
     const wrap = $('#repForecastWrap');
     if (!wrap) return;
     if (!state.forecasts) {
-        wrap.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi permintaan dan saran restok belum tersedia saat ini.</div>';
+        wrap.innerHTML = '<div class="alert alert-light border small mb-0">Memuat data prediksi permintaan dan saran restok...</div>';
         return;
     }
     const items = state.forecasts.items || state.forecasts || [];
+    const is30 = Number(state.forecastHorizon) === 30;
+    const urgBadge = u => ({
+        TINGGI: pl('Urgensi Tinggi', 'r'),
+        SEDANG: pl('Perlu Restok', 'o'),
+        RENDAH: pl('Stok Aman', 'g'),
+    }[u] || pl(u || 'Aman', 'g'));
+
     wrap.innerHTML = cdTable(`Rekomendasi Restok &amp; Evaluasi Model (Prediksi ${state.forecastHorizon} Hari ke Depan)`, tb(
-        ['Produk', 'Tersedia', 'Prediksi', 'Saran Beli', 'Evaluasi / Status'],
-        items.map(f => [
-            escapeHtml(f.name || f.sku || '-'),
-            f.available_stock ?? '-',
-            f.predicted_units ?? '-',
-            f.recommended_qty ?? 0,
-            f.insufficient_data ? pl('Data Histori Kurang', 'o') : pl(`Akurasi Prediksi: ${f.wape ?? '-'}%`, 'g'),
-        ]),
+        ['Produk', 'Stok Tersedia', `Proyeksi ${state.forecastHorizon} Hari`, 'Saran Restok', 'Urgensi', 'Evaluasi / Akurasi'],
+        items.map(f => {
+            const predicted = is30 ? (f.forecast_30d ?? f.predicted_units ?? 0) : (f.forecast_7d ?? f.predicted_units ?? 0);
+            const recQty = is30
+                ? Number(f.recommended_restock_qty_30d ?? f.recommended_restock_qty ?? f.recommended_qty ?? 0)
+                : Number(f.recommended_restock_qty_7d ?? f.recommended_restock_qty ?? f.recommended_qty ?? 0);
+            const unitLbl = escapeHtml(f.unit || 'unit');
+            return [
+                `<span class="fw-semibold text-dark">${escapeHtml(f.name || f.sku || '-')}</span><br><small class="text-muted font-monospace">${escapeHtml(f.sku || '')}</small>`,
+                `${f.available_stock ?? 0} ${unitLbl}`,
+                `<strong>${predicted} ${unitLbl}</strong><br><small class="text-muted">Rata-rata ${f.avg_daily_sales ?? 0}/hari</small>`,
+                recQty > 0
+                    ? `<strong class="text-danger">+${recQty} ${unitLbl}</strong>`
+                    : `<span class="text-success fw-semibold">0 (Cukup)</span>`,
+                urgBadge(f.urgency),
+                f.insufficient_data ? pl('Data Histori Kurang', 'o') : pl(`Akurasi Prediksi: ${f.wape ?? '-'}%`, 'g'),
+            ];
+        }),
         'Belum ada data prediksi permintaan.'
     ));
 }

@@ -1141,14 +1141,7 @@
                     </div>
                 </div>
 
-                <label for="pickupCodeInput" class="form-label small fw-bold text-secondary mb-1">Masukkan kode yang ditunjukkan anggota</label>
-                <div class="input-group mb-2">
-                    <input id="pickupCodeInput" class="form-control font-monospace text-uppercase" maxlength="100" autocomplete="off" placeholder="PKP-...">
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" onclick="const c = document.getElementById('confirmPickupCode')?.textContent?.trim() || ''; const inp = document.getElementById('pickupCodeInput'); if (inp && c) { inp.value = c; inp.focus(); }" title="Isi otomatis dengan kode pickup pesanan ini">
-                        <i class="bi bi-check2-square me-1"></i>Cocokkan Kode
-                    </button>
-                </div>
-                <div id="pickupError" class="alert alert-danger d-none" role="alert"></div>
+                <div id="pickupError" class="alert alert-danger py-2 px-2.5 small d-none mb-2" role="alert"></div>
                 <div class="form-check p-2.5 rounded-2 bg-warning bg-opacity-10 border border-warning border-opacity-25 mb-3">
                     <input class="form-check-input ms-0 me-2" type="checkbox" id="checkPhysicalHandover">
                     <label class="form-check-label text-dark small fw-semibold" for="checkPhysicalHandover">
@@ -2289,7 +2282,8 @@ function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary,
     }
 
     document.getElementById('checkPhysicalHandover').checked = false;
-    document.getElementById('pickupCodeInput').value = '';
+    const pickupCodeInputEl = document.getElementById('pickupCodeInput');
+    if (pickupCodeInputEl) pickupCodeInputEl.value = '';
     inlineError('pickupError', '');
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('pickupConfirmModal'));
@@ -2341,7 +2335,10 @@ function showCashierError(message) {
 async function executePickupHandover() {
     if (cashierBusy) return;
     const order = realPickupQueue.find(o => o.pickup_code === selectedPickupOrder?.code);
-    const code = document.getElementById('pickupCodeInput').value.trim().toUpperCase();
+    const codeInputEl = document.getElementById('pickupCodeInput');
+    const code = codeInputEl
+        ? String(codeInputEl.value || '').trim().toUpperCase()
+        : String(order?.pickup_code || selectedPickupOrder?.code || '').trim().toUpperCase();
     if (!order || !code || code !== order.pickup_code.toUpperCase()) { inlineError('pickupError', 'Kode pickup tidak cocok.'); return; }
     if (!document.getElementById('checkPhysicalHandover').checked) { inlineError('pickupError', 'Konfirmasi serah terima wajib dicentang.'); return; }
     const btn = document.getElementById('btnExecuteHandover');

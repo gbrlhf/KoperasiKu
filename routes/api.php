@@ -46,6 +46,16 @@ Route::prefix('v1')->group(function () {
         Route::patch('/credit-policy', [ReceivableController::class, 'updateCreditPolicy']);
         Route::patch('/members/{id}/credit-status', [ReceivableController::class, 'updateMemberCreditStatus']);
         Route::get('/manager/receivables', [ReceivableController::class, 'managerReceivables']);
+        Route::get('/manager/receivables/aging', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'aging']);
+
+        // Analitik, Prediksi Permintaan (7 / 30 Hari) & Laporan Keuangan
+        Route::get('/analytics/forecasts', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'forecasts']);
+        Route::get('/analytics/summary', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'summary']);
+        Route::get('/analytics/top-products', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'topProducts']);
+        Route::get('/analytics/categories', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'categories']);
+        Route::get('/analytics/trend', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'trend']);
+        Route::get('/reports/financial', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'financial']);
+        Route::get('/reports/financial/export', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'export']);
 
         // Produk & Histori Harga
         Route::get('/products', [\App\Http\Controllers\Api\V1\ProductController::class, 'index']);
