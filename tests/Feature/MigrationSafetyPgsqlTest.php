@@ -41,6 +41,7 @@ class MigrationSafetyPgsqlTest extends TestCase
                 'database/migrations/2026_11_18_000001_harden_core_constraints_and_audit_tables.php',
                 'database/migrations/2026_11_18_000002_create_idempotency_keys_table.php',
                 'database/migrations/2026_11_18_000003_prepare_hpp_immutability_and_pic_c_schema.php',
+                'database/migrations/2026_11_19_000001_strengthen_pic_b_invariants.php',
             ]) as $migrationPath) {
                 Artisan::call('migrate:rollback', ['--path' => $migrationPath, '--force' => true]);
             }
@@ -79,6 +80,7 @@ class MigrationSafetyPgsqlTest extends TestCase
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+            DB::table('credit_policies')->update(['active' => false]);
             DB::table('credit_policies')->updateOrInsert(['id' => '00000000-0000-0000-0009-000000000001'], [
                 'limit_amount' => 1000000,
                 'due_days' => 7,

@@ -11,7 +11,8 @@
 .env.production
 .env.*
 !.env.example
-!.env.testing
+.env.testing
+!.env.testing.example
 
 # ------------------------------------------------------------------------------
 # Laravel / PHP & Composer

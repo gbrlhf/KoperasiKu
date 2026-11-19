@@ -37,6 +37,10 @@ class TransactionService
         $memberId = $data['member_id'] ?? null;
         $paymentChoice = strtoupper((string) $data['payment_choice']);
         $items = $data['items'];
+        $expectedTotal = $data['expected_total'] ?? null;
+        if ($channel !== 'ONLINE_PICKUP' || !in_array($paymentChoice, ['CASH', 'BANK_TRANSFER', 'CREDIT'], true)) {
+            throw new BusinessRuleException('Checkout hanya mendukung pickup dan metode pembayaran yang sah.', 422, 'INVALID_ORDER');
+        }
         $idempotencyKey = $this->idempotency->normalizeKey($data['idempotency_key'] ?? null);
 
         $canonicalPayload = [
@@ -46,13 +50,16 @@ class TransactionService
             'items' => $this->canonicalizeItems($items),
         ];
 
+        if ($expectedTotal !== null) {
+            $canonicalPayload['expected_total'] = Money::decimal(Money::minor($expectedTotal));
+        }
         $execution = $this->idempotency->run(
             $idempotencyKey,
             'CHECKOUT',
             $actorUserId,
             null,
             $canonicalPayload,
-            function () use ($memberId, $paymentChoice, $items, $channel, $actorUserId, $idempotencyKey): array {
+            function () use ($memberId, $paymentChoice, $items, $channel, $actorUserId, $idempotencyKey, $expectedTotal): array {
                 if ($idempotencyKey !== null) {
                     $legacyOrder = Order::where('idempotency_key', $idempotencyKey)->first();
                     if ($legacyOrder) {
@@ -72,15 +79,18 @@ class TransactionService
                     throw new BusinessRuleException('Keanggotaan tidak ditemukan atau tidak aktif.', 422, 'MEMBER_INACTIVE');
                 }
 
-                $totalAmount = 0.0;
+                if ($paymentChoice === 'CREDIT') {
+                    MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
+                }
+                $totalMinor = 0;
                 $orderItemsData = [];
 
                 // Urutkan product_id agar menghindari deadlock saat locking banyak item secara paralel
-                $sortedItems = collect($items)->sortBy(fn ($i) => (string) $i['product_id'])->values()->all();
+                $sortedItems = $this->resolveProductQuantities($items);
 
                 foreach ($sortedItems as $item) {
                     // Urutan lock kanonik: products -> inventory_balances agar pembacaan current_cost aman dari balapan WAC
-                    $product = $this->findProduct((string) $item['product_id'], true);
+                    $product = DB::table('products')->where('id', $item['product_id'])->lockForUpdate()->first();
                     if (!$product) {
                         throw new BusinessRuleException("Produk tidak ditemukan di master katalog: {$item['product_id']}", 404, 'PRODUCT_NOT_FOUND');
                     }
@@ -103,18 +113,21 @@ class TransactionService
                         throw new BusinessRuleException("Stok tersedia tidak mencukupi untuk produk: {$product->name}", 422, 'INSUFFICIENT_STOCK');
                     }
 
-                    $subtotal = (float) $product->selling_price * $qty;
-                    $totalAmount += $subtotal;
+                    $totalMinor = Money::addLine($totalMinor, $product->selling_price, $qty);
 
                     $orderItemsData[] = [
                         'product_id' => $product->id,
                         'quantity' => $qty,
                         // Harga jual di-snapshot saat checkout; HPP disnapshot final saat serah terima (COMPLETED)
-                        'unit_price_snapshot' => (float) $product->selling_price,
+                        'unit_price_snapshot' => $product->selling_price,
                         'hpp_snapshot' => null,
                     ];
                 }
 
+                $totalAmount = Money::amount(Money::decimal($totalMinor));
+                if ($expectedTotal !== null && Money::minor($expectedTotal) !== $totalMinor) {
+                    throw new BusinessRuleException('Harga produk berubah. Muat ulang katalog dan periksa total pesanan.', 409, 'PRICE_CHANGED');
+                }
                 if ($paymentChoice === 'CREDIT') {
                     $this->validateAndLockMemberCredit((string) $memberId, $totalAmount);
                 }
@@ -135,13 +148,7 @@ class TransactionService
 
                 foreach ($orderItemsData as $orderItem) {
                     OrderItem::create(array_merge($orderItem, ['order_id' => $order->id]));
-                    InventoryBalance::where('product_id', $orderItem['product_id'])->increment('reserved', $orderItem['quantity']);
-
-                    StockReservation::create([
-                        'order_id' => $order->id,
-                        'product_id' => $orderItem['product_id'],
-                        'quantity' => $orderItem['quantity'],
-                    ]);
+                    app(InventoryService::class)->reserve($order->id, $orderItem['product_id'], $orderItem['quantity']);
                 }
 
                 if ($paymentChoice === 'CREDIT') {
@@ -194,7 +201,10 @@ class TransactionService
     {
         $idempotencyKey = $this->idempotency->normalizeKey($data['idempotency_key'] ?? null);
         $method = strtoupper((string) $data['method']);
-        $amount = (float) $data['amount'];
+        if (!in_array($method, ['CASH', 'BANK_TRANSFER'], true)) {
+            throw new BusinessRuleException('Metode pembayaran tidak valid.', 422, 'INVALID_PAYMENT_METHOD');
+        }
+        $amount = Money::amount($data['amount']);
         $externalRef = isset($data['external_reference']) ? trim((string) $data['external_reference']) : null;
 
         $resolvedOrder = $this->findOrderByIdentifier($orderIdentifier);
@@ -203,7 +213,7 @@ class TransactionService
         $canonicalPayload = [
             'order_id' => $targetResourceId,
             'method' => $method,
-            'amount' => round($amount, 2),
+            'amount' => (float) $amount,
             'external_reference' => $externalRef ?: null,
         ];
 
@@ -241,11 +251,11 @@ class TransactionService
                     }
                 }
 
-                $alreadyAccounted = (float) Payment::where('order_id', $order->id)
+                $alreadyAccounted = Payment::where('order_id', $order->id)
                     ->whereIn('status', ['VERIFIED', 'PENDING_VERIFICATION'])
                     ->sum('amount');
 
-                if (($alreadyAccounted + $amount) > (float) $order->total_amount + 0.001) {
+                if (Money::minor($alreadyAccounted) + Money::minor($amount) > Money::minor($order->getRawOriginal('total_amount'))) {
                     throw new BusinessRuleException('Total pembayaran melebihi total tagihan pesanan.', 422, 'INVALID_PAYMENT');
                 }
 
@@ -327,6 +337,10 @@ class TransactionService
                     throw new BusinessRuleException('ID pembayaran tidak valid.', 422, 'INVALID_PAYMENT');
                 }
 
+                $candidate = Payment::find($paymentId);
+                if ($candidate?->order_id) {
+                    Order::where('id', $candidate->order_id)->lockForUpdate()->first();
+                }
                 $payment = Payment::where('id', $paymentId)->lockForUpdate()->first();
                 if (!$payment) {
                     throw new BusinessRuleException('Data pembayaran tidak ditemukan.', 404, 'PAYMENT_NOT_FOUND');
@@ -371,6 +385,9 @@ class TransactionService
                     throw new BusinessRuleException('Pembayaran sudah berstatus REJECTED.', 400, 'PAYMENT_ALREADY_REJECTED');
                 }
 
+                if ($payment->status !== 'PENDING_VERIFICATION' || $payment->method !== 'BANK_TRANSFER') {
+                    throw new BusinessRuleException('Status pembayaran tidak dapat diverifikasi.', 422, 'INVALID_PAYMENT');
+                }
                 $oldStatus = $payment->status;
 
                 if ($normalizedAction === 'REJECT') {
@@ -399,6 +416,15 @@ class TransactionService
                     ];
                 }
 
+                // Reject verification for a cancelled/completed order, including legacy pending payments.
+                $order = null;
+                if ($payment->order_id) {
+                    $order = Order::where('id', $payment->order_id)->lockForUpdate()->first();
+                    if (!$order || in_array($order->status, ['CANCELLED', 'COMPLETED'], true)) {
+                        throw new BusinessRuleException('Pembayaran tidak dapat diverifikasi untuk pesanan ini.', 409, 'INVALID_ORDER_STATUS');
+                    }
+                }
+
                 // VERIFY: terapkan pengurangan saldo piutang atau kesiapan pickup secara atomik
                 $verifiedAtUtc = CarbonImmutable::now('UTC');
                 $payment->update([
@@ -407,15 +433,15 @@ class TransactionService
                     'verified_at' => $verifiedAtUtc,
                 ]);
 
-                if ($payment->order_id) {
-                    $order = Order::where('id', $payment->order_id)->lockForUpdate()->first();
-                    if ($order) {
-                        $this->syncOrderReadyForPickupIfPaid($order);
-                    }
+                if ($order) {
+                    $this->syncOrderReadyForPickupIfPaid($order);
                 }
 
                 $pendingAllocs = $payment->pending_allocations;
-                if (!empty($pendingAllocs) && is_array($pendingAllocs)) {
+                if (!$order) {
+                    if (empty($pendingAllocs) || !is_array($pendingAllocs) || !$payment->member_id) {
+                        throw new BusinessRuleException('Pembayaran piutang tidak memiliki alokasi valid.', 422, 'INVALID_PAYMENT');
+                    }
                     $this->applyReceivableAllocations($payment, $pendingAllocs, (string) $payment->member_id);
                 }
 
@@ -449,11 +475,19 @@ class TransactionService
         return $execution['body'];
     }
 
-    public function confirmPickup(string $orderId, ?string $actorUserId = null, ?string $actorMemberId = null, ?string $idempotencyKey = null): array
+    public function confirmPickup(string $orderId, ?string $actorUserId = null, ?string $actorMemberId = null, ?string $idempotencyKey = null, ?string $pickupCode = null, bool $handoverConfirmed = false): array
     {
         $cleanKey = $this->idempotency->normalizeKey($idempotencyKey);
         $resolvedOrder = $this->findOrderByIdentifier($orderId);
         $targetResourceId = $resolvedOrder ? (string) $resolvedOrder->id : ('unresolved:' . strtolower(trim($orderId)));
+        if (!$resolvedOrder) {
+            throw new BusinessRuleException('Pesanan tidak ditemukan.', 404, 'ORDER_NOT_FOUND');
+        }
+        if (!$handoverConfirmed || !$pickupCode || !$resolvedOrder->pickup_code
+            || !hash_equals((string) $resolvedOrder->pickup_code, $pickupCode)) {
+            throw new BusinessRuleException('Kode pickup atau konfirmasi serah terima tidak valid.', 422, 'INVALID_PICKUP_CODE');
+        }
+
 
         $canonicalPayload = [
             'order_id' => $targetResourceId,
@@ -465,10 +499,15 @@ class TransactionService
             $actorUserId,
             $targetResourceId,
             $canonicalPayload,
-            function () use ($orderId, $actorUserId, $actorMemberId, $cleanKey): array {
+            function () use ($orderId, $actorUserId, $actorMemberId, $cleanKey, $pickupCode, $handoverConfirmed): array {
                 $order = $this->findOrderForUpdate($orderId);
                 if (!$order) {
                     throw new BusinessRuleException("Pesanan dengan ID / Kode Pickup '{$orderId}' tidak ditemukan.", 404, 'ORDER_NOT_FOUND');
+                }
+
+                if (!$handoverConfirmed || !$pickupCode || !$order->pickup_code
+                    || !hash_equals((string) $order->pickup_code, $pickupCode)) {
+                    throw new BusinessRuleException('Kode pickup atau konfirmasi serah terima tidak valid.', 422, 'INVALID_PICKUP_CODE');
                 }
 
                 if ($cleanKey !== null) {
@@ -505,59 +544,67 @@ class TransactionService
                 }
 
                 $orderItems = OrderItem::where('order_id', $order->id)->get();
-                $totalOrderAmount = (float) $orderItems->sum(fn ($i) => (float) $i->unit_price_snapshot * (int) $i->quantity);
+                $totalOrderMinor = 0;
+                foreach ($orderItems as $item) {
+                    $totalOrderMinor = Money::addLine($totalOrderMinor, $item->getRawOriginal('unit_price_snapshot'), (int) $item->quantity);
+                }
+                $totalOrderAmount = Money::decimal($totalOrderMinor);
+                if ($totalOrderMinor !== Money::minor($order->getRawOriginal('total_amount'))) {
+                    throw new BusinessRuleException('Total item tidak cocok dengan total pesanan.', 422, 'INVALID_ORDER_TOTAL');
+                }
 
-                $verifiedPaid = (float) Payment::where('order_id', $order->id)
+                $verifiedPaid = Payment::where('order_id', $order->id)
                     ->where('status', 'VERIFIED')
                     ->sum('amount');
 
-                if ($order->payment_choice !== 'CREDIT' && ($verifiedPaid + 0.001) < $totalOrderAmount) {
+                if ($order->payment_choice !== 'CREDIT' && Money::minor($verifiedPaid) < Money::minor($totalOrderAmount)) {
                     throw new BusinessRuleException('Pembayaran tunai/transfer belum terverifikasi lunas sebelum serah terima.', 422, 'PAYMENT_NOT_VERIFIED');
                 }
 
-                $reservations = StockReservation::where('order_id', $order->id)
-                    ->orderBy('product_id')
-                    ->lockForUpdate()
-                    ->get();
+                if ($order->channel !== 'ONLINE_PICKUP') {
+                    throw new BusinessRuleException('Pickup hanya untuk pesanan online.', 422, 'INVALID_ORDER_STATUS');
+                }
+                $expectedStatus = $order->payment_choice === 'CREDIT' ? 'PENDING_PICKUP' : 'READY_FOR_PICKUP';
+                if ($order->status !== $expectedStatus) {
+                    throw new BusinessRuleException('Status pesanan belum siap untuk serah terima.', 422, 'INVALID_ORDER_STATUS');
+                }
+
+                if (Payment::where('order_id', $order->id)->where('status', 'PENDING_VERIFICATION')->exists()) {
+                    throw new BusinessRuleException('Selesaikan verifikasi pembayaran sebelum pickup.', 409, 'PAYMENT_VERIFICATION_REQUIRED');
+                }
+                if ($order->payment_choice === 'CREDIT') {
+                    MemberCreditAccount::where('member_id', $order->member_id)->lockForUpdate()->first();
+                }
+                $reservations = $this->lockMatchingReservations($order);
+                $creditHold = $this->lockRequiredCreditHold($order);
                 $stockMovementIds = [];
 
                 foreach ($reservations as $res) {
                     // Urutan lock kanonik: products -> inventory_balances (mencegah deadlock dg purchase_receipts)
                     $product = Product::where('id', $res->product_id)->lockForUpdate()->first();
                     $inventory = InventoryBalance::where('product_id', $res->product_id)->lockForUpdate()->first();
-                    if (!$inventory || $inventory->on_hand < $res->quantity || $inventory->reserved < $res->quantity) {
+                    if (!$product || !$inventory || $inventory->on_hand < $inventory->reserved
+                        || $inventory->reserved < $res->quantity) {
                         throw new BusinessRuleException('Inkonsistensi stok reservasi saat konfirmasi pickup.', 422, 'INSUFFICIENT_STOCK');
                     }
 
-                    $inventory->decrement('on_hand', $res->quantity);
-                    $inventory->decrement('reserved', $res->quantity);
-
-                    $movement = StockMovement::create([
-                        'product_id' => $res->product_id,
-                        'quantity_change' => -$res->quantity,
-                        'type' => 'SALE_PICKUP',
-                        'reference_id' => $order->id,
-                        'reason' => 'Serah terima pesanan selesai',
-                    ]);
+                    $movement = app(InventoryService::class)->fulfill($res, $inventory);
                     $stockMovementIds[] = (string) $movement->id;
 
                     // Snapshot HPP final saat barang fisik diserahkan (Keputusan #3), sebelum status menjadi COMPLETED
                     if ($product) {
                         OrderItem::where('order_id', $order->id)
                             ->where('product_id', $res->product_id)
-                            ->update(['hpp_snapshot' => (float) $product->current_cost]);
+                            ->update(['hpp_snapshot' => $product->current_cost]);
                     }
                 }
 
-                StockReservation::where('order_id', $order->id)->delete();
-
-                $creditHold = CreditHold::where('order_id', $order->id)->lockForUpdate()->first();
-                if ($creditHold && $creditHold->status === 'ACTIVE') {
+                if ($creditHold) {
                     $creditHold->update(['status' => 'COMMITTED']);
                 }
 
                 $receivable = null;
-                $creditRemaining = max(0.0, $totalOrderAmount - $verifiedPaid);
+                $creditRemaining = Money::decimal(max(0, Money::minor($totalOrderAmount) - Money::minor($verifiedPaid)));
                 if ($order->payment_choice === 'CREDIT' && $creditRemaining > 0) {
                     $dueDate = CarbonImmutable::now('Asia/Jakarta')->addDays(7)->toDateString();
 
@@ -571,6 +618,7 @@ class TransactionService
                     ]);
                 }
 
+                $oldOrderStatus = $order->status;
                 $completedAtUtc = CarbonImmutable::now('UTC');
                 $order->update([
                     'status' => 'COMPLETED',
@@ -582,7 +630,7 @@ class TransactionService
                     'PICKUP_COMPLETED',
                     'Order',
                     (string) $order->id,
-                    ['status' => $order->getOriginal('status')],
+                    ['status' => $oldOrderStatus],
                     [
                         'status' => 'COMPLETED',
                         'completed_at' => $completedAtUtc->toIso8601String(),
@@ -617,6 +665,14 @@ class TransactionService
         $memberId = $data['member_id'] ?? null;
         $paymentChoice = strtoupper((string) $data['payment_choice']);
         $items = $data['items'];
+        $expectedTotal = $data['expected_total'] ?? null;
+        $cashReceived = $data['cash_received'] ?? null;
+        if (!in_array($paymentChoice, ['CASH', 'BANK_TRANSFER', 'CREDIT'], true)) {
+            throw new BusinessRuleException('Metode pembayaran tidak valid.', 422, 'INVALID_PAYMENT_METHOD');
+        }
+        if ($paymentChoice === 'BANK_TRANSFER' && (($data['transfer_verified'] ?? false) !== true || !$actorUserId)) {
+            throw new BusinessRuleException('Petugas wajib memastikan dana transfer telah diterima.', 422, 'PAYMENT_NOT_VERIFIED');
+        }
         $idempotencyKey = $this->idempotency->normalizeKey($data['idempotency_key'] ?? null);
         $externalRef = isset($data['external_reference']) ? trim((string) $data['external_reference']) : null;
 
@@ -627,13 +683,19 @@ class TransactionService
             'items' => $this->canonicalizeItems($items),
         ];
 
+        if ($expectedTotal !== null) {
+            $canonicalPayload['expected_total'] = Money::decimal(Money::minor($expectedTotal));
+        }
+        if ($cashReceived !== null && $paymentChoice === 'CASH') {
+            $canonicalPayload['cash_received'] = Money::decimal(Money::minor($cashReceived));
+        }
         $execution = $this->idempotency->run(
             $idempotencyKey,
             'POS_SALE',
             $actorUserId,
             null,
             $canonicalPayload,
-            function () use ($memberId, $paymentChoice, $items, $idempotencyKey, $externalRef, $actorUserId, $actorMemberId): array {
+            function () use ($memberId, $paymentChoice, $items, $idempotencyKey, $externalRef, $actorUserId, $actorMemberId, $expectedTotal, $cashReceived): array {
                 if ($idempotencyKey !== null && Order::where('idempotency_key', $idempotencyKey)->exists()) {
                     throw new BusinessRuleException('Idempotency key sudah digunakan oleh transaksi lain.', 409, 'IDEMPOTENCY_CONFLICT');
                 }
@@ -647,7 +709,7 @@ class TransactionService
                     if (!$member || strtoupper((string) $member->status) !== 'ACTIVE') {
                         throw new BusinessRuleException('Keanggotaan tidak ditemukan atau tidak aktif.', 422, 'MEMBER_INACTIVE');
                     }
-                    if ($paymentChoice === 'CREDIT' && $actorMemberId && $memberId === $actorMemberId) {
+                    if ($actorMemberId && $memberId === $actorMemberId) {
                         throw new BusinessRuleException('Kasir tidak diperbolehkan memproses piutang POS atas akunnya sendiri.', 403, 'SELF_PAYMENT_FORBIDDEN');
                     }
                 }
@@ -658,15 +720,18 @@ class TransactionService
                     }
                 }
 
-                $totalAmount = 0.0;
+                if ($paymentChoice === 'CREDIT') {
+                    MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
+                }
+                $totalMinor = 0;
                 $orderItemsData = [];
                 $inventoryUpdates = [];
 
-                $sortedItems = collect($items)->sortBy(fn ($i) => (string) $i['product_id'])->values()->all();
+                $sortedItems = $this->resolveProductQuantities($items);
 
                 foreach ($sortedItems as $item) {
                     // Urutan lock kanonik: products -> inventory_balances agar pembacaan current_cost aman dari balapan WAC
-                    $product = $this->findProduct((string) $item['product_id'], true);
+                    $product = DB::table('products')->where('id', $item['product_id'])->lockForUpdate()->first();
                     if (!$product) {
                         throw new BusinessRuleException("Produk tidak ditemukan di master katalog: {$item['product_id']}", 404, 'PRODUCT_NOT_FOUND');
                     }
@@ -690,14 +755,13 @@ class TransactionService
                         throw new BusinessRuleException("Stok tersedia tidak mencukupi untuk produk: {$product->name}", 422, 'INSUFFICIENT_STOCK');
                     }
 
-                    $subtotal = (float) $product->selling_price * $qty;
-                    $totalAmount += $subtotal;
+                    $totalMinor = Money::addLine($totalMinor, $product->selling_price, $qty);
 
                     $orderItemsData[] = [
                         'product_id' => $product->id,
                         'quantity' => $qty,
-                        'unit_price_snapshot' => (float) $product->selling_price,
-                        'hpp_snapshot' => (float) $product->current_cost,
+                        'unit_price_snapshot' => $product->selling_price,
+                        'hpp_snapshot' => $product->current_cost,
                     ];
 
                     $inventoryUpdates[] = [
@@ -706,6 +770,13 @@ class TransactionService
                     ];
                 }
 
+                $totalAmount = Money::amount(Money::decimal($totalMinor));
+                if ($paymentChoice === 'CASH' && $cashReceived !== null && Money::minor($cashReceived) < $totalMinor) {
+                    throw new BusinessRuleException('Uang tunai diterima kurang dari total transaksi.', 422, 'INSUFFICIENT_CASH');
+                }
+                if ($expectedTotal !== null && Money::minor($expectedTotal) !== $totalMinor) {
+                    throw new BusinessRuleException('Harga berubah. Muat ulang katalog dan konfirmasi ulang nominal pembayaran.', 409, 'PRICE_CHANGED');
+                }
                 if ($paymentChoice === 'CREDIT') {
                     $this->validateAndLockMemberCredit((string) $memberId, $totalAmount);
                 }
@@ -728,15 +799,7 @@ class TransactionService
                     $inv = $update['inventory'];
                     $qty = $update['quantity'];
 
-                    $inv->decrement('on_hand', $qty);
-
-                    StockMovement::create([
-                        'product_id' => $inv->product_id,
-                        'quantity_change' => -$qty,
-                        'type' => 'POS_SALE',
-                        'reference_id' => $order->id,
-                        'reason' => 'Penjualan langsung POS',
-                    ]);
+                    app(InventoryService::class)->sell($inv, $qty, (string) $order->id);
                 }
 
                 foreach ($orderItemsData as $orderItem) {
@@ -808,17 +871,20 @@ class TransactionService
     {
         $memberId = (string) $data['member_id'];
         $method = strtoupper((string) $data['method']);
-        $amount = (float) $data['amount'];
-        $allocations = $data['allocations'];
+        if (!in_array($method, ['CASH', 'BANK_TRANSFER'], true)) {
+            throw new BusinessRuleException('Metode pembayaran tidak valid.', 422, 'INVALID_PAYMENT_METHOD');
+        }
+        $amount = Money::amount($data['amount']);
+        $allocations = $data['allocations'] ?? null;
         $idempotencyKey = $this->idempotency->normalizeKey($data['idempotency_key'] ?? null);
         $externalRef = isset($data['external_reference']) ? trim((string) $data['external_reference']) : null;
 
         $canonicalPayload = [
             'member_id' => strtolower($memberId),
             'method' => $method,
-            'amount' => round($amount, 2),
+            'amount' => (float) $amount,
             'external_reference' => $externalRef ?: null,
-            'allocations' => $this->canonicalizeAllocations($allocations),
+            'allocations' => $allocations === null ? null : $this->canonicalizeAllocations($allocations),
         ];
 
         $execution = $this->idempotency->run(
@@ -840,8 +906,13 @@ class TransactionService
                     throw new BusinessRuleException('Nominal pembayaran harus lebih besar dari nol.', 422, 'INVALID_PAYMENT');
                 }
 
-                $totalAllocated = round((float) collect($allocations)->sum('amount'), 2);
-                if (abs($totalAllocated - round($amount, 2)) > 0.01) {
+                MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
+                if (!Member::where('id', $memberId)->exists()) {
+                    throw new BusinessRuleException('Anggota tidak ditemukan.', 404, 'MEMBER_NOT_FOUND');
+                }
+                $allocations ??= $this->allocateOldestReceivables($memberId, Money::minor($amount));
+                $totalAllocated = array_sum(array_map(static fn ($a) => Money::minor($a['amount']), $allocations));
+                if ($totalAllocated !== Money::minor($amount)) {
                     throw new BusinessRuleException('Total alokasi pembayaran tidak sesuai dengan nominal pembayaran.', 422, 'INVALID_PAYMENT');
                 }
 
@@ -926,19 +997,34 @@ class TransactionService
                 ];
             }
 
-            $reservations = StockReservation::where('order_id', $order->id)->get();
-
-            foreach ($reservations as $res) {
-                $inventory = InventoryBalance::where('product_id', $res->product_id)->lockForUpdate()->first();
-                if ($inventory) {
-                    $inventory->decrement('reserved', $res->quantity);
-                }
+            // Refund is not implemented yet. Do not cancel an order with received funds.
+            if (Payment::where('order_id', $order->id)->where('status', 'VERIFIED')->exists()) {
+                throw new BusinessRuleException('Pesanan sudah dibayar; selesaikan prosedur refund terlebih dahulu.', 409, 'REFUND_REQUIRED');
+            }
+            if (Payment::where('order_id', $order->id)->where('status', 'PENDING_VERIFICATION')->exists()) {
+                throw new BusinessRuleException('Selesaikan pemeriksaan pembayaran transfer sebelum membatalkan pesanan.', 409, 'PAYMENT_VERIFICATION_REQUIRED');
             }
 
-            StockReservation::where('order_id', $order->id)->delete();
+            if ($order->channel !== 'ONLINE_PICKUP' || !in_array($order->status, ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'], true)) {
+                throw new BusinessRuleException('Status pesanan tidak dapat dibatalkan.', 422, 'INVALID_ORDER_STATUS');
+            }
+            if ($order->payment_choice === 'CREDIT') {
+                MemberCreditAccount::where('member_id', $order->member_id)->lockForUpdate()->first();
+            }
+            $reservations = $this->lockMatchingReservations($order);
+            $creditHold = $this->lockRequiredCreditHold($order);
 
-            $creditHold = CreditHold::where('order_id', $order->id)->lockForUpdate()->first();
-            if ($creditHold && $creditHold->status === 'ACTIVE') {
+            foreach ($reservations as $res) {
+                $product = Product::where('id', $res->product_id)->lockForUpdate()->first();
+                $inventory = InventoryBalance::where('product_id', $res->product_id)->lockForUpdate()->first();
+                if (!$product || !$inventory || $inventory->on_hand < $inventory->reserved
+                    || $inventory->reserved < $res->quantity) {
+                    throw new BusinessRuleException('Inkonsistensi stok reservasi saat pembatalan.', 422, 'INSUFFICIENT_STOCK');
+                }
+                app(InventoryService::class)->release($res, $inventory);
+            }
+
+            if ($creditHold) {
                 $creditHold->update(['status' => 'RELEASED']);
             }
 
@@ -965,15 +1051,15 @@ class TransactionService
     public function getMemberCreditSummary(string $memberId): array
     {
         $policy = CreditPolicy::where('active', true)->latest('effective_at')->first();
-        $globalLimit = $policy ? (float) $policy->limit_amount : 0.0;
+        $globalLimit = $policy ? $policy->getRawOriginal('limit_amount') : '0.00';
         $dueDays = $policy ? (int) $policy->due_days : 7;
 
         $creditAccount = MemberCreditAccount::where('member_id', $memberId)->first();
-        $outstanding = (float) Receivable::where('member_id', $memberId)
+        $outstanding = Receivable::where('member_id', $memberId)
             ->where('outstanding_amount', '>', 0)
             ->sum('outstanding_amount');
 
-        $activeHolds = (float) CreditHold::where('member_id', $memberId)
+        $activeHolds = CreditHold::where('member_id', $memberId)
             ->where('status', 'ACTIVE')
             ->sum('amount');
 
@@ -983,22 +1069,22 @@ class TransactionService
             ->where('due_date', '<', $todayJakarta)
             ->exists();
 
-        $availableLimit = max(0.0, $globalLimit - $outstanding - $activeHolds);
+        $availableLimit = (float) Money::decimal(max(0, Money::minor($globalLimit) - Money::minor($outstanding) - Money::minor($activeHolds)));
 
         return [
             'member_id' => $memberId,
             'credit_account_status' => $creditAccount?->status ?? 'BLOCKED',
-            'global_limit' => $globalLimit,
+            'global_limit' => (float) $globalLimit,
             'due_days' => $dueDays,
-            'outstanding_receivable' => $outstanding,
-            'active_credit_hold' => $activeHolds,
+            'outstanding_receivable' => (float) $outstanding,
+            'active_credit_hold' => (float) $activeHolds,
             'available_limit' => $availableLimit,
             'has_overdue' => $hasOverdue,
-            'eligible_for_credit' => ($creditAccount && $creditAccount->status === 'ACTIVE' && !$hasOverdue && $availableLimit > 0),
+            'eligible_for_credit' => (Member::where('id', $memberId)->whereRaw('UPPER(status) = ?', ['ACTIVE'])->exists() && $creditAccount && $creditAccount->status === 'ACTIVE' && !$hasOverdue && $availableLimit > 0),
         ];
     }
 
-    private function validateAndLockMemberCredit(string $memberId, float $totalAmount): void
+    private function validateAndLockMemberCredit(string $memberId, string $totalAmount): void
     {
         $creditAccount = MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
         if (!$creditAccount || strtoupper((string) $creditAccount->status) !== 'ACTIVE') {
@@ -1020,15 +1106,15 @@ class TransactionService
             throw new BusinessRuleException('Kebijakan limit global belum dikonfigurasi oleh Manajer.', 422, 'CREDIT_POLICY_UNSET');
         }
 
-        $outstanding = (float) Receivable::where('member_id', $memberId)
+        $outstanding = Receivable::where('member_id', $memberId)
             ->where('outstanding_amount', '>', 0)
             ->sum('outstanding_amount');
 
-        $activeHolds = (float) CreditHold::where('member_id', $memberId)
+        $activeHolds = CreditHold::where('member_id', $memberId)
             ->where('status', 'ACTIVE')
             ->sum('amount');
 
-        if (($outstanding + $activeHolds + $totalAmount) > (float) $policy->limit_amount + 0.001) {
+        if (Money::minor($outstanding) + Money::minor($activeHolds) + Money::minor($totalAmount) > Money::minor($policy->getRawOriginal('limit_amount'))) {
             throw new BusinessRuleException('Limit piutang global tidak mencukupi untuk transaksi ini.', 422, 'CREDIT_LIMIT_EXCEEDED');
         }
     }
@@ -1039,19 +1125,48 @@ class TransactionService
             return;
         }
 
-        $verifiedSum = (float) Payment::where('order_id', $order->id)
+        $verifiedSum = Payment::where('order_id', $order->id)
             ->where('status', 'VERIFIED')
             ->sum('amount');
 
-        if (($verifiedSum + 0.001) >= (float) $order->total_amount) {
+        if (Money::minor($verifiedSum) >= Money::minor($order->getRawOriginal('total_amount'))) {
             $order->update(['status' => 'READY_FOR_PICKUP']);
         }
     }
 
+    private function allocateOldestReceivables(string $memberId, int $remaining): array
+    {
+        $allocations = [];
+        // Read IDs by due date, then lock selected receivables in consistent ID order.
+        $receivables = Receivable::where('member_id', $memberId)->where('outstanding_amount', '>', 0)
+            ->orderBy('id')->lockForUpdate()->get()->sortBy([
+                fn ($left, $right) => $left->due_date->toDateString() <=> $right->due_date->toDateString(),
+                fn ($left, $right) => strcmp((string) $left->id, (string) $right->id),
+            ]);
+        foreach ($receivables as $receivable) {
+            if ($remaining === 0) break;
+            $minor = min($remaining, Money::minor($receivable->getRawOriginal('outstanding_amount')));
+            if ($minor > 0) {
+                $allocations[] = ['receivable_id' => (string) $receivable->id, 'amount' => Money::decimal($minor)];
+                $remaining -= $minor;
+            }
+        }
+        if ($remaining !== 0 || $allocations === []) {
+            throw new BusinessRuleException('Pembayaran melebihi saldo piutang.', 422, 'INVALID_PAYMENT');
+        }
+        return $allocations;
+    }
+
     private function validateAllocationsBeforeRecording(array $allocations, string $memberId): void
     {
+        $allocations = $this->canonicalizeAllocations($allocations);
+        $seen = [];
         foreach ($allocations as $alloc) {
-            $allocAmount = (float) ($alloc['amount'] ?? 0);
+            if (isset($seen[$alloc['receivable_id']])) {
+                throw new BusinessRuleException('Alokasi tagihan duplikat.', 422, 'INVALID_PAYMENT');
+            }
+            $seen[$alloc['receivable_id']] = true;
+            $allocAmount = Money::amount($alloc['amount'] ?? 0);
             if ($allocAmount <= 0) {
                 throw new BusinessRuleException('Nominal alokasi wajib lebih besar dari nol.', 422, 'INVALID_PAYMENT');
             }
@@ -1068,7 +1183,7 @@ class TransactionService
             if ((string) $receivable->member_id !== $memberId) {
                 throw new BusinessRuleException('Tagihan piutang tidak sesuai dengan anggota yang membayar.', 422, 'FORBIDDEN');
             }
-            if ($allocAmount > (float) $receivable->outstanding_amount + 0.001) {
+            if (Money::minor($allocAmount) > Money::minor($receivable->getRawOriginal('outstanding_amount'))) {
                 throw new BusinessRuleException('Nominal alokasi melebihi sisa saldo tagihan piutang.', 422, 'INVALID_PAYMENT');
             }
         }
@@ -1076,8 +1191,21 @@ class TransactionService
 
     private function applyReceivableAllocations(Payment $payment, array $allocations, string $memberId): void
     {
+        if ($payment->status !== 'VERIFIED' || (string) $payment->member_id !== $memberId
+            || $payment->allocations()->exists()
+            || array_sum(array_map(static fn ($a) => Money::minor($a['amount']), $allocations)) !== Money::minor($payment->getRawOriginal('amount'))) {
+            throw new BusinessRuleException('Alokasi pembayaran tidak konsisten atau telah diproses.', 422, 'INVALID_PAYMENT');
+        }
+        MemberCreditAccount::where('member_id', $memberId)->lockForUpdate()->first();
+        $this->validateAllocationsBeforeRecording($allocations, $memberId);
+        $allocations = $this->canonicalizeAllocations($allocations);
+        $seen = [];
         foreach ($allocations as $alloc) {
-            $allocAmount = (float) $alloc['amount'];
+            if (isset($seen[$alloc['receivable_id']])) {
+                throw new BusinessRuleException('Alokasi tagihan duplikat.', 422, 'INVALID_PAYMENT');
+            }
+            $seen[$alloc['receivable_id']] = true;
+            $allocAmount = Money::amount($alloc['amount']);
             $receivable = Receivable::where('id', (string) $alloc['receivable_id'])->lockForUpdate()->first();
 
             if (!$receivable) {
@@ -1086,7 +1214,7 @@ class TransactionService
             if ((string) $receivable->member_id !== $memberId) {
                 throw new BusinessRuleException('Tagihan piutang tidak sesuai dengan anggota yang membayar.', 422, 'FORBIDDEN');
             }
-            if ($allocAmount > (float) $receivable->outstanding_amount + 0.001) {
+            if (Money::minor($allocAmount) > Money::minor($receivable->getRawOriginal('outstanding_amount'))) {
                 throw new BusinessRuleException('Nominal alokasi melebihi sisa saldo tagihan saat verifikasi.', 422, 'INVALID_PAYMENT');
             }
 
@@ -1096,7 +1224,7 @@ class TransactionService
                 'allocated_amount' => $allocAmount,
             ]);
 
-            $newOutstanding = max(0.0, round((float) $receivable->outstanding_amount - $allocAmount, 2));
+            $newOutstanding = Money::decimal(Money::minor($receivable->getRawOriginal('outstanding_amount')) - Money::minor($allocAmount));
             $newStatus = ($newOutstanding <= 0) ? 'PAID' : 'PARTIALLY_PAID';
 
             // Jatuh tempo awal (due_date) tidak boleh diubah oleh pembayaran sebagian
@@ -1105,6 +1233,57 @@ class TransactionService
                 'status' => $newStatus,
             ]);
         }
+    }
+
+    private function lockMatchingReservations(Order $order): \Illuminate\Support\Collection
+    {
+        $items = OrderItem::where('order_id', $order->id)->get();
+        $reservations = StockReservation::where('order_id', $order->id)
+            ->orderBy('product_id')->lockForUpdate()->get();
+        if ($reservations->contains(fn ($row) => $row->status !== 'ACTIVE')) {
+            throw new BusinessRuleException('Reservasi pesanan tidak seluruhnya aktif.', 422, 'INVALID_RESERVATION');
+        }
+
+        $quantities = static function ($rows): array {
+            $result = [];
+            foreach ($rows as $row) {
+                $quantity = (int) $row->quantity;
+                if ($quantity <= 0) {
+                    throw new BusinessRuleException('Kuantitas reservasi atau item tidak valid.', 422, 'INVALID_RESERVATION');
+                }
+                $key = (string) $row->product_id;
+                $result[$key] = ($result[$key] ?? 0) + $quantity;
+            }
+            ksort($result);
+            return $result;
+        };
+
+        if ($items->isEmpty() || $quantities($items) !== $quantities($reservations)) {
+            throw new BusinessRuleException('Reservasi stok tidak sesuai dengan item pesanan.', 422, 'INVALID_RESERVATION');
+        }
+
+        return $reservations;
+    }
+
+    private function lockRequiredCreditHold(Order $order): ?CreditHold
+    {
+        $hold = CreditHold::where('order_id', $order->id)->lockForUpdate()->first();
+        if ($order->payment_choice !== 'CREDIT') {
+            if ($hold && $hold->status === 'ACTIVE') {
+                throw new BusinessRuleException('Pesanan nonkredit memiliki hold aktif yang tidak semestinya.', 422, 'INVALID_CREDIT_HOLD');
+            }
+            return null;
+        }
+
+        // Both values are DECIMAL(12,2); compare raw database values without float conversion.
+        if (!$hold || $hold->status !== 'ACTIVE' || !$order->member_id
+            || (string) $hold->member_id !== (string) $order->member_id
+            || Money::minor($hold->getRawOriginal('amount')) !== Money::minor($order->getRawOriginal('total_amount'))
+            || Money::minor($hold->amount) <= 0) {
+            throw new BusinessRuleException('Credit hold aktif tidak sesuai dengan pesanan.', 422, 'INVALID_CREDIT_HOLD');
+        }
+
+        return $hold;
     }
 
     private function findOrderByIdentifier(string $identifier, bool $lockForUpdate = false): ?Order
@@ -1130,6 +1309,28 @@ class TransactionService
         return $this->findOrderByIdentifier($identifier, true);
     }
 
+    private function resolveProductQuantities(array $items): array
+    {
+        $quantities = [];
+        foreach ($items as $item) {
+            $product = $this->findProduct((string) ($item['product_id'] ?? ''));
+            $quantity = filter_var($item['quantity'] ?? null, FILTER_VALIDATE_INT);
+            if (!$product) {
+                throw new BusinessRuleException('Produk tidak ditemukan.', 404, 'PRODUCT_NOT_FOUND');
+            }
+            if ($quantity === false || $quantity <= 0) {
+                throw new BusinessRuleException('Kuantitas tidak valid.', 422, 'INVALID_QUANTITY');
+            }
+            $id = (string) $product->id;
+            $quantities[$id] = ($quantities[$id] ?? 0) + $quantity;
+            if ($quantities[$id] > 2147483647) {
+                throw new BusinessRuleException('Kuantitas melebihi batas.', 422, 'INVALID_QUANTITY');
+            }
+        }
+        ksort($quantities);
+        return array_map(static fn ($id, $qty) => ['product_id' => $id, 'quantity' => $qty], array_keys($quantities), array_values($quantities));
+    }
+
     private function canonicalizeItems(array $items): array
     {
         return collect($items)
@@ -1147,7 +1348,7 @@ class TransactionService
         return collect($allocations)
             ->map(fn ($item) => [
                 'receivable_id' => strtolower(trim((string) ($item['receivable_id'] ?? ''))),
-                'amount' => round((float) ($item['amount'] ?? 0), 2),
+                'amount' => (float) Money::decimal(Money::minor($item['amount'] ?? 0)),
             ])
             ->sortBy('receivable_id')
             ->values()
@@ -1156,11 +1357,17 @@ class TransactionService
 
     private function generateUniquePickupCode(): string
     {
-        do {
+        // Serialize code assignment until the enclosing checkout transaction commits.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(2074119)');
+        }
+        for ($attempt = 0; $attempt < 128; $attempt++) {
             $code = 'PKP-' . random_int(10000, 99999);
-        } while (Order::where('pickup_code', $code)->exists());
-
-        return $code;
+            if (!Order::where('pickup_code', $code)->exists()) {
+                return $code;
+            }
+        }
+        throw new BusinessRuleException('Kode pickup belum dapat dialokasikan. Hubungi pengelola atau coba lagi.', 409, 'PICKUP_CODE_UNAVAILABLE');
     }
 
     public function findProduct(string $identifier, bool $lockForUpdate = false)

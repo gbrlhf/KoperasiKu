@@ -28,8 +28,10 @@ Route::get('/', [LandingController::class, 'index'])->name('landing');
 // 1. Umum & Autentikasi Nyata (Database Users + User Roles)
 // --------------------------------------------------------------------------
 Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-Route::match(['GET', 'POST'], '/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.submit');
+Route::post('/switch-account', [AuthController::class, 'switchAccount'])->middleware('auth')->name('switch-account');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', fn () => redirect()->route('landing'));
 Route::post('/mock-switch-role', [AuthController::class, 'switchRole'])
     ->middleware('auth')
     ->name('mock.switch-role');
@@ -55,20 +57,21 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:CASHIER,MA
     Route::get('/stok', [CashierController::class, 'stok'])->name('stok');
     Route::get('/antrian', [CashierController::class, 'antrian'])->name('antrian');
     Route::get('/piutang', [CashierController::class, 'piutang'])->name('piutang');
+    Route::get('/pickup-lookup', [CashierController::class, 'pickupLookup'])->name('pickup-lookup');
 });
 
 // --------------------------------------------------------------------------
 // 4. Portal Manajer Eksekutif (Analitik Penjualan Bulan Ini, Laba & Piutang)
 // --------------------------------------------------------------------------
 Route::prefix('manager')->name('manager.')->middleware(['auth', 'role:MANAGER'])->group(function () {
-    Route::view('/', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('index');
-    Route::view('/dashboard', 'manager.portal-v2', ['initialPage' => 'home', 'initialTab' => 0])->name('dashboard');
-    Route::view('/kredit', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('kredit');
-    Route::view('/piutang', 'manager.portal-v2', ['initialPage' => 'ar', 'initialTab' => 0])->name('piutang');
+    Route::get('/', [ManagerController::class, 'operational'])->name('index');
+    Route::get('/dashboard', [ManagerController::class, 'operational'])->name('dashboard');
+    Route::get('/kredit', [ManagerController::class, 'operational'])->name('kredit');
+    Route::get('/piutang', [ManagerController::class, 'operational'])->name('piutang');
     Route::view('/produk', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 0])->name('produk');
     Route::view('/import', 'manager.portal-v2', ['initialPage' => 'data', 'initialTab' => 3])->name('import');
     Route::view('/laporan', 'manager.portal-v2', ['initialPage' => 'rep', 'initialTab' => 0])->name('laporan');
-    Route::view('/transaksi', 'manager.portal-v2', ['initialPage' => 'ops', 'initialTab' => 0])->name('transaksi');
+    Route::get('/transaksi', [ManagerController::class, 'operational'])->name('transaksi');
     Route::view('/sistem', 'manager.portal-v2', ['initialPage' => 'sys', 'initialTab' => 0])->name('sistem');
 });
 

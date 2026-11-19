@@ -159,6 +159,7 @@ class TransactionE2ETest extends TestCase
         // Konfirmasi pickup oleh kasir berbeda
         $pickupResponse = $this->actingAs($this->cashierUser)->postJson('/cashier/confirm-pickup', [
             'pickup_code' => $pickupCode,
+            'handover_confirmed' => true,
         ]);
 
         $pickupResponse->assertStatus(200)

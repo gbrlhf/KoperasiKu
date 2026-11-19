@@ -1,6 +1,6 @@
 @php
     $currentRole = $uiRole ?? session('active_role', 'MEMBER');
-    $availableRoles = session('available_roles', ['MEMBER', 'CASHIER', 'MANAGER']);
+    $availableRoles = auth()->user()?->roleCodes() ?? [];
 
     $roleBadges = [
         'MEMBER' => ['label' => 'Pelanggan / Anggota', 'desc' => 'Pesan & Cek Hutang', 'badge' => 'bg-primary-subtle text-primary border border-primary-subtle', 'icon' => 'bi-person-badge'],
@@ -88,16 +88,8 @@
 
                 @php
                     $sessionUser = session('user');
-                    $displayName = $sessionUser['name'] ?? match($currentRole) {
-                        'CASHIER' => 'Petugas Kasir Gerai',
-                        'MANAGER' => 'Manajer Operasional',
-                        default => 'Ahmad Fauzi',
-                    };
-                    $displayId = $sessionUser['id'] ?? match($currentRole) {
-                        'CASHIER' => 'KASIR-01',
-                        'MANAGER' => 'MGR-01',
-                        default => 'EMP-001',
-                    };
+                    $displayName = auth()->user()?->member?->full_name ?? $sessionUser['name'] ?? auth()->user()?->email ?? '-';
+                    $displayId = auth()->user()?->member?->employee_number ?? auth()->user()?->id ?? '-';
                 @endphp
                 <!-- User Profile / Mock Session -->
                 <div class="dropdown">
@@ -109,9 +101,9 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
                         <li><span class="dropdown-item-text text-muted small">ID: {{ $displayId }}</span></li>
-                        <li><a class="dropdown-item small" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Ganti Akun Login</a></li>
+                        <li><form method="POST" action="{{ route('switch-account') }}">@csrf<button type="submit" class="dropdown-item small"><i class="bi bi-box-arrow-in-right me-2"></i>Ganti Akun Login</button></form></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item small text-danger" href="{{ route('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
+                        <li><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item small text-danger"><i class="bi bi-box-arrow-right me-2"></i>Keluar</button></form></li>
                     </ul>
                 </div>
 

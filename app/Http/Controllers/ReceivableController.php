@@ -36,7 +36,7 @@ class ReceivableController extends Controller
                 'amount' => 'required|numeric|min:0.01',
                 'external_reference' => 'nullable|string|max:100',
                 'idempotency_key' => 'nullable|string|max:100',
-                'allocations' => 'required|array|min:1',
+                'allocations' => 'sometimes|array|min:1',
                 'allocations.*.receivable_id' => 'required|uuid',
                 'allocations.*.amount' => 'required|numeric|min:0.01',
             ]);
@@ -179,19 +179,22 @@ class ReceivableController extends Controller
     public function updateCreditPolicy(Request $request)
     {
         $validated = $request->validate([
-            'limit_amount' => 'required|numeric|min:0',
+            'limit_amount' => 'required|numeric|min:0|max:9999999999.99|decimal:0,2',
             'active' => 'nullable|boolean',
             'reason' => 'nullable|string|max:255',
         ]);
 
         $actor = $request->user();
         $result = DB::transaction(function () use ($validated, $actor) {
+            if (DB::getDriverName() === 'pgsql') {
+                DB::statement('LOCK TABLE credit_policies IN SHARE ROW EXCLUSIVE MODE');
+            }
             $oldPolicy = CreditPolicy::where('active', true)->latest('effective_at')->lockForUpdate()->first();
             $oldLimit = $oldPolicy ? (float) $oldPolicy->limit_amount : null;
             $oldActive = $oldPolicy ? (bool) $oldPolicy->active : null;
 
             $newActive = $validated['active'] ?? true;
-            $newLimit = (float) $validated['limit_amount'];
+            $newLimit = \App\Services\Money::decimal(\App\Services\Money::minor($validated['limit_amount']));
 
             if ($oldPolicy) {
                 $oldPolicy->update(['active' => false]);
@@ -252,28 +255,32 @@ class ReceivableController extends Controller
             return response()->json(['success' => false, 'message' => 'Anggota tidak ditemukan.'], 404);
         }
 
-        $account = MemberCreditAccount::where('member_id', $member->id)->first();
-        $oldStatus = $account?->status;
         $newStatus = strtoupper((string) $validated['status']);
-
-        $account = MemberCreditAccount::updateOrCreate(
-            ['member_id' => $member->id],
-            [
-                'status' => $newStatus,
-                'activated_at' => $newStatus === 'ACTIVE'
-                    ? ($account?->activated_at ?? CarbonImmutable::now('UTC'))
-                    : $account?->activated_at,
-            ]
-        );
-
-        $this->audit->record(
-            'MEMBER_CREDIT_STATUS_UPDATED',
-            'MemberCreditAccount',
-            (string) $member->id,
-            ['status' => $oldStatus],
-            ['status' => $newStatus],
-            $request->user()?->id ? (string) $request->user()->id : null
-        );
+        $account = DB::transaction(function () use ($member, $request, $newStatus) {
+            // Serialize creation for members without an account; existing account lock
+            // is shared with checkout credit eligibility checks.
+            Member::whereKey($member->id)->lockForUpdate()->firstOrFail();
+            $account = MemberCreditAccount::where('member_id', $member->id)->lockForUpdate()->first();
+            $oldStatus = $account?->status;
+            $account = MemberCreditAccount::updateOrCreate(
+                ['member_id' => $member->id],
+                [
+                    'status' => $newStatus,
+                    'activated_at' => $newStatus === 'ACTIVE'
+                        ? ($account?->activated_at ?? CarbonImmutable::now('UTC'))
+                        : $account?->activated_at,
+                ]
+            );
+            $this->audit->record(
+                'MEMBER_CREDIT_STATUS_UPDATED',
+                'MemberCreditAccount',
+                (string) $member->id,
+                ['status' => $oldStatus],
+                ['status' => $newStatus],
+                $request->user()?->id ? (string) $request->user()->id : null
+            );
+            return $account;
+        }, 3);
 
         return response()->json([
             'success' => true,

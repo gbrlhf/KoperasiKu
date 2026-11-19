@@ -31,9 +31,16 @@
 
 @push('scripts')
 <script>
-    window.allProducts = @json($allProductsMap ?? []);
-    window.isUserLoggedIn = @json($isLoggedIn ?? false);
-    window.currentUser = @json($member ?? null);
+    window.allProducts = @js($allProductsMap ?? []);
+    window.isUserLoggedIn = @js($isLoggedIn ?? false);
+    window.currentUser = @js($member ?? null);
+    @if(auth()->check() && session('active_role') === 'MEMBER' && session('user.email'))
+    // Only an authenticated member session may populate the remembered identity.
+    try {
+        const identity = {{ Illuminate\Support\Js::from(['id' => session('user.email'), 'name' => session('user.name')]) }};
+        localStorage.setItem('koperasiku_verified_member_v2', JSON.stringify(identity));
+    } catch (e) {}
+    @endif
 
     window.copyMemberPickupCode = function (text, btn) {
         navigator.clipboard.writeText(text).then(() => {

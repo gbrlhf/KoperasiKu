@@ -131,10 +131,7 @@
                             </li>
                             <li><hr class="dropdown-divider my-1"></li>
                             <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2 text-danger py-2" href="{{ route('logout') }}">
-                                    <i class="bi bi-box-arrow-right"></i>
-                                    <span>Keluar (Logout)</span>
-                                </a>
+                                <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item text-danger">Keluar (Logout)</button></form>
                             </li>
                         </ul>
                     </div>
@@ -178,13 +175,10 @@
                             <i class="bi bi-person-vcard text-primary me-1"></i>
                             <span>Profil & Tagihan ({{ $member['name'] }})</span>
                             @if(!empty($receivableStatus['has_debt']))
-                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Tempo 3h</span>
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">{{ !empty($receivableStatus['is_overdue']) ? 'Lewat tempo' : 'Ada tagihan' }}</span>
                             @endif
                         </button>
-                        <a href="{{ route('logout') }}" class="subnav-link text-danger">
-                            <i class="bi bi-box-arrow-right me-1"></i>
-                            <span>Keluar (Logout)</span>
-                        </a>
+                        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="subnav-link text-danger">Keluar (Logout)</button></form>
                     @else
                         <a href="{{ route('login') }}" class="subnav-link text-primary fw-bold">
                             <i class="bi bi-box-arrow-in-right me-1"></i>

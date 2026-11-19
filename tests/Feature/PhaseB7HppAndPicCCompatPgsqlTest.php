@@ -176,7 +176,7 @@ class PhaseB7HppAndPicCCompatPgsqlTest extends TestCase
         DB::table('products')->where('id', $this->productId)->update(['current_cost' => 65000]);
 
         // Confirm pickup -> hpp_snapshot final terkunci pada 65000 & order menjadi COMPLETED
-        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$orderId}/confirm-pickup")
+        $this->actingAs($this->cashierUser)->postJson("/api/v1/orders/{$orderId}/confirm-pickup", ['pickup_code' => $checkout->json('data.pickup_code'), 'handover_confirmed' => true])
             ->assertOk()
             ->assertJsonPath('data.status', 'COMPLETED');
 

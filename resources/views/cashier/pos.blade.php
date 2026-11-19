@@ -348,7 +348,7 @@
                                 <td>
                                     <div class="d-flex align-items-center gap-1.5">
                                         <span class="fw-bold font-monospace text-dark">{{ $item['sku'] }}</span>
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="showProductBarcodeModal('{{ $item['sku'] }}', '{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}', {{ $item['sell_price'] }})" title="Lihat Barcode Fisik & QR">
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="showProductBarcodeModal(@js($item['sku']), @js($item['barcode']), @js($item['name']), {{ $item['sell_price'] }})" title="Lihat Barcode Fisik & QR">
                                             <i class="bi bi-upc-scan" style="font-size: 0.85rem;"></i>
                                         </button>
                                     </div>
@@ -444,7 +444,7 @@
                         @foreach($stockItems as $item)
                             <div class="col-6 col-sm-4 col-xl-3 quick-pick-col" data-search="{{ strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['category']) }}">
                                 <div class="tokped-product-card h-100 d-flex flex-column justify-content-between"
-                                     onclick="posAddToCart('{{ addslashes($item['name']) }}', {{ $item['sell_price'] }}, '{{ $item['sku'] }}')"
+                                     onclick="posAddToCart(@js($item['name']), {{ $item['sell_price'] }}, @js($item['sku']))"
                                      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
                                      role="button" tabindex="0" title="Tambah {{ $item['name'] }}">
                                     <div>
@@ -476,7 +476,7 @@
                             <span>Keranjang Meja Kasir</span>
                         </span>
                         <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
-                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">#POS-9421</span>
+                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">Transaksi baru</span>
                             <button type="button" class="btn btn-outline-danger btn-sm pos-btn-compact" onclick="clearPosCart()" title="Kosongkan Keranjang Kasir">
                                 Reset
                             </button>
@@ -512,7 +512,7 @@
                         <div id="posCashContainer">
                             <div class="input-group input-group-sm mb-1.5">
                                 <span class="input-group-text bg-light small">Diterima Rp</span>
-                                <input type="number" class="form-control fw-bold font-monospace" id="posCashReceived" value="120000" oninput="calculatePosChange()">
+                                <input type="number" class="form-control fw-bold font-monospace" id="posCashReceived" value="0" min="0" step="0.01" oninput="calculatePosChange(); validatePosTransaction()">
                             </div>
                             <div class="d-flex gap-1.5 flex-wrap mb-2">
                                 <button type="button" class="btn btn-light border btn-sm pos-btn-compact text-secondary" onclick="setExactCash()">Uang Pas</button>
@@ -548,11 +548,9 @@
                                 <label class="form-label text-muted d-block mb-1" style="font-size: 0.72rem;">Pilih / Cari Anggota Koperasi:</label>
                                 <select class="form-select form-select-sm fw-semibold" id="posMemberSelect" onchange="onPosMemberSelected(this.value)">
                                     <option value="">-- Cari Nomor Anggota / Nama Karyawan --</option>
-                                    <option value="EMP-001">EMP-001 | Ahmad Fauzi (Teknik Mesin POLMAN)</option>
-                                    <option value="EMP-014">EMP-014 | Siti Rahma (Logistik & Pengadaan)</option>
-                                    <option value="EMP-028">EMP-028 | Dewi Lestari (Admin Keuangan - Limit Tipis)</option>
-                                    <option value="EMP-035">EMP-035 | Dr. Hendra Gunawan (Dosen - Ada Overdue)</option>
-                                    <option value="EMP-042">EMP-042 | Bambang Sugianto (Staff Lab - Dibekukan)</option>
+                                    @foreach($membersDirectory as $member)
+                                    <option value="{{ $member['id'] }}">{{ $member['unit'] }} | {{ $member['name'] }}</option>
+                                    @endforeach
                                 </select>
                             </div>
 
@@ -630,7 +628,7 @@
                         @foreach($pickupQueue as $index => $q)
                             @php
                                 $payStatus = $q['payment_status'] ?? ($q['payment_method'] === 'BANK_TRANSFER' ? 'PENDING_VERIFICATION' : ($q['payment_method'] === 'CREDIT' ? 'CREDIT_APPROVED' : 'PENDING_CASH'));
-                                $canHandover = !($q['payment_method'] === 'BANK_TRANSFER' && $payStatus !== 'VERIFIED');
+                                $canHandover = $q['can_handover'];
                             @endphp
                             <tr id="pickupRow-{{ $q['pickup_code'] }}" data-code="{{ strtolower($q['pickup_code']) }}" data-member="{{ strtolower($q['member_name']) }}">
                                 <td>
@@ -662,7 +660,7 @@
                                                 <span class="badge bg-success text-white" id="badgeTransfer-{{ $q['pickup_code'] }}">
                                                     <i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi
                                                 </span>
-                                                <small class="text-muted font-monospace" style="font-size: 0.68rem;">{{ $q['transfer_ref'] ?? 'TRX-VERIFIED' }}</small>
+                                                <small class="text-muted font-monospace" style="font-size: 0.68rem;">{{ $q['transfer_ref'] ?? '-' }}</small>
                                             @elseif($payStatus === 'PAYMENT_REJECTED')
                                                 <span class="badge bg-danger text-white" id="badgeTransfer-{{ $q['pickup_code'] }}">
                                                     <i class="bi bi-x-circle-fill me-0.5"></i> Transfer Ditolak
@@ -672,7 +670,7 @@
                                                 <span class="badge bg-warning text-dark" id="badgeTransfer-{{ $q['pickup_code'] }}">
                                                     <i class="bi bi-clock-history me-0.5"></i> Menunggu Verifikasi
                                                 </span>
-                                                <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 mt-0.5 d-inline-flex align-items-center gap-1" id="btnVerify-{{ $q['pickup_code'] }}" style="font-size: 0.7rem;" onclick="openVerifyTransferModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['member_id'] }}', {{ $q['total_amount'] }}, '{{ $q['transfer_ref'] ?? 'TRX-BCA-51922' }}')">
+                                                <button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2 mt-0.5 d-inline-flex align-items-center gap-1" id="btnVerify-{{ $q['pickup_code'] }}" @disabled(!$q['pending_payment_id']) style="font-size: 0.7rem;" onclick="openVerifyTransferModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), {{ $q['pending_payment_amount'] ?? 0 }}, @js($q['transfer_ref'] ?? ''))">
                                                     <i class="bi bi-receipt-cutoff"></i>
                                                     <span>Verifikasi Transfer</span>
                                                 </button>
@@ -682,11 +680,14 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex align-items-center justify-content-center gap-1.5 flex-wrap">
-                                        <button type="button" class="btn btn-sm {{ $canHandover ? 'btn-outline-success' : 'btn-outline-secondary opacity-50' }} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-{{ $q['pickup_code'] }}" {{ $canHandover ? '' : 'disabled' }} title="{{ $canHandover ? 'Serahkan barang ke pembeli' : 'Wajib verifikasi pembayaran transfer terlebih dahulu' }}" onclick="openPickupHandoverModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['member_id'] }}', '{{ $q['items_summary'] }}', {{ $q['total_amount'] }}, '{{ $q['payment_method'] }}')">
+                                        @if(!$q['pending_payment_id'] && $q['remaining_amount'] > 0 && $q['payment_method'] !== 'CREDIT')
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="recordQueuedPayment(@js($q['pickup_code']))">Catat pembayaran</button>
+                                        @endif
+                                        <button type="button" class="btn btn-sm {{ $canHandover ? 'btn-outline-success' : 'btn-outline-secondary opacity-50' }} px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn" id="btnHandover-{{ $q['pickup_code'] }}" {{ $canHandover ? '' : 'disabled' }} title="{{ $canHandover ? 'Serahkan barang ke pembeli' : 'Wajib verifikasi pembayaran transfer terlebih dahulu' }}" onclick="openPickupHandoverModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['member_id']), @js($q['items_summary']), {{ $q['total_amount'] }}, @js($q['payment_method']))">
                                             <i class="bi bi-check2-circle"></i>
                                             <span>Serah Terima</span>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 cancel-btn" id="btnCancel-{{ $q['pickup_code'] }}" title="Batalkan Pesanan (Lepas Reservasi Stok & Credit Hold)" onclick="openCancelOrderModal('{{ $q['pickup_code'] }}', '{{ $q['member_name'] }}', '{{ $q['items_summary'] }}', {{ $q['total_amount'] }})">
+                                        <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 cancel-btn" id="btnCancel-{{ $q['pickup_code'] }}" title="Batalkan Pesanan (Lepas Reservasi Stok & Credit Hold)" onclick="openCancelOrderModal(@js($q['pickup_code']), @js($q['member_name']), @js($q['items_summary']), {{ $q['total_amount'] }})">
                                             <i class="bi bi-x-circle"></i>
                                             <span class="d-none d-md-inline">Batal</span>
                                         </button>
@@ -880,7 +881,7 @@
                         <small class="text-muted d-block">Koperasi Konsumen Pegawai POLMAN Bandung</small>
                         <small class="text-muted d-block">Jl. Kanayakan No. A11 Dago, Bandung</small>
                         <div class="d-flex justify-content-between text-muted mt-1 small">
-                            <span>No: <strong class="text-dark">#POS-9421</strong></span>
+                            <span>No: <strong class="text-dark"><span id="receiptOrderNo">-</span></strong></span>
                             <span id="receiptDate">16 Nov 2026</span>
                         </div>
                     </div>
@@ -889,7 +890,7 @@
                     <div class="mb-2 pb-2 border-bottom border-dashed">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Kasir:</span>
-                            <span class="fw-bold text-dark">Budi Santoso (01)</span>
+                            <span class="fw-bold text-dark">{{ session('user.name', auth()->user()->email) }}</span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Pelanggan:</span>
@@ -1007,8 +1008,11 @@
                     </div>
                 </div>
 
+                <label for="pickupCodeInput" class="form-label">Masukkan kode yang ditunjukkan anggota</label>
+                <input id="pickupCodeInput" class="form-control mb-2" maxlength="100" autocomplete="off" placeholder="PKP-...">
+                <div id="pickupError" class="alert alert-danger d-none" role="alert"></div>
                 <div class="form-check p-2.5 rounded-2 bg-warning bg-opacity-10 border border-warning border-opacity-25 mb-3">
-                    <input class="form-check-input ms-0 me-2" type="checkbox" id="checkPhysicalHandover" checked>
+                    <input class="form-check-input ms-0 me-2" type="checkbox" id="checkPhysicalHandover">
                     <label class="form-check-label text-dark small fw-semibold" for="checkPhysicalHandover">
                         Fisik sembako sudah diperiksa dan diserahkan lengkap ke pembeli.
                     </label>
@@ -1028,6 +1032,8 @@
     </div>
 </div>
 
+<div class="modal fade" id="queuedPaymentModal" tabindex="-1" aria-label="Catat pembayaran">
+<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5>Catat pembayaran pesanan</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div><form id="queuedPaymentForm"><div class="modal-body"><p id="queuedPaymentInfo"></p><label for="queuedPaymentAmount" class="form-label">Nominal diterima</label><input type="number" class="form-control" id="queuedPaymentAmount" min="0.01" step="0.01" required><div id="queuedPaymentRefBox" class="mt-2"><label for="queuedPaymentRef" class="form-label">Referensi transfer</label><input id="queuedPaymentRef" class="form-control" maxlength="100"></div><div id="queuedPaymentError" class="alert alert-danger d-none mt-2" role="alert"></div></div><div class="modal-footer"><button type="submit" id="queuedPaymentSubmit" class="btn btn-primary">Simpan pembayaran</button></div></form></div></div></div>
 <!-- ==============================================================================
      MODAL 4: SUKSES SERAH TERIMA PICKUP (TOAST / CONFIRMATION)
      ============================================================================== -->
@@ -1343,7 +1349,7 @@
                                         </div>
                                     </div>
                                     
-                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-semibold" onclick="simulateBarcodeScan('{{ $item['barcode'] }}', '{{ addslashes($item['name']) }}')">
+                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-semibold" onclick="simulateBarcodeScan(@js($item['barcode']), @js($item['name']))">
                                         <i class="bi bi-cart-plus me-1"></i> Scan Masuk Keranjang
                                     </button>
                                 </div>
@@ -1452,76 +1458,18 @@
 </div>
 
 <!-- Library html5-qrcode CDN untuk Barcode Scanning Kamera Nyata -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
 
 <script>
 // ==============================================================================
 // 1. DATA MASTER & STATE KASIR
 // ==============================================================================
-const stockCatalogue = @json($stockItems);
+const stockCatalogue = @js($stockItems);
+const realPickupQueue = @js($pickupQueue);
 
-const membersDirectory = [
-    {
-        id: 'EMP-001',
-        name: 'Ahmad Fauzi',
-        unit: 'Teknik Mesin & Manufaktur POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 852000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 2
-    },
-    {
-        id: 'EMP-014',
-        name: 'Siti Rahma',
-        unit: 'Logistik & Pengadaan POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 950000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 1
-    },
-    {
-        id: 'EMP-028',
-        name: 'Dewi Lestari',
-        unit: 'Administrasi Keuangan POLMAN',
-        status: 'TERVERIFIKASI',
-        available_limit: 50000,
-        total_limit: 1000000,
-        is_overdue: false,
-        overdue_days: 0,
-        unpaid_invoices: 3
-    },
-    {
-        id: 'EMP-035',
-        name: 'Dr. Hendra Gunawan',
-        unit: 'Dosen Rekayasa Perancangan',
-        status: 'TERVERIFIKASI',
-        available_limit: 1000000,
-        total_limit: 1000000,
-        is_overdue: true,
-        overdue_days: 9,
-        unpaid_invoices: 1
-    },
-    {
-        id: 'EMP-042',
-        name: 'Bambang Sugianto',
-        unit: 'Staff Lab Bengkel Mesin',
-        status: 'DIBEKUKAN',
-        available_limit: 0,
-        total_limit: 1000000,
-        is_overdue: true,
-        overdue_days: 14,
-        unpaid_invoices: 4
-    }
-];
-
-let posCart = [
-    { sku: 'SEM-001', name: 'Beras Premium Ramos 5 Kg', price: 74500, qty: 1 },
-    { sku: 'MNY-001', name: 'Minyak Goreng Pouch 2 Liter', price: 36000, qty: 1 }
-];
+const membersDirectory = @js($membersDirectory);
+let posCart = [];
+const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 
 let selectedPickupOrder = null;
 
@@ -1558,8 +1506,8 @@ function renderPosCart() {
         html += `
             <div class="d-flex justify-content-between align-items-center gap-2 py-2.5 border-bottom small">
                 <div class="lh-sm min-w-0 flex-grow-1">
-                    <span class="fw-semibold text-dark d-block text-truncate" title="${item.name}">${item.name}</span>
-                    <small class="text-muted tokped-price" style="font-size: 0.72rem;">${item.sku} &bull; Rp ${item.price.toLocaleString('id-ID')}</small>
+                    <span class="fw-semibold text-dark d-block text-truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+                    <small class="text-muted tokped-price" style="font-size: 0.72rem;">${escapeHtml(item.sku)} &bull; Rp ${item.price.toLocaleString('id-ID')}</small>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <div class="pos-qty-stepper">
@@ -1586,27 +1534,25 @@ function renderPosCart() {
     validatePosTransaction();
 }
 
-function posAddToCart(name, price, sku = 'SKU-CUSTOM') {
-    const existing = posCart.find(i => i.name === name || i.sku === sku);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        posCart.push({ sku, name, price, qty: 1 });
-    }
+function posAddToCart(name, price, sku) {
+    if (cashierBusy) return false;
+    const product = stockCatalogue.find(p => p.sku === sku);
+    const existing = posCart.find(i => i.sku === sku);
+    if (!product || (existing?.qty || 0) >= Number(product.available)) { showCashierError('Produk tidak tersedia atau stok tidak cukup.'); return false; }
+    if (existing) { existing.qty += 1; existing.price = Number(product.sell_price); }
+    else posCart.push({sku, product_id:product.id || sku, name:product.name, price:Number(product.sell_price), qty:1});
+    renderPosCart(); return true;
+}
+function updatePosQty(index, delta) {
+    if (cashierBusy || !posCart[index]) return;
+    if (delta > 0) { const item = posCart[index]; posAddToCart(item.name,item.price,item.sku); return; }
+    posCart[index].qty += delta;
+    if (posCart[index].qty <= 0) posCart.splice(index,1);
     renderPosCart();
 }
 
-function updatePosQty(index, delta) {
-    if (posCart[index]) {
-        posCart[index].qty += delta;
-        if (posCart[index].qty <= 0) {
-            posCart.splice(index, 1);
-        }
-        renderPosCart();
-    }
-}
-
 function removePosItem(index) {
+    if (cashierBusy) return;
     if (posCart[index]) {
         posCart.splice(index, 1);
         renderPosCart();
@@ -1614,17 +1560,18 @@ function removePosItem(index) {
 }
 
 function clearPosCart() {
+    if (cashierBusy) return;
     posCart = [];
     renderPosCart();
 }
 
 function getPosTotal() {
-    return posCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    return posCart.reduce((sum, item) => sum + Math.round(item.price * 100) * item.qty, 0) / 100;
 }
 
 function calculatePosChange() {
     const total = getPosTotal();
-    const received = parseInt(document.getElementById('posCashReceived').value, 10) || 0;
+    const received = Number(document.getElementById('posCashReceived').value) || 0;
     const change = received - total;
     const display = document.getElementById('posChangeDisplay');
 
@@ -1644,12 +1591,14 @@ function calculatePosChange() {
 }
 
 function setExactCash() {
+    if (cashierBusy) return;
     document.getElementById('posCashReceived').value = getPosTotal();
     calculatePosChange();
     validatePosTransaction();
 }
 
 function setCashAmount(amt) {
+    if (cashierBusy) return;
     document.getElementById('posCashReceived').value = amt;
     calculatePosChange();
     validatePosTransaction();
@@ -1751,14 +1700,14 @@ function validatePosTransaction() {
     const method = document.getElementById('posPaymentMethod').value;
     const total = getPosTotal();
 
-    if (total <= 0) {
+    if (cashierBusy || total <= 0) {
         btn.disabled = true;
         btn.title = "Keranjang kasir masih kosong";
         return;
     }
 
     if (method === 'CASH') {
-        const received = parseInt(document.getElementById('posCashReceived').value, 10) || 0;
+        const received = Number(document.getElementById('posCashReceived').value) || 0;
         if (received < total) {
             btn.disabled = true;
             btn.title = "Uang diterima masih kurang dari total tagihan";
@@ -1768,7 +1717,7 @@ function validatePosTransaction() {
         btn.title = "Klik untuk menyelesaikan transaksi";
     } else if (method === 'BANK_TRANSFER') {
         const confirmed = document.getElementById('posTransferConfirmed')?.checked;
-        if (!confirmed) {
+        if (!confirmed || !document.getElementById('posTransferRef').value.trim()) {
             btn.disabled = true;
             btn.title = "Harap konfirmasi bahwa dana transfer/QRIS telah masuk";
             return;
@@ -1796,13 +1745,27 @@ function validatePosTransaction() {
 // ==============================================================================
 // 4. MODAL STRUK POS KASIR (REPLACES BROWSER ALERT)
 // ==============================================================================
-function openPosReceiptModal() {
+async function openPosReceiptModal() {
     const total = getPosTotal();
-    if (total <= 0) return;
+    if (total <= 0 || cashierBusy) return;
+    if (document.getElementById('btnCompletePosSale').disabled) return;
 
     const method = document.getElementById('posPaymentMethod').value;
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    const payload = {payment_choice: method, items: posCart.map(item => ({product_id: item.product_id, quantity: item.qty})),
+        member_id: method === 'CREDIT' ? document.getElementById('posMemberSelect').value : null,
+        transfer_verified: method === 'BANK_TRANSFER' && document.getElementById('posTransferConfirmed').checked,
+        external_reference: method === 'BANK_TRANSFER' ? document.getElementById('posTransferRef').value.trim() : null,
+        expected_total: total.toFixed(2), cash_received: method === 'CASH' ? document.getElementById('posCashReceived').value : null};
+    let result;
+    const btn = document.getElementById('btnCompletePosSale');
+    btn.disabled = true;
+    const receivedCash = Number(document.getElementById('posCashReceived').value);
+    const controls = [...document.querySelectorAll('#pos-pane input, #pos-pane select')].filter(el => !el.disabled);
+    controls.forEach(el => el.disabled = true);
+    try { result = await submitCashier('/cashier/pos-sale', payload); } catch (err) { showCashierError(err.message); validatePosTransaction(); return; } finally { controls.forEach(el => el.disabled = false); }
+    document.getElementById('receiptOrderNo').textContent = result.order_no;
+    const now = new Date(result.completed_at);
+    const dateStr = now.toLocaleString('id-ID', {timeZone:'Asia/Jakarta', day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) + ' WIB';
 
     document.getElementById('receiptDate').textContent = dateStr;
     document.getElementById('receiptTotalAmount').textContent = `Rp ${total.toLocaleString('id-ID')}`;
@@ -1813,7 +1776,7 @@ function openPosReceiptModal() {
     posCart.forEach(item => {
         itemsHtml += `
             <div class="d-flex justify-content-between mb-1">
-                <span>${item.name} (${item.qty}x)</span>
+                <span>${escapeHtml(item.name)} (${item.qty}x)</span>
                 <span>Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
             </div>
         `;
@@ -1835,7 +1798,7 @@ function openPosReceiptModal() {
         badge.textContent = 'TUNAI (CASH)';
         document.getElementById('receiptCustomerName').textContent = 'Pembeli Umum / Langsung';
         cashDet.classList.remove('d-none');
-        const received = parseInt(document.getElementById('posCashReceived').value, 10) || total;
+        const received = receivedCash;
         document.getElementById('receiptCashReceived').textContent = `Rp ${received.toLocaleString('id-ID')}`;
         document.getElementById('receiptChangeAmount').textContent = `Rp ${(received - total).toLocaleString('id-ID')}`;
     } else if (method === 'BANK_TRANSFER') {
@@ -1843,7 +1806,7 @@ function openPosReceiptModal() {
         badge.textContent = 'TRANSFER / QRIS';
         document.getElementById('receiptCustomerName').textContent = 'Pembeli Non-Tunai';
         transDet.classList.remove('d-none');
-        const ref = document.getElementById('posTransferRef').value.trim() || 'QRIS-VERIF-' + Math.floor(10000 + Math.random() * 90000);
+        const ref = document.getElementById('posTransferRef').value.trim() || '-';
         document.getElementById('receiptTransferRef').textContent = ref;
     } else if (method === 'CREDIT') {
         badge.className = 'badge bg-warning text-dark';
@@ -1855,39 +1818,16 @@ function openPosReceiptModal() {
         document.getElementById('receiptCreditMemberId').textContent = memberId;
         
         // Due date 7 days from now
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-        document.getElementById('receiptCreditDueDate').textContent = dueDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' (Tempo 7 Hari)';
+        const dueDate = new Date(new Date(result.completed_at).getTime() + 7 * 86400000);
+        document.getElementById('receiptCreditDueDate').textContent = dueDate.toLocaleDateString('id-ID', { timeZone:'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric' }) + ' (Tempo 7 Hari)';
 
         // Deduct limit in mock session
-        if (member) member.available_limit -= total;
+
     }
 
-    // Kirim pencatatan transaksi POS langsung ke backend Laravel TransactionService
-    const posItems = posCart.map(item => ({
-        product_id: item.sku || item.name,
-        quantity: item.qty
-    }));
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    fetch('/cashier/pos-sale', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify({
-            payment_choice: method,
-            channel: 'POS',
-            member_id: method === 'CREDIT' ? '00000000-0000-0000-0000-000000000001' : null,
-            items: posItems
-        })
-    }).then(r => r.json()).then(res => {
-        console.log('POS sale recorded in backend database:', res);
-    }).catch(err => {
-        console.warn('POS backend sale error:', err);
-    });
-
+    posCart = [];
+    renderPosCart();
+    document.getElementById('posReceiptModal').addEventListener('hidden.bs.modal', () => location.assign('/cashier/pos'), {once:true});
     const modal = new bootstrap.Modal(document.getElementById('posReceiptModal'));
     modal.show();
 }
@@ -1905,6 +1845,9 @@ function resetPosCartAfterSale() {
 // 5. MODAL SERAH TERIMA PICKUP (REPLACES BROWSER CONFIRM/ALERT)
 // ==============================================================================
 function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary, totalAmount, paymentMethod) {
+    const live = realPickupQueue.find(o => o.pickup_code === pickupCode);
+    if (!live?.can_handover) { showCashierError('Pesanan belum siap diserahkan.'); return; }
+    document.getElementById('btnExecuteHandover').disabled = false;
     selectedPickupOrder = {
         code: pickupCode,
         name: memberName,
@@ -1932,80 +1875,85 @@ function openPickupHandoverModal(pickupCode, memberName, memberId, itemsSummary,
         badge.textContent = 'Lunas Transfer Bank';
     }
 
-    document.getElementById('checkPhysicalHandover').checked = true;
+    document.getElementById('checkPhysicalHandover').checked = false;
+    document.getElementById('pickupCodeInput').value = '';
+    inlineError('pickupError', '');
 
-    const modal = new bootstrap.Modal(document.getElementById('pickupConfirmModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('pickupConfirmModal'));
     modal.show();
 }
 
-function executePickupHandover() {
-    if (!selectedPickupOrder) return;
-
-    const modalEl = document.getElementById('pickupConfirmModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-
-    const pickupCode = selectedPickupOrder.code;
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    // Kirim request konfirmasi pickup langsung ke backend Laravel TransactionService
-    fetch('/cashier/confirm-pickup', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify({
-            pickup_code: pickupCode
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        // Mark row as complete in UI
-        const row = document.getElementById(`pickupRow-${pickupCode}`);
-        if (row) {
-            const actionCell = row.querySelector('.handover-btn')?.parentElement;
-            if (actionCell) {
-                actionCell.innerHTML = `
-                    <span class="badge bg-success text-white py-1.5 px-2.5">
-                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
-                    </span>
-                `;
-            }
-            row.classList.add('table-light', 'text-muted');
-        }
-
-        // Show success modal
-        document.getElementById('pickupSuccessMessage').innerHTML = `
-            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.<br>
-            Stok fisik barang telah resmi dibukukan keluar & tagihan piutang (bila ada) tercatat di database.
-        `;
-
-        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-        successModal.show();
-    })
-    .catch(err => {
-        console.error('Pickup handover error:', err);
-        const row = document.getElementById(`pickupRow-${pickupCode}`);
-        if (row) {
-            const actionCell = row.querySelector('.handover-btn')?.parentElement;
-            if (actionCell) {
-                actionCell.innerHTML = `
-                    <span class="badge bg-success text-white py-1.5 px-2.5">
-                        <i class="bi bi-check-all me-1"></i> Telah Diserahkan
-                    </span>
-                `;
-            }
-            row.classList.add('table-light', 'text-muted');
-        }
-        document.getElementById('pickupSuccessMessage').innerHTML = `
-            Pesanan <strong>${pickupCode}</strong> atas nama <strong>${selectedPickupOrder.name}</strong> berhasil diserahkan.
-        `;
-        const successModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-        successModal.show();
-    });
+const cashierRequestKeys = new Map();
+let cashierBusy = false;
+async function submitCashier(url, payload) {
+    if (cashierBusy) throw new Error('Transaksi sedang diproses.');
+    cashierBusy = true;
+    const signature = url + JSON.stringify(payload);
+    const key = cashierRequestKeys.get(signature) || ('cashier-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+    cashierRequestKeys.set(signature, key);
+    try {
+        const response = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json', 'Accept':'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+            body: JSON.stringify({...payload, idempotency_key:key})});
+        const result = await response.json().catch(() => ({message:'Respons server tidak valid. Muat ulang sesi jika diperlukan.'}));
+        if (!response.ok || !result.success) throw new Error(result.message || 'Transaksi ditolak server.');
+        cashierRequestKeys.delete(signature);
+        return result.data;
+    } finally { cashierBusy = false; }
 }
+function inlineError(id, message) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.classList.toggle('d-none', !message);
+}
+function showCashierError(message) { showScanToast('Transaksi belum berhasil', message); }
+async function executePickupHandover() {
+    if (cashierBusy) return;
+    const order = realPickupQueue.find(o => o.pickup_code === selectedPickupOrder?.code);
+    const code = document.getElementById('pickupCodeInput').value.trim().toUpperCase();
+    if (!order || !code || code !== order.pickup_code.toUpperCase()) { inlineError('pickupError', 'Kode pickup tidak cocok.'); return; }
+    if (!document.getElementById('checkPhysicalHandover').checked) { inlineError('pickupError', 'Konfirmasi serah terima wajib dicentang.'); return; }
+    const btn = document.getElementById('btnExecuteHandover');
+    btn.disabled = true; inlineError('pickupError', '');
+    try {
+        await submitCashier('/api/v1/orders/'+order.id+'/confirm-pickup', {pickup_code:order.pickup_code, handover_confirmed:true});
+        const modal = document.getElementById('pickupConfirmModal');
+        modal.addEventListener('hidden.bs.modal', () => {
+            const success = document.getElementById('pickupSuccessModal');
+            document.getElementById('pickupSuccessMessage').textContent = order.pickup_code + ' telah diserahkan dan dibukukan selesai.';
+            success.addEventListener('hidden.bs.modal', () => location.assign('/cashier/antrian'), {once:true});
+            bootstrap.Modal.getOrCreateInstance(success).show();
+        }, {once:true});
+        bootstrap.Modal.getOrCreateInstance(modal).hide();
+    } catch(err) { inlineError('pickupError', err.message); btn.disabled = false; }
+}
+let queuedPaymentOrder = null;
+function recordQueuedPayment(code) {
+    const order = realPickupQueue.find(o => o.pickup_code === code);
+    if (!order || order.pending_payment_id || order.remaining_amount <= 0 || order.payment_method === 'CREDIT') { showCashierError('Pesanan tidak dapat menerima pembayaran.'); return; }
+    queuedPaymentOrder = order;
+    document.getElementById('queuedPaymentInfo').textContent = order.pickup_code + ' — ' + order.member_name;
+    const amount = document.getElementById('queuedPaymentAmount');
+    amount.value = order.remaining_amount; amount.max = order.remaining_amount;
+    const transfer = order.payment_method === 'BANK_TRANSFER';
+    const ref = document.getElementById('queuedPaymentRef');
+    ref.value = ''; ref.required = transfer;
+    document.getElementById('queuedPaymentRefBox').classList.toggle('d-none', !transfer);
+    inlineError('queuedPaymentError', '');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('queuedPaymentModal')).show();
+}
+document.getElementById('queuedPaymentForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (cashierBusy || !queuedPaymentOrder) return;
+    const order = queuedPaymentOrder;
+    const method = order.payment_method === 'BANK_TRANSFER' ? 'BANK_TRANSFER' : 'CASH';
+    const amount = document.getElementById('queuedPaymentAmount').value;
+    const ref = document.getElementById('queuedPaymentRef').value.trim();
+    const btn = document.getElementById('queuedPaymentSubmit');
+    btn.disabled = true; inlineError('queuedPaymentError', '');
+    try { await submitCashier('/api/v1/orders/'+order.id+'/payments', {method, amount, external_reference:method === 'BANK_TRANSFER' ? ref : null}); location.assign('/cashier/antrian'); }
+    catch(err) { inlineError('queuedPaymentError', err.message); btn.disabled = false; }
+});
 
 function filterCashierStock(rawQuery) {
     const query = (rawQuery || '').toLowerCase().trim();
@@ -2062,7 +2010,7 @@ function openVerifyTransferModal(code, memberName, memberId, amount, ref) {
     document.getElementById('vtfTotalAmount').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
     document.getElementById('vtfSenderName').textContent = memberName;
     document.getElementById('vtfTransferProofAmount').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
-    document.getElementById('vtfRefInput').value = ref || `TRX-BCA-${code.replace('PKP-', '')}`;
+    document.getElementById('vtfRefInput').value = ref || '';
     document.getElementById('vtfConfirmFundsCheck').checked = false;
     document.getElementById('vtfRejectBox').classList.add('d-none');
 
@@ -2075,91 +2023,16 @@ function toggleRejectTransferBox() {
     box.classList.toggle('d-none');
 }
 
-function executeApproveTransfer() {
+async function verifyQueuedTransfer(action) {
     if (!currentVerifyTransfer) return;
-    const ref = document.getElementById('vtfRefInput').value.trim() || 'TRX-VERIFIED';
-    const checked = document.getElementById('vtfConfirmFundsCheck').checked;
-
-    if (!checked) {
-        alert("Harap centang kotak konfirmasi bahwa dana telah dicek masuk rekening koperasi.");
-        return;
-    }
-
-    const code = currentVerifyTransfer.code;
-    const modalEl = document.getElementById('verifyTransferModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-
-    // Update status badge di tabel antrian
-    const badge = document.getElementById(`badgeTransfer-${code}`);
-    if (badge) {
-        badge.className = 'badge bg-success text-white';
-        badge.innerHTML = `<i class="bi bi-check-circle-fill me-0.5"></i> Transfer Terverifikasi`;
-        const container = badge.parentElement;
-        const btnVerify = document.getElementById(`btnVerify-${code}`);
-        if (btnVerify) btnVerify.remove();
-        const refSmall = document.createElement('small');
-        refSmall.className = 'text-muted font-monospace d-block';
-        refSmall.style.fontSize = '0.68rem';
-        refSmall.textContent = ref;
-        container.appendChild(refSmall);
-    }
-
-    // Aktifkan tombol serah terima
-    const btnHandover = document.getElementById(`btnHandover-${code}`);
-    if (btnHandover) {
-        btnHandover.disabled = false;
-        btnHandover.className = 'btn btn-sm btn-outline-success px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn';
-        btnHandover.title = 'Serahkan barang ke pembeli';
-    }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pembayaran transfer untuk pesanan <strong>${code}</strong> (${currentVerifyTransfer.memberName}) <strong>BERHASIL DIVERIFIKASI</strong>.<br>
-        Tombol Serah Terima barang kini telah aktif.
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
+    const order = realPickupQueue.find(o => o.pickup_code === currentVerifyTransfer.code);
+    if (!order?.pending_payment_id) { showCashierError('Tidak ada pembayaran transfer pending.'); return; }
+    if (action === 'VERIFY' && !document.getElementById('vtfConfirmFundsCheck').checked) { showCashierError('Pastikan dana telah diterima.'); return; }
+    try { await submitCashier('/api/v1/payments/'+order.pending_payment_id+'/verify', {action}); location.assign('/cashier/antrian'); }
+    catch(err) { showCashierError(err.message); }
 }
-
-function executeRejectTransfer() {
-    if (!currentVerifyTransfer) return;
-    const reason = document.getElementById('vtfRejectReason').value;
-    const code = currentVerifyTransfer.code;
-
-    const modalEl = document.getElementById('verifyTransferModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-
-    // Update status badge di tabel antrian
-    const badge = document.getElementById(`badgeTransfer-${code}`);
-    if (badge) {
-        badge.className = 'badge bg-danger text-white';
-        badge.innerHTML = `<i class="bi bi-x-circle-fill me-0.5"></i> Transfer Ditolak`;
-        const container = badge.parentElement;
-        const btnVerify = document.getElementById(`btnVerify-${code}`);
-        if (btnVerify) btnVerify.remove();
-        const reasonSmall = document.createElement('small');
-        reasonSmall.className = 'text-danger d-block';
-        reasonSmall.style.fontSize = '0.68rem';
-        reasonSmall.textContent = reason;
-        container.appendChild(reasonSmall);
-    }
-
-    // Tombol serah terima tetap nonaktif
-    const btnHandover = document.getElementById(`btnHandover-${code}`);
-    if (btnHandover) {
-        btnHandover.disabled = true;
-        btnHandover.className = 'btn btn-sm btn-outline-secondary opacity-50 px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 handover-btn';
-        btnHandover.title = 'Pembayaran transfer ditolak';
-    }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pembayaran transfer untuk pesanan <strong>${code}</strong> telah <strong>DITOLAK</strong> (${reason}).<br>
-        Pembeli wajib menyelesaikan pembayaran tunai di kasir sebelum barang diserahkan.
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
-}
+function executeApproveTransfer() { return verifyQueuedTransfer('VERIFY'); }
+function executeRejectTransfer() { return verifyQueuedTransfer('REJECT'); }
 
 // ==============================================================================
 // PEMBATALAN PESANAN PICKUP (PRD AC-12)
@@ -2177,33 +2050,12 @@ function openCancelOrderModal(code, memberName, items, amount) {
     modal.show();
 }
 
-function executeCancelOrder() {
+async function executeCancelOrder() {
     if (!currentCancelOrder) return;
-    const code = currentCancelOrder.code;
-
-    const modalEl = document.getElementById('cancelOrderModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    if (modalInstance) modalInstance.hide();
-
-    const row = document.getElementById(`pickupRow-${code}`);
-    if (row) {
-        row.classList.add('table-light', 'text-muted');
-        const actionCell = row.querySelector('.handover-btn')?.parentElement;
-        if (actionCell) {
-            actionCell.innerHTML = `
-                <span class="badge bg-secondary text-white py-1.5 px-2">
-                    <i class="bi bi-x-circle me-0.5"></i> Pesanan Dibatalkan
-                </span>
-            `;
-        }
-    }
-
-    document.getElementById('pickupSuccessMessage').innerHTML = `
-        Pesanan <strong>${code}</strong> berhasil dibatalkan.<br>
-        <span class="text-success small fw-semibold">Reservasi stok dan penahanan limit kredit (credit hold) anggota telah dilepaskan otomatis tanpa membentuk piutang.</span>
-    `;
-    const sModal = new bootstrap.Modal(document.getElementById('pickupSuccessModal'));
-    sModal.show();
+    const order = realPickupQueue.find(o => o.pickup_code === currentCancelOrder.code);
+    if (!order) return;
+    try { await submitCashier('/api/v1/orders/'+order.id+'/cancel', {}); location.assign('/cashier/antrian'); }
+    catch(err) { showCashierError(err.message); }
 }
 
 // ==============================================================================
@@ -2268,6 +2120,7 @@ function showScanToast(title, subtitle) {
     document.getElementById('toastItemName').textContent = title;
     document.getElementById('toastItemDetail').textContent = subtitle;
     const toastEl = document.getElementById('posScanToast');
+    if (toastEl) { const icon = toastEl.querySelector('.rounded-circle'); const error = title === 'Transaksi belum berhasil'; if (icon) { icon.classList.toggle('bg-danger', error); icon.classList.toggle('bg-success', !error); icon.querySelector('i').className = error ? 'bi bi-exclamation-lg fs-5' : 'bi bi-check-lg fs-5'; } }
     if (toastEl && window.bootstrap) {
         const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2800 });
         toast.show();
@@ -2756,131 +2609,44 @@ function submitManualBarcodeField() {
     document.getElementById('posBarcodeField').value = '';
 }
 
-function handleIncomingBarcode(code, options = {}) {
-    const clean = code.trim().toLowerCase();
-    const shouldShowSheet = options.showGopaySheet !== false;
-    
-    // 1. Cek jika yang di-scan adalah Kode Pickup Anggota (contoh: PKP-84920 atau ORD-1082)
-    if (clean.startsWith('pkp-') || clean.startsWith('ord-')) {
-        const pickupUpper = code.trim().toUpperCase();
-        const foundOrder = @json($pickupQueue ?? []).find(o => 
-            o.pickup_code.toUpperCase() === pickupUpper || 
-            o.id.toUpperCase() === pickupUpper
-        );
-
-        if (foundOrder) {
-            if (shouldShowSheet) {
-                showGopayScanSheet({
-                    type: 'Kode Pickup Pesanan Online',
-                    badgeText: 'PICKUP TERVERIFIKASI',
-                    badgeClass: 'bg-primary text-white',
-                    title: `${foundOrder.member_name} (${foundOrder.member_id})`,
-                    code: `${foundOrder.pickup_code} • ${foundOrder.id}`,
-                    price: `Rp ${Number(foundOrder.total_amount).toLocaleString('id-ID')}`,
-                    qtyBadge: `${foundOrder.items_count} Komoditas`,
-                    subtitle: `Pesanan siap diambil di gerai. Status: ${foundOrder.payment_status === 'PAID' ? 'LUNAS (Transfer/Cash)' : 'Piutang Anggota'}.`,
-                    actionBtnText: 'Serah Terima Barang',
-                    actionBtnIcon: 'bi-box-seam',
-                    actionCallback: () => {
-                        dismissGopayScanSheet();
-                        openPickupConfirm(foundOrder.pickup_code, foundOrder.member_name, foundOrder.member_id, foundOrder.total_amount, foundOrder.payment_status);
-                    }
-                });
-            } else {
-                showScanToast(
-                    `Kode Pickup ${pickupUpper} Ditemukan!`,
-                    `Pesanan atas nama ${foundOrder.member_name} (${foundOrder.member_id})`
-                );
-            }
-
-            // Alihkan ke tab Antrean Pickup
-            const tabBtn = document.getElementById('pickup-tab');
-            if (tabBtn) {
-                const bsTab = bootstrap.Tab.getOrCreateInstance(tabBtn);
-                bsTab.show();
-            }
-            // Highlight baris
-            const row = document.getElementById(`pickupRow-${foundOrder.pickup_code}`);
-            if (row) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                row.classList.add('table-warning');
-                setTimeout(() => row.classList.remove('table-warning'), 3000);
-            }
+let lookupBusy = false;
+async function handleIncomingBarcode(code, options = {}) {
+    const clean = String(code || '').trim();
+    if (!clean || lookupBusy || cashierBusy) return;
+    lookupBusy = true;
+    try {
+        const pickup = /^(PKP|ORD)-/i.test(clean);
+        const url = pickup ? '/cashier/pickup-lookup?code=' : '/api/products/lookup?barcode=';
+        const response = await fetch(url + encodeURIComponent(clean), {headers:{Accept:'application/json'}, cache:'no-store'});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Kode tidak ditemukan.');
+        const data = result.data;
+        if (pickup) {
+            if (!['PENDING_PAYMENT','PENDING_PICKUP','READY_FOR_PICKUP'].includes(data.status)) { showCashierError('Pesanan ' + data.pickup_code + ' berstatus ' + data.status); return; }
+            const index = realPickupQueue.findIndex(o => o.id === data.id);
+            if (index >= 0) realPickupQueue[index] = data; else realPickupQueue.push(data);
+            bootstrap.Tab.getOrCreateInstance(document.getElementById('pickup-tab')).show();
+            const action = () => {
+                dismissGopayScanSheet();
+                if (data.can_handover) openPickupHandoverModal(data.pickup_code,data.member_name,data.member_id,data.items_summary,data.total_amount,data.payment_method);
+                else if (data.pending_payment_id) openVerifyTransferModal(data.pickup_code,data.member_name,data.member_id,data.pending_payment_amount,data.transfer_ref);
+                else if (data.payment_method !== 'CREDIT') recordQueuedPayment(data.pickup_code);
+                else showCashierError('Fasilitas kredit pesanan tidak siap.');
+            };
+            const scanner = document.getElementById('barcodeScannerModal');
+            if (scanner?.classList.contains('show') || scanner?.style.display === 'block') {
+                scanner.addEventListener('hidden.bs.modal', action, {once:true});
+                stopBarcodeScanner();
+                bootstrap.Modal.getOrCreateInstance(scanner).hide();
+            } else action();
             return;
         }
-    }
-
-    // 2. Cek jika yang di-scan adalah Barang Sembako di Katalog Kasir
-    const barcodeAliases = {
-        '8991001100223': '89999991001',
-        '8992002200334': '89999991002',
-        '8993003300445': '89999991003',
-        '8994004400556': '89999991005',
-        '8995005500667': '89999991008',
-        '8996006600778': '89999991011',
-    };
-    const resolvedBarcode = barcodeAliases[clean] || clean;
-
-    const found = stockCatalogue.find(item => 
-        item.sku.toLowerCase() === clean || 
-        item.barcode.toLowerCase() === clean ||
-        item.barcode.toLowerCase() === resolvedBarcode ||
-        item.name.toLowerCase().includes(clean)
-    );
-
-    if (found) {
-        posAddToCart(found.name, found.sell_price, found.sku);
-        
-        if (shouldShowSheet) {
-            showGopayScanSheet({
-                type: 'Komoditas Gerai KOPEG',
-                badgeText: 'SCAN BERHASIL',
-                badgeClass: 'bg-success text-white',
-                title: found.name,
-                code: `${found.sku} • ${found.barcode}`,
-                price: `Rp ${Number(found.sell_price).toLocaleString('id-ID')}`,
-                qtyBadge: '+1 ke Keranjang Kasir',
-                subtitle: `Stok tersedia: ${found.available} ${found.unit ?? 'Pcs'}. Otomatis masuk ke kalkulasi POS.`,
-                actionBtnText: 'Scan Lagi',
-                actionBtnIcon: 'bi-camera-fill',
-                actionCallback: () => {
-                    dismissGopayScanSheet();
-                    openBarcodeScannerModal();
-                }
-            });
-        } else {
-            showScanToast(
-                `✓ ${found.name}`,
-                `Barcode: ${found.barcode} • Rp ${found.sell_price.toLocaleString('id-ID')} masuk keranjang`
-            );
-        }
-    } else {
-        // Fallback untuk barang sembako baru atau barcode custom
-        posAddToCart(`Komoditas Sembako #${code.toUpperCase()}`, 25000, code.toUpperCase());
-        if (shouldShowSheet) {
-            showGopayScanSheet({
-                type: 'Item Cepat / Custom',
-                badgeText: 'ITEM DITAMBAHKAN',
-                badgeClass: 'bg-info text-dark',
-                title: `Komoditas Sembako #${code.toUpperCase()}`,
-                code: code.toUpperCase(),
-                price: 'Rp 25.000',
-                qtyBadge: '+1 ke Keranjang',
-                subtitle: 'Barcode belum terdaftar di master persediaan, dicatat sebagai item cepat.',
-                actionBtnText: 'Scan Lagi',
-                actionBtnIcon: 'bi-camera-fill',
-                actionCallback: () => {
-                    dismissGopayScanSheet();
-                    openBarcodeScannerModal();
-                }
-            });
-        } else {
-            showScanToast(
-                `✓ Komoditas #${code.toUpperCase()}`,
-                `Item terdeteksi (Rp 25.000) ditambahkan ke keranjang kasir`
-            );
-        }
-    }
+        const i = stockCatalogue.findIndex(p => p.sku === data.sku);
+        const product = {...(stockCatalogue[i] || {}), id:data.id, sku:data.sku, barcode:data.barcode, name:data.name, sell_price:Number(data.price), available:Number(data.available_stock), unit:data.unit};
+        if (i >= 0) stockCatalogue[i] = product; else stockCatalogue.push(product);
+        if (posAddToCart(product.name,product.sell_price,product.sku)) showScanToast(product.name, 'Ditambahkan ke keranjang POS.');
+    } catch (err) { showCashierError(err.message); }
+    finally { lookupBusy = false; }
 }
 
 // Global Keydown Listener untuk Barcode Scanner Gun Fisik (USB / Bluetooth HID)
@@ -2889,6 +2655,7 @@ let lastGunKeyTime = Date.now();
 
 window.addEventListener('keydown', (e) => {
     const activeEl = document.activeElement;
+    if (['posBarcodeField','modalManualBarcodeInput'].includes(activeEl?.id)) { barcodeGunBuffer = ''; return; }
     const isTypingInOtherInput = activeEl && 
         (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable) &&
         activeEl.id !== 'posBarcodeField' && 

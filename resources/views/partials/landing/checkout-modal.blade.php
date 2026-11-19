@@ -19,12 +19,13 @@
 
             <div class="modal-body p-3 p-md-4">
                 <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                    <div id="checkoutFeedback" class="alert alert-danger d-none" role="alert"></div>
                     <!-- Info Pemesan -->
                     <div class="mb-3">
                         <label for="checkoutMemberName" class="form-label small fw-bold text-secondary mb-1">ID Anggota / Nama Karyawan</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light text-muted px-3"><i class="bi bi-person-badge"></i></span>
-                            <input type="text" id="checkoutMemberName" class="form-control ps-1" value="EMP-001 — Karyawan Koperasi" required>
+                            <input type="text" id="checkoutMemberName" class="form-control ps-1" value="{{ ($member['id'] ?? '-') . ' — ' . ($member['name'] ?? 'Belum login') }}" readonly>
                         </div>
                         <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Diverifikasi oleh petugas kasir saat pengambilan barang fisik.</small>
                     </div>
@@ -147,7 +148,7 @@
                             Tunjukkan Kode Ini ke Kasir Gerai:
                         </small>
                         <div id="displayPickupCode" class="display-6 fw-extrabold text-primary font-monospace tracking-wider my-1">
-                            PKP-84920
+                            —
                         </div>
 
                         <!-- Scannable Barcode SVG Container -->
@@ -206,7 +207,7 @@
         <div class="modal-content bg-white text-dark text-center d-flex flex-column justify-content-between p-3 p-md-4">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-3">
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary px-3 py-1.5 font-monospace fw-bold fs-6" id="fsPickupCodeBadge">PKP-84920</span>
+                    <span class="badge bg-primary px-3 py-1.5 font-monospace fw-bold fs-6" id="fsPickupCodeBadge">—</span>
                     <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline">Siap Pindai Kasir</span>
                 </div>
                 <button type="button" class="btn btn-outline-dark btn-sm px-3 fw-bold d-inline-flex align-items-center gap-1.5" data-bs-dismiss="modal">
@@ -225,7 +226,7 @@
                         <svg id="fsPickupBarcodeSvg" class="w-100" style="max-height: 120px;"></svg>
                     </div>
                     <div class="display-5 fw-extrabold text-dark font-monospace mt-3 tracking-wider" id="fsPickupCodeText">
-                        PKP-84920
+                        —
                     </div>
                     <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.75rem;">Standar Scanner Barcode 1D (Code-128)</small>
                 </div>
