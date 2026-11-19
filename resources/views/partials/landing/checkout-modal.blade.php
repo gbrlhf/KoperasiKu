@@ -190,9 +190,9 @@
                     <button type="button" class="btn btn-primary fw-semibold py-2.5 shadow-sm" data-bs-dismiss="modal">
                         Selesai & Lanjut Belanja
                     </button>
-                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-sm py-2 fw-medium d-inline-flex align-items-center justify-content-center">
-                        <i class="bi bi-person-check me-2"></i>
-                        <span>Masuk Akun untuk Lihat Riwayat Pesanan</span>
+                    <a href="{{ route('landing', ['open' => 'profile']) }}" class="btn btn-outline-secondary btn-sm py-2 fw-medium d-inline-flex align-items-center justify-content-center">
+                        <i class="bi bi-ticket-perforated me-2"></i>
+                        <span>Lihat Tiket & Riwayat Pesanan Saya</span>
                     </a>
                 </div>
 

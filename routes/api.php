@@ -40,11 +40,52 @@ Route::prefix('v1')->group(function () {
         Route::post('/receivables/payments', [ReceivableController::class, 'pay']);
     });
 
-    // Rute khusus Manajer (Kebijakan limit kredit global & portofolio piutang)
+    // Rute khusus Manajer (Kebijakan limit kredit global, portofolio piutang & Master Data PIC C)
     Route::middleware(['auth', 'role:MANAGER'])->group(function () {
         Route::get('/credit-policy', [ReceivableController::class, 'getCreditPolicy']);
         Route::patch('/credit-policy', [ReceivableController::class, 'updateCreditPolicy']);
         Route::patch('/members/{id}/credit-status', [ReceivableController::class, 'updateMemberCreditStatus']);
         Route::get('/manager/receivables', [ReceivableController::class, 'managerReceivables']);
+
+        // Produk & Histori Harga
+        Route::get('/products', [\App\Http\Controllers\Api\V1\ProductController::class, 'index']);
+        Route::get('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'show']);
+        Route::post('/products', [\App\Http\Controllers\Api\V1\ProductController::class, 'store']);
+        Route::post('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'update']);
+        Route::put('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'update']);
+        Route::patch('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'update']);
+        Route::post('/products/{id}/price', [\App\Http\Controllers\Api\V1\ProductController::class, 'updatePrice']);
+
+        // Pemasok (Suppliers)
+        Route::get('/suppliers', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'suppliers']);
+        Route::post('/suppliers', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeSupplier']);
+        Route::patch('/suppliers/{id}', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'updateSupplier']);
+        Route::put('/suppliers/{id}', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'updateSupplier']);
+
+        // Anggota (Members)
+        Route::get('/members', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'members']);
+        Route::post('/members', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeMember']);
+        Route::patch('/members/{id}', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'updateMember']);
+        Route::put('/members/{id}', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'updateMember']);
+
+        // Penerimaan Pembelian (WAC) & Penyesuaian Stok
+        Route::get('/purchase-receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'receipts']);
+        Route::post('/purchase-receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeReceipt']);
+        Route::get('/inventory/receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'receipts']);
+        Route::post('/inventory/receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeReceipt']);
+        Route::post('/inventory/adjustments', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeAdjustment']);
+
+        // Biaya Operasional (Operating Expenses)
+        Route::get('/operating-expenses', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'expenses']);
+        Route::post('/operating-expenses', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeExpense']);
+
+        // Impor Excel/CSV (Staging, Preview, Validasi & Commit)
+        Route::get('/imports', [\App\Http\Controllers\Api\V1\ImportController::class, 'index']);
+        Route::post('/imports', [\App\Http\Controllers\Api\V1\ImportController::class, 'upload']);
+        Route::post('/imports/upload', [\App\Http\Controllers\Api\V1\ImportController::class, 'upload']);
+        Route::get('/imports/{id}', [\App\Http\Controllers\Api\V1\ImportController::class, 'show']);
+        Route::get('/imports/{id}/preview', [\App\Http\Controllers\Api\V1\ImportController::class, 'show']);
+        Route::post('/imports/{id}/validate', [\App\Http\Controllers\Api\V1\ImportController::class, 'validateBatch']);
+        Route::post('/imports/{id}/commit', [\App\Http\Controllers\Api\V1\ImportController::class, 'commit']);
     });
 });

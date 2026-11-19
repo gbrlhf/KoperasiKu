@@ -27,11 +27,11 @@ class CashierController extends Controller
             ->leftJoin('inventory_balances as b', 'b.product_id', '=', 'p.id')
             ->leftJoin('categories as c', 'c.id', '=', 'p.category_id')
             ->where('p.is_active', true)
-            ->select('p.id', 'p.sku', 'p.barcode', 'p.name', 'p.selling_price', 'p.unit', 'p.reorder_point', 'c.name as category', 'b.on_hand', 'b.reserved')
+            ->select('p.id', 'p.sku', 'p.barcode', 'p.name', 'p.selling_price', 'p.unit', 'p.reorder_point', 'c.name as category', 'p.category as legacy_category', 'b.on_hand', 'b.reserved')
             ->orderBy('p.sku')->get()->map(function ($p) {
                 $available = (int) $p->on_hand - (int) $p->reserved;
                 return ['id' => (string) $p->id, 'sku' => $p->sku, 'barcode' => $p->barcode ?? $p->sku, 'name' => $p->name,
-                    'category' => $p->category ?? '-', 'sell_price' => (float) $p->selling_price,
+                    'category' => $p->category ?? $p->legacy_category ?? '-', 'sell_price' => (float) $p->selling_price,
                     'on_hand' => (int) $p->on_hand, 'reserved' => (int) $p->reserved, 'available' => $available,
                     'unit' => $p->unit, 'status' => $available <= 0 ? 'OUT' : ($available <= $p->reorder_point ? 'LOW' : 'SAFE')];
             });

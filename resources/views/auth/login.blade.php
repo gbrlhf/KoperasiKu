@@ -51,7 +51,7 @@
                     <option value="CASHIER" @selected(old('role', 'MEMBER') === 'CASHIER')>Kasir & Petugas Gerai (CASHIER)</option>
                     <option value="MANAGER" @selected(old('role', 'MEMBER') === 'MANAGER')>Manajer Koperasi (MANAGER)</option>
                 </select>
-                <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">Peran dapat dialihkan kapan saja via pemilih konteks di navbar atas.</div>
+                <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">Pilih peran sesuai akun yang terdaftar di sistem koperasi.</div>
             </div>
 
             <!-- Kotak Akun Terakhir yang Pernah Login di Perangkat Ini (Hanya Muncul Jika Pernah Login) -->

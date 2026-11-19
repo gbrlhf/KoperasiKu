@@ -24,4 +24,19 @@ class Product extends Model
     {
         return $this->hasOne(InventoryBalance::class, 'product_id', 'id');
     }
+
+    public function categoryRelation()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function priceHistories()
+    {
+        return $this->hasMany(ProductPriceHistory::class, 'product_id');
+    }
 }

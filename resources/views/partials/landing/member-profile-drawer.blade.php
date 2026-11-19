@@ -191,9 +191,15 @@
         @if(!empty($activeOrders))
             <div class="card border border-primary-subtle rounded-3 p-3 mb-3 bg-primary-subtle bg-opacity-25 shadow-xs">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="badge bg-success text-white fw-bold px-2 py-0.5 rounded-pill" style="font-size: 0.68rem;">
-                        <i class="bi bi-box-seam me-1"></i> SIAP DIAMBIL DI GERAI
-                    </span>
+                    @if(($activeOrders[0]['status'] ?? '') === 'PENDING_PAYMENT')
+                        <span class="badge bg-warning text-dark fw-bold px-2 py-0.5 rounded-pill" style="font-size: 0.68rem;">
+                            <i class="bi bi-hourglass-split me-1"></i> MENUNGGU PEMBAYARAN / VERIFIKASI DI KASIR
+                        </span>
+                    @else
+                        <span class="badge bg-success text-white fw-bold px-2 py-0.5 rounded-pill" style="font-size: 0.68rem;">
+                            <i class="bi bi-box-seam me-1"></i> SIAP DIAMBIL DI GERAI
+                        </span>
+                    @endif
                     <span class="font-monospace text-secondary small fw-bold">{{ $activeOrders[0]['order_no'] }}</span>
                 </div>
 
@@ -206,7 +212,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center small text-secondary mb-2" style="font-size: 0.75rem;">
-                    <span>2 Barang (Beras 5kg, Minyak 2L)</span>
+                    <span>{{ $activeOrders[0]['items_count'] }} Barang ({{ $activeOrders[0]['items_summary'] }})</span>
                     <strong class="text-primary">Rp {{ number_format($activeOrders[0]['total_amount'], 0, ',', '.') }}</strong>
                 </div>
 
@@ -357,7 +363,11 @@
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Status:</span>
-                        <span class="badge bg-success text-white">Siap Diambil Sekarang</span>
+                        @if(($activeOrders[0]['status'] ?? '') === 'PENDING_PAYMENT')
+                            <span class="badge bg-warning text-dark">Menunggu Pembayaran / Verifikasi di Kasir</span>
+                        @else
+                            <span class="badge bg-success text-white">Siap Diambil di Gerai</span>
+                        @endif
                     </div>
                 </div>
             </div>

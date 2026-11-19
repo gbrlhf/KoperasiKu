@@ -20,7 +20,7 @@ class LandingController extends Controller
         $categoryNames = \App\Models\Category::pluck('name', 'id');
         $catalog = $products->map(fn ($p) => [
             'id' => (string) $p->id, 'sku' => $p->sku, 'name' => $p->name,
-            'category' => $categoryNames->get($p->category_id, '-'), 'price' => (float) $p->selling_price,
+            'category' => $categoryNames->get($p->category_id) ?? ($p->category ?: '-'), 'price' => (float) $p->selling_price,
             'original_price' => (float) ($p->original_price ?: $p->selling_price),
             'available_stock' => max(0, (int) $p->inventory?->on_hand - (int) $p->inventory?->reserved),
             'unit' => $p->unit ?? '-', 'badge' => $p->badge ?? '', 'rating' => $p->rating ?? 0,
@@ -29,7 +29,7 @@ class LandingController extends Controller
         ])->all();
         $categories = \App\Models\Category::orderBy('name')->get()->map(fn ($c) => [
             'id' => $c->id, 'name' => $c->name, 'icon' => $c->icon ?? 'bi-box',
-            'item_count' => $products->where('category_id', $c->id)->count().' Produk',
+            'item_count' => $products->filter(fn ($p) => $p->category_id === $c->id || strcasecmp((string) $p->category, (string) $c->name) === 0)->count().' Produk',
         ])->all();
         $bestDeals = array_slice($catalog, 0, 5);
         $groceryProducts = array_slice($catalog, 5, 5);
