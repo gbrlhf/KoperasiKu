@@ -1530,9 +1530,7 @@ const DP = () => cdTable(
         }),
         'Belum ada data produk di database.'
     ),
-    `<button type="button" class="btn btn-outline-secondary btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Penyesuaian Stok</button>
-    <button type="button" class="btn btn-outline-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok</button>
-    <button type="button" class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i class="bi bi-plus-lg"></i> Tambah Produk</button>`
+    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i class="bi bi-plus-lg"></i> Tambah Produk</button>`
 );
 
 let productPreviewObjectUrl = null;
