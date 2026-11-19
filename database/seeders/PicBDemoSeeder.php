@@ -18,13 +18,25 @@ class PicBDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        if (!app()->environment('testing') || DB::getDriverName() !== 'pgsql'
-            || DB::connection()->getDatabaseName() !== 'koperadata_test'
-            || DB::selectOne('SELECT current_database() AS db')->db !== 'koperadata_test') {
-            throw new \RuntimeException('PicBDemoSeeder hanya untuk PostgreSQL koperadata_test dengan APP_ENV=testing.');
+        $testing = app()->environment('testing');
+        $local = app()->environment('local');
+        $expectedDatabase = $testing ? 'koperadata_test' : 'koperadata';
+        if ((!$testing && !$local) || DB::getDriverName() !== 'pgsql'
+            || DB::connection()->getDatabaseName() !== $expectedDatabase
+            || ($local && !in_array(DB::connection()->getConfig('host'), ['127.0.0.1', 'localhost', '::1'], true))
+            || DB::selectOne('SELECT current_database() AS db')->db !== $expectedDatabase) {
+            throw new \RuntimeException('PicBDemoSeeder hanya untuk PostgreSQL koperadata lokal atau koperadata_test testing.');
         }
 
-        DB::transaction(function (): void {
+        DB::transaction(function () use ($local): void {
+            if ($local) {
+                // Local bootstrap is one-time only: never reset real users or inventory.
+                foreach (['users', 'members', 'products', 'orders', 'inventory_balances', 'credit_policies', 'payments', 'receivables'] as $table) {
+                    if (DB::table($table)->exists()) {
+                        throw new \RuntimeException('Seeder demo lokal dibatalkan: tabel '.$table.' tidak kosong. Tidak ada data yang diubah.');
+                    }
+                }
+            }
             $this->call(RoleSeeder::class);
             $accounts = [
                 ['ahmad.fauzi@polman-bandung.ac.id', 'password123', 'MEMBER'],
