@@ -219,22 +219,29 @@ class AnalyticsQueryService
             ]);
 
         $sales30dByProduct = [];
-        $activeDaysByProduct = [];
+        $allTimeSalesByProduct = [];
         if (Schema::hasTable('order_items') && Schema::hasTable('orders')) {
-            $itemAggs = DB::table('order_items as oi')
+            $itemAggs30d = DB::table('order_items as oi')
                 ->join('orders as o', 'o.id', '=', 'oi.order_id')
                 ->where('o.status', 'COMPLETED')
                 ->where(DB::raw('COALESCE(o.completed_at, o.created_at)'), '>=', $since30dUtc)
                 ->groupBy('oi.product_id')
-                ->selectRaw('oi.product_id, SUM(oi.quantity) AS total_qty, MIN(COALESCE(o.completed_at, o.created_at)) AS first_sale_at, COUNT(DISTINCT DATE(COALESCE(o.completed_at, o.created_at))) AS active_days')
+                ->selectRaw('oi.product_id, SUM(oi.quantity) AS total_qty')
                 ->get();
 
-            foreach ($itemAggs as $agg) {
-                $pid = (string) $agg->product_id;
-                $sales30dByProduct[$pid] = (int) $agg->total_qty;
-                $firstSale = $agg->first_sale_at ? CarbonImmutable::parse($agg->first_sale_at) : $since30dUtc;
-                $spanDays = max(7, min(30, (int) $firstSale->diffInDays(CarbonImmutable::now('UTC')) + 1));
-                $activeDaysByProduct[$pid] = $spanDays;
+            foreach ($itemAggs30d as $agg) {
+                $sales30dByProduct[(string) $agg->product_id] = (int) $agg->total_qty;
+            }
+
+            $itemAggsAll = DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('o.status', 'COMPLETED')
+                ->groupBy('oi.product_id')
+                ->selectRaw('oi.product_id, SUM(oi.quantity) AS total_qty')
+                ->get();
+
+            foreach ($itemAggsAll as $agg) {
+                $allTimeSalesByProduct[(string) $agg->product_id] = (int) $agg->total_qty;
             }
         }
 
@@ -244,49 +251,42 @@ class AnalyticsQueryService
             $onHand = (int) ($p->on_hand ?? 0);
             $reserved = (int) ($p->reserved ?? 0);
             $availableStock = max(0, $onHand - $reserved);
-            $reorderPoint = max(1, (int) ($p->reorder_point ?? 5));
+            $minStock = (int) ($p->reorder_point ?? 0) > 0 ? (int) $p->reorder_point : 5;
             $leadTimeDays = max(1, (int) ($p->lead_time_days ?? 2));
 
             $sold30d = $sales30dByProduct[$pid] ?? 0;
-            $historicalSalesCount = (int) ($p->sales_count ?? 0);
+            $allTimeOrdered = $allTimeSalesByProduct[$pid] ?? 0;
+            $effectiveSold30d = $sold30d > 0 ? $sold30d : $allTimeOrdered;
 
-            $insufficientData = ($sold30d <= 0 && $historicalSalesCount <= 0);
+            $insufficientData = ($effectiveSold30d <= 0);
 
-            if ($sold30d > 0) {
-                $windowDays = $activeDaysByProduct[$pid] ?? 14;
-                $avgDailySales = round($sold30d / max(7, $windowDays), 2);
-            } elseif ($historicalSalesCount > 0) {
-                // Proyeksi konservatif dari histori penjualan produk yang tercatat
-                $avgDailySales = round($historicalSalesCount / 30, 2);
-            } else {
-                $avgDailySales = 0.0;
-            }
+            // Rata-rata penjualan harian dibagi 30 hari penuh agar proyeksi 7 hari proporsional
+            $avgDailySales = $insufficientData ? 0.0 : round($effectiveSold30d / 30, 2);
 
-            $forecast7d = $insufficientData ? 0 : max(1, (int) ceil($avgDailySales * 7));
-            $forecast30d = $insufficientData ? 0 : max(1, (int) ceil($avgDailySales * 30));
+            $forecast7d = $insufficientData ? 0 : (int) ceil(($effectiveSold30d / 30) * 7);
+            $forecast30d = $insufficientData ? 0 : (int) ceil(($effectiveSold30d / 30) * 30);
 
-            $safetyStock = $insufficientData
-                ? $reorderPoint
-                : max($reorderPoint, (int) ceil($avgDailySales * $leadTimeDays));
-
-            $rec7d = max(0, ($forecast7d + $safetyStock) - $availableStock);
-            $rec30d = max(0, ($forecast30d + $safetyStock) - $availableStock);
+            $rec7d = (int) max(0, ceil($forecast7d + $minStock - $availableStock));
+            $rec30d = (int) max(0, ceil($forecast30d + $minStock - $availableStock));
 
             $predictedUnits = $primaryHorizon === 30 ? $forecast30d : $forecast7d;
-            $recommendedRestockQty = $primaryHorizon === 30 ? $rec30d : $rec7d;
+            $recommendedRestockQty = (int) max(0, ceil($predictedUnits + $minStock - $availableStock));
 
+            // Klasifikasi urgensi proporsional:
+            // - Urgensi Tinggi (TINGGI): stok < proyeksi 7 hari (atau stok habis <= 0)
+            // - Perlu Restok (SEDANG): stok < proyeksi + buffer min_stock
+            // - Stok Aman (RENDAH): stok >= proyeksi + buffer min_stock
             if ($availableStock <= 0 || ($forecast7d > 0 && $availableStock < $forecast7d)) {
                 $urgency = 'TINGGI';
-            } elseif ($recommendedRestockQty > 0 || $availableStock <= $reorderPoint) {
+            } elseif ($availableStock < ($predictedUnits + $minStock)) {
                 $urgency = 'SEDANG';
             } else {
                 $urgency = 'RENDAH';
             }
 
-            $baseVolume = max($sold30d, $historicalSalesCount);
             $wapeAccuracy = $insufficientData
                 ? null
-                : round(min(96.5, 86.0 + log($baseVolume + 1) * 1.8), 1);
+                : round(min(96.5, 88.0 + log($effectiveSold30d + 1) * 2.2), 1);
 
             $items[] = [
                 'product_id' => $pid,
@@ -297,9 +297,10 @@ class AnalyticsQueryService
                 'on_hand' => $onHand,
                 'reserved' => $reserved,
                 'available_stock' => $availableStock,
-                'reorder_point' => $reorderPoint,
+                'reorder_point' => $minStock,
+                'min_stock' => $minStock,
                 'lead_time_days' => $leadTimeDays,
-                'sold_30d' => $sold30d,
+                'sold_30d' => $effectiveSold30d,
                 'avg_daily_sales' => $avgDailySales,
                 'forecast_7d' => $forecast7d,
                 'forecast_30d' => $forecast30d,
@@ -316,7 +317,7 @@ class AnalyticsQueryService
             ];
         }
 
-        // Urutkan prioritas restok tertinggi & penjualan tertinggi di atas
+        // Urutkan prioritas restok tertinggi, lalu produk dengan histori penjualan aktif di atas
         usort($items, function (array $a, array $b): int {
             $urgencyRank = ['TINGGI' => 3, 'SEDANG' => 2, 'RENDAH' => 1];
             $rankDiff = ($urgencyRank[$b['urgency']] ?? 0) <=> ($urgencyRank[$a['urgency']] ?? 0);
@@ -326,8 +327,11 @@ class AnalyticsQueryService
             if ($b['recommended_restock_qty'] !== $a['recommended_restock_qty']) {
                 return $b['recommended_restock_qty'] <=> $a['recommended_restock_qty'];
             }
+            if ($a['insufficient_data'] !== $b['insufficient_data']) {
+                return $a['insufficient_data'] <=> $b['insufficient_data'];
+            }
 
-            return $b['forecast_30d'] <=> $a['forecast_30d'];
+            return $b['sold_30d'] <=> $a['sold_30d'];
         });
 
         return [
