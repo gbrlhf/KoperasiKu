@@ -11,6 +11,7 @@
 .env.production
 .env.*
 !.env.example
+!.env.*.example
 !.env.testing
 
 # ------------------------------------------------------------------------------
@@ -19,13 +20,17 @@
 /vendor/
 /bootstrap/cache/*
 !/bootstrap/cache/.gitignore
+/bootstrap/ssr
 
 /storage/*.key
-/storage/app/public
+/storage/app/public/*
+!/storage/app/public/.gitignore
 /storage/app/private/*
 !/storage/app/private/.gitignore
 /storage/framework/cache/data/*
 !/storage/framework/cache/data/.gitignore
+/storage/framework/cache/locks/*
+!/storage/framework/cache/locks/.gitignore
 /storage/framework/sessions/*
 !/storage/framework/sessions/.gitignore
 /storage/framework/testing/*
@@ -35,13 +40,17 @@
 /storage/logs/*
 !/storage/logs/.gitignore
 
-# Testing & Tools PHP
+# Testing & Static Analysis PHP
+.phpunit.cache/
 .phpunit.result.cache
 .pest/
+.php-cs-fixer.cache
+phpstan.neon.cache
+phpunit.xml.bak
 auth.json
 
 # ------------------------------------------------------------------------------
-# Frontend & Node.js (Vite / npm / yarn)
+# Frontend & Node.js (Vite / npm / yarn / pnpm)
 # ------------------------------------------------------------------------------
 /node_modules/
 /public/build/
@@ -52,6 +61,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .vite/
+.eslintcache
+*.tsbuildinfo
 
 # ------------------------------------------------------------------------------
 # Python, PySpark & Big Data Analytics (PIC D & E)
@@ -64,14 +75,14 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
-dist/
+/dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -79,6 +90,15 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Testing, Coverage & Lint Cache Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
 # Virtual Environments
 venv/
@@ -107,12 +127,13 @@ data/temp/*
 !data/temp/.gitkeep
 minio_data/
 *.parquet
+*.delta
 
 # File log umum
 *.log
 
 # ------------------------------------------------------------------------------
-# Database Lokal & File Dump
+# Database Lokal, Volume Docker & File Dump
 # ------------------------------------------------------------------------------
 *.sqlite
 *.sqlite-journal
@@ -120,6 +141,8 @@ minio_data/
 *.db
 *.dump
 *.sql.gz
+pgdata/
+/docker/postgres/data/
 
 # File upload temporer / Excel migrasi lokal
 /storage/app/imports/*
@@ -167,7 +190,8 @@ Icon
 .Trashes
 
 # ------------------------------------------------------------------------------
-# AI Agent & Tools (Lokal / Personal)
+# AI Agent & Audit Tools (Lokal / Personal)
 # ------------------------------------------------------------------------------
 .agents/
 AGENTS.md
+anti-slop/
