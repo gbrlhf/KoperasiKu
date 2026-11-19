@@ -2,6 +2,19 @@
 
 @section('title', config('koperasi.brand_name', 'KoperasiKu') . ' - KOPEG POLMAN Bandung')
 
+@php
+    $landingAuthUser = auth()->user();
+    $landingSessionUser = session('user', []);
+    $landingIsLoggedIn = !empty($isLoggedIn) && (!empty($landingAuthUser) || !empty($landingSessionUser));
+    $landingRoles = array_values(array_unique(array_map('strtoupper', (array) session(
+        'available_roles',
+        $landingAuthUser ? $landingAuthUser->roleCodes() : []
+    ))));
+    $landingActiveRole = strtoupper((string) session('active_role', $landingRoles[0] ?? ($landingIsLoggedIn ? 'MEMBER' : '')));
+    $landingIsStaffRole = $landingIsLoggedIn && in_array($landingActiveRole, ['CASHIER', 'MANAGER'], true);
+    $landingShowCart = !$landingIsStaffRole;
+@endphp
+
 @section('content')
 
     {{-- 1. Hero Asymmetric Split Banners (Inspirasi e-mox) --}}

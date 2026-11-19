@@ -66,8 +66,7 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" style="min-width: 200px; max-width: 260px;">
                         <li><span class="dropdown-item-text text-muted small text-truncate d-block" title="{{ $displayProfileMeta }}">{{ $displayProfileMeta }}</span></li>
-                        <li><form method="POST" action="{{ route('switch-account') }}">@csrf<button type="submit" class="dropdown-item small"><i class="bi bi-box-arrow-in-right me-2"></i>Ganti Akun Login</button></form></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li><hr class="dropdown-divider my-1"></li>
                         <li><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item small text-danger"><i class="bi bi-box-arrow-right me-2"></i>Keluar</button></form></li>
                     </ul>
                 </div>

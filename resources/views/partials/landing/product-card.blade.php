@@ -63,14 +63,30 @@
             </span>
         </div>
 
-        @if(!empty($landingShowCart))
-            <!-- Tombol + Keranjang Tokopedia -->
-            <div class="pt-2 mt-1">
-                <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-bold py-1.5 d-inline-flex align-items-center justify-content-center gap-1.5 btn-add-cart-tokopedia shadow-xs" onclick="addToCart(@js($item['id']), @js($item['name']), @js($item['price']), @js($item['unit']), @js($item['icon']))" @disabled($item['available_stock'] <= 0) aria-label="Tambah {{ $item['name'] }} ke keranjang">
+        @php
+            $cardAuthUser = auth()->user();
+            $cardActiveRole = strtoupper((string) session('active_role', $cardAuthUser ? ($cardAuthUser->roleCodes()[0] ?? 'MEMBER') : ''));
+            $canShowCartBtn = isset($landingShowCart)
+                ? (bool) $landingShowCart
+                : !(auth()->check() && in_array($cardActiveRole, ['CASHIER', 'MANAGER'], true));
+            $isOutOfStock = ((int) ($item['available_stock'] ?? 0)) <= 0;
+        @endphp
+
+        @if($canShowCartBtn)
+            <!-- Tombol + Keranjang (Khusus MEMBER & Pengunjung Umum / Guest) -->
+            <button type="button"
+                    class="btn {{ $isOutOfStock ? 'btn-outline-secondary' : 'btn-outline-primary' }} btn-sm w-100 mt-2 fw-bold py-1.5 d-inline-flex align-items-center justify-content-center gap-1.5 btn-add-cart-tokopedia shadow-xs"
+                    onclick="event.stopPropagation(); addToCart(@js($item['id']), @js($item['name']), @js($item['price']), @js($item['unit']), @js($item['icon']))"
+                    @disabled($isOutOfStock)
+                    aria-label="{{ $isOutOfStock ? 'Stok ' . $item['name'] . ' habis' : 'Tambah ' . $item['name'] . ' ke keranjang' }}">
+                @if($isOutOfStock)
+                    <i class="bi bi-slash-circle"></i>
+                    <span>Stok Habis</span>
+                @else
                     <i class="bi bi-cart-plus"></i>
                     <span>+ Keranjang</span>
-                </button>
-            </div>
+                @endif
+            </button>
         @endif
     </div>
 </div>
