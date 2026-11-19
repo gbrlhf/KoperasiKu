@@ -1541,7 +1541,7 @@ const DP = () => cdTable(
         }),
         'Belum ada data produk di database.'
     ),
-    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i class="bi bi-plus-lg"></i> Tambah Produk</button>`
+    `<div class="d-flex flex-wrap align-items-center gap-2"><a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=PRODUK&format=xlsx"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a><a class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=PRODUK&format=csv"><i class="bi bi-filetype-csv"></i><span>CSV</span></a><button type="button" class="btn btn-primary btn-sm" onclick="openAddProductModal()"><i class="bi bi-plus-lg"></i> Tambah Produk</button></div>`
 );
 
 let productPreviewObjectUrl = null;
@@ -1724,7 +1724,7 @@ const DM = () => cdTable(
         }),
         'Belum ada data anggota terdaftar.'
     ),
-    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()"><i class="bi bi-plus-lg"></i> Tambah Anggota</button>`
+    `<div class="d-flex flex-wrap align-items-center gap-2"><a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=ANGGOTA&format=xlsx"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a><a class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=ANGGOTA&format=csv"><i class="bi bi-filetype-csv"></i><span>CSV</span></a><button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()"><i class="bi bi-plus-lg"></i> Tambah Anggota</button></div>`
 );
 
 function openAddMemberModal() {
@@ -1852,7 +1852,7 @@ const DV = () => cdTable(
         }),
         'Belum ada data pemasok tersimpan di tabel suppliers.'
     ),
-    `<button type="button" class="btn btn-primary btn-sm" onclick="openAddSupplierModal()"><i class="bi bi-plus-lg"></i> Tambah Pemasok</button>`
+    `<div class="d-flex flex-wrap align-items-center gap-2"><a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=PEMASOK&format=xlsx"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a><a class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" href="/manager/excel/export?type=PEMASOK&format=csv"><i class="bi bi-filetype-csv"></i><span>CSV</span></a><button type="button" class="btn btn-primary btn-sm" onclick="openAddSupplierModal()"><i class="bi bi-plus-lg"></i> Tambah Pemasok</button></div>`
 );
 
 function openAddSupplierModal() {
@@ -1973,13 +1973,13 @@ function renderImportWizard() {
         ib.innerHTML = cd('Unggah File Excel / CSV', `
             <form id="importUploadForm" onsubmit="submitImportUpload(event)">
                 <div class="row g-3">
-                    <div class="col-12 col-md-6">${fl('Jenis Data', `<select class="form-select" id="impType" onchange="toggleImportCutoffField(this.value)"><option value="PRODUK">Produk &amp; Harga</option><option value="ANGGOTA">Anggota Koperasi</option><option value="STOK">Stok Awal (Cut-Off)</option><option value="TRANSAKSI">Histori Transaksi</option></select>`)}</div>
+                    <div class="col-12 col-md-6">${fl('Jenis Data', `<select class="form-select" id="impType" onchange="toggleImportCutoffField(this.value)"><option value="PRODUK">Produk &amp; Harga</option><option value="ANGGOTA">Anggota Koperasi</option><option value="PEMASOK">Pemasok / Supplier</option><option value="STOK">Stok Awal (Cut-Off)</option><option value="TRANSAKSI">Histori Transaksi</option></select>`)}</div>
                     <div class="col-12 col-md-6">${fl('File XLSX / CSV', '<input class="form-control" type="file" id="impFile" accept=".xlsx,.xls,.csv" required>')}</div>
                 </div>
                 <div id="impCutoffWrap" class="d-none">
                     ${fl('Tanggal Cut-Off Stok Awal (Wajib untuk Stok Awal)', '<input class="form-control" type="date" id="impCutoffDate">')}
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm px-3" id="btnUploadImport">Unggah &amp; Validasi Preview</button>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2"><button type="submit" class="btn btn-primary btn-sm px-3" id="btnUploadImport"><i class="bi bi-upload me-1"></i>Unggah &amp; Validasi Preview</button><button type="button" class="btn btn-outline-success btn-sm px-3" onclick="window.location.href='/manager/excel/template?type='+encodeURIComponent($('#impType').value)+'&format=xlsx'"><i class="bi bi-file-earmark-arrow-down me-1"></i>Unduh Template (.xlsx)</button><button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="window.location.href='/manager/excel/template?type='+encodeURIComponent($('#impType').value)+'&format=csv'"><i class="bi bi-filetype-csv me-1"></i>Template (.csv)</button><button type="button" class="btn btn-outline-primary btn-sm px-3" onclick="window.location.href='/manager/excel/export?type='+encodeURIComponent($('#impType').value)+'&format=xlsx'"><i class="bi bi-box-arrow-up-right me-1"></i>Ekspor Data Saat Ini (.xlsx)</button></div>
             </form>
         `);
     } else if (state.importStep === 1) {
@@ -1993,7 +1993,7 @@ function renderImportWizard() {
             ${tb(['Baris', 'Identitas', 'Masalah'], errors.map(er => [er.row_number ?? '-', escapeHtml(er.identifier || '-'), pl(er.message || 'Error', 'r')]), 'Tidak ada error validasi.')}
             <div class="d-flex gap-2 mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=0;renderImportWizard()">Kembali</button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="state.importStep=2;renderImportWizard()">Lanjut ke Konfirmasi</button>
+                <button type="button" class="btn btn-primary btn-sm" ${(pv.valid_count ?? 0) === 0 ? 'disabled' : ''} onclick="state.importStep=2;renderImportWizard()">Lanjut ke Konfirmasi</button>${errors.length && state.importBatch?.id ? '<a class="btn btn-outline-danger btn-sm" href="/manager/excel/errors/'+encodeURIComponent(state.importBatch.id)+'"><i class="bi bi-download me-1"></i>Ekspor Baris Error (.xlsx)</a>' : ''}
             </div>
         `);
     } else if (state.importStep === 2) {
@@ -2013,7 +2013,7 @@ function renderImportWizard() {
     } else {
         ib.innerHTML = cd('Impor Selesai', `
             <div class="alert alert-success small mb-3">Data impor berhasil disimpan dan aman dari duplikasi.</div>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="state.importStep=0;renderImportWizard()">Impor Berkas Baru</button>
+            <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary btn-sm" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i>Muat Ulang Tabel Data</button><button type="button" class="btn btn-outline-primary btn-sm" onclick="state.importStep=0;renderImportWizard()">Impor Berkas Baru</button></div>
         `);
     }
 }
