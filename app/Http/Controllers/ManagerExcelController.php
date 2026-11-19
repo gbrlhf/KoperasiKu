@@ -175,7 +175,11 @@ class ManagerExcelController extends Controller
             'cut_off_date' => ['nullable', 'date'],
         ]);
 
-        $type = $this->normalizeType((string) $request->input('type'));
+        try {
+            $type = $this->normalizeType((string) $request->input('type'), strict: true);
+        } catch (Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
         $file = $request->file('file');
         $ext = strtolower($file->getClientOriginalExtension());
 
@@ -194,17 +198,19 @@ class ManagerExcelController extends Controller
             $d = $entry['data'];
 
             if ($type === 'PRODUK') {
-                $sku = trim((string) ($d['kode_barang'] ?? $d['sku'] ?? ''));
-                $barcode = trim((string) ($d['barcode'] ?? ''));
-                $name = trim((string) ($d['nama'] ?? $d['name'] ?? ''));
-                $category = trim((string) ($d['kategori'] ?? $d['category'] ?? 'Sembako & Beras'));
-                $supCode = trim((string) ($d['kode_pemasok'] ?? $d['supplier_code'] ?? ''));
-                $unit = trim((string) ($d['satuan'] ?? $d['unit'] ?? 'Pcs'));
-                $costRaw = $d['harga_modal'] ?? $d['current_cost'] ?? '';
-                $priceRaw = $d['harga_jual'] ?? $d['harga'] ?? $d['selling_price'] ?? '';
-                $stockRaw = $d['stok_awal'] ?? $d['stok'] ?? $d['stock'] ?? '';
-                $minStockRaw = $d['min_stok'] ?? $d['reorder_point'] ?? '10';
-                $statusRaw = strtoupper(trim((string) ($d['status'] ?? 'ACTIVE')));
+                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku', 'kode']));
+                $barcode = trim((string) $this->pick($d, ['barcode']));
+                $name = trim((string) $this->pick($d, ['nama', 'nama_produk', 'nama_barang', 'produk', 'name']));
+                $category = trim((string) $this->pick($d, ['kategori', 'category', 'category_name'], 'Sembako & Beras'));
+                $supCode = trim((string) $this->pick($d, ['kode_pemasok', 'supplier_code', 'pemasok']));
+                $unit = trim((string) $this->pick($d, ['satuan', 'unit'], 'Pcs'));
+                $costRaw = $this->pick($d, ['harga_modal', 'harga_beli', 'modal', 'harga_pokok', 'hpp', 'current_cost', 'cost'], '0');
+                $costRaw = $costRaw === '' ? '0' : $costRaw;
+                $priceRaw = $this->pick($d, ['harga_jual', 'harga', 'selling_price', 'price']);
+                $stockRaw = $this->pick($d, ['stok_awal', 'stok', 'stock', 'initial_stock']);
+                $minStockRaw = $this->pick($d, ['min_stok', 'min_stock', 'stok_minimum', 'reorder_point'], '10');
+                $minStockRaw = $minStockRaw === '' ? '10' : $minStockRaw;
+                $statusRaw = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($sku === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'Kode barang (SKU) kosong'];
@@ -245,27 +251,31 @@ class ManagerExcelController extends Controller
                     'is_active' => !in_array($statusRaw, ['INACTIVE', 'NONAKTIF', '0', 'FALSE'], true),
                 ];
             } elseif ($type === 'ANGGOTA') {
-                $memberNo = trim((string) ($d['no_anggota'] ?? $d['member_number'] ?? ''));
-                $empNo = trim((string) ($d['id_karyawan'] ?? $d['employee_number'] ?? $memberNo));
-                $fullName = trim((string) ($d['nama_lengkap'] ?? $d['nama'] ?? $d['full_name'] ?? ''));
-                $dept = trim((string) ($d['divisi'] ?? $d['department'] ?? 'Umum'));
-                $email = strtolower(trim((string) ($d['email'] ?? '')));
-                $status = strtoupper(trim((string) ($d['status'] ?? 'ACTIVE')));
+                $memberNo = trim((string) $this->pick($d, ['nim_nip', 'nim', 'nip', 'no_anggota', 'member_number', 'nomor_anggota', 'kode_anggota', 'id_karyawan', 'employee_number']));
+                $empNo = trim((string) $this->pick($d, ['id_karyawan', 'employee_number', 'nip', 'nim', 'nim_nip', 'no_anggota', 'member_number'], $memberNo));
+                $fullName = trim((string) $this->pick($d, ['nama_lengkap', 'nama', 'full_name', 'name']));
+                $dept = trim((string) $this->pick($d, ['jurusan', 'department', 'divisi', 'unit_kerja', 'unit'], 'Umum'));
+                $email = strtolower(trim((string) $this->pick($d, ['email'])));
+                $status = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($memberNo === '') {
-                    $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'No. anggota kosong'];
+                    $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'NIM / NIP / No. anggota kosong'];
                     continue;
                 }
                 if ($fullName === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $memberNo, 'message' => 'Nama lengkap kosong'];
                     continue;
                 }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $memberNo, 'message' => 'Format email tidak valid'];
                     continue;
                 }
 
-                if (Member::where('member_number', $memberNo)->exists() || User::whereRaw('LOWER(email) = ?', [$email])->exists()) {
+                $dupMember = Member::where('member_number', $memberNo)
+                    ->orWhere('employee_number', $empNo !== '' ? $empNo : $memberNo)
+                    ->exists();
+                $dupEmail = $email !== '' && User::whereRaw('LOWER(email) = ?', [$email])->exists();
+                if ($dupMember || $dupEmail) {
                     $duplicateCount++;
                 }
 
@@ -274,16 +284,17 @@ class ManagerExcelController extends Controller
                     'employee_number' => $empNo !== '' ? $empNo : $memberNo,
                     'full_name' => $fullName,
                     'department' => $dept !== '' ? $dept : 'Umum',
-                    'email' => $email,
+                    'email' => $email !== '' ? $email : null,
                     'status' => in_array($status, ['ACTIVE', 'INACTIVE'], true) ? $status : 'ACTIVE',
                 ];
             } elseif ($type === 'PEMASOK') {
-                $code = strtoupper(trim((string) ($d['kode_pemasok'] ?? $d['code'] ?? '')));
-                $name = trim((string) ($d['nama_pemasok'] ?? $d['nama'] ?? $d['name'] ?? ''));
-                $phone = trim((string) ($d['kontak'] ?? $d['phone'] ?? ''));
-                $address = trim((string) ($d['alamat'] ?? $d['address'] ?? ''));
-                $leadRaw = $d['lead_time_hari'] ?? $d['lead_time_days'] ?? $d['lead_time'] ?? '2';
-                $statusRaw = strtoupper(trim((string) ($d['status'] ?? 'ACTIVE')));
+                $code = strtoupper(trim((string) $this->pick($d, ['kode_pemasok', 'kode', 'code'])));
+                $name = trim((string) $this->pick($d, ['nama_pemasok', 'nama', 'name']));
+                $phone = trim((string) $this->pick($d, ['kontak', 'telepon', 'no_hp', 'phone']));
+                $address = trim((string) $this->pick($d, ['alamat', 'address']));
+                $leadRaw = $this->pick($d, ['lead_time_hari', 'lead_time_days', 'lead_time'], '2');
+                $leadRaw = $leadRaw === '' ? '2' : $leadRaw;
+                $statusRaw = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($code === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'Kode pemasok kosong'];
@@ -311,9 +322,9 @@ class ManagerExcelController extends Controller
                     'is_active' => !in_array($statusRaw, ['INACTIVE', 'NONAKTIF', '0', 'FALSE'], true),
                 ];
             } elseif ($type === 'STOK') {
-                $sku = trim((string) ($d['kode_barang'] ?? $d['sku'] ?? ''));
-                $stockRaw = $d['stok_fisik'] ?? $d['stok_awal'] ?? $d['stok'] ?? '';
-                $costRaw = $d['harga_modal_baru'] ?? $d['harga_modal'] ?? '';
+                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku', 'kode']));
+                $stockRaw = $this->pick($d, ['stok_fisik', 'stok_awal', 'stok', 'qty', 'quantity', 'jumlah', 'on_hand']);
+                $costRaw = $this->pick($d, ['harga_modal_baru', 'harga_modal', 'harga_beli', 'hpp', 'unit_cost', 'current_cost', 'cost']);
 
                 if ($sku === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'Kode barang (SKU) kosong'];
@@ -339,10 +350,10 @@ class ManagerExcelController extends Controller
                     'new_cost' => $costRaw !== '' ? (float) $costRaw : null,
                 ];
             } elseif ($type === 'TRANSAKSI') {
-                $ref = trim((string) ($d['no_referensi'] ?? $d['nomor_transaksi'] ?? ''));
-                $sku = trim((string) ($d['kode_barang'] ?? $d['sku'] ?? ''));
-                $qty = $d['qty'] ?? $d['jumlah'] ?? '';
-                $price = $d['harga_satuan'] ?? $d['harga'] ?? '';
+                $ref = trim((string) $this->pick($d, ['no_referensi', 'nomor_transaksi']));
+                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku']));
+                $qty = $this->pick($d, ['qty', 'quantity', 'jumlah']);
+                $price = $this->pick($d, ['harga_satuan', 'harga']);
 
                 if ($ref === '' || $sku === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $ref ?: '—', 'message' => 'No. referensi dan kode barang wajib diisi'];
@@ -521,22 +532,30 @@ class ManagerExcelController extends Controller
                 }
             } elseif ($type === 'ANGGOTA') {
                 foreach ($rows as $r) {
-                    $user = User::whereRaw('LOWER(email) = ?', [strtolower($r['email'])])->first();
-                    if (!$user) {
-                        $user = new User(['email' => strtolower($r['email'])]);
-                        $user->password_hash = Hash::make('password123');
+                    $email = isset($r['email']) && trim((string) $r['email']) !== ''
+                        ? strtolower(trim((string) $r['email']))
+                        : null;
+
+                    $user = null;
+                    if ($email !== null) {
+                        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+                        if (!$user) {
+                            $user = new User(['email' => $email]);
+                            $user->password_hash = Hash::make('password123');
+                        }
+                        $user->status = $r['status'] === 'ACTIVE' ? 'active' : 'inactive';
+                        $user->save();
+                        $user->roles()->syncWithoutDetaching(['MEMBER']);
                     }
-                    $user->status = $r['status'] === 'ACTIVE' ? 'active' : 'inactive';
-                    $user->save();
-                    $user->roles()->syncWithoutDetaching(['MEMBER']);
 
                     $member = Member::where('member_number', $r['member_number'])
-                        ->orWhere('user_id', $user->id)
+                        ->orWhere('employee_number', $r['employee_number'])
+                        ->when($user, fn ($q) => $q->orWhere('user_id', $user->id))
                         ->first();
 
                     if ($member) {
                         $member->update([
-                            'user_id' => $user->id,
+                            'user_id' => $user?->id ?? $member->user_id,
                             'employee_number' => $r['employee_number'],
                             'member_number' => $r['member_number'],
                             'full_name' => $r['full_name'],
@@ -545,7 +564,7 @@ class ManagerExcelController extends Controller
                         ]);
                     } else {
                         $member = Member::create([
-                            'user_id' => $user->id,
+                            'user_id' => $user?->id,
                             'employee_number' => $r['employee_number'],
                             'member_number' => $r['member_number'],
                             'full_name' => $r['full_name'],
@@ -647,21 +666,31 @@ class ManagerExcelController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
-    private function normalizeType(string $raw): string
+    /**
+     * Resolve the first non-null column value from a list of normalized header aliases.
+     */
+    private function pick(array $row, array $aliases, mixed $default = ''): mixed
+    {
+        foreach ($aliases as $key) {
+            if (array_key_exists($key, $row) && $row[$key] !== null && trim((string) $row[$key]) !== '') {
+                return $row[$key];
+            }
+        }
+        return $default;
+    }
+
+    private function normalizeType(string $raw, bool $strict = false): string
     {
         $v = strtoupper(trim($raw));
-        if (str_contains($v, 'ANGGOTA')) {
-            return 'ANGGOTA';
-        }
-        if (str_contains($v, 'PEMASOK') || str_contains($v, 'SUPPLIER')) {
-            return 'PEMASOK';
-        }
-        if (str_contains($v, 'STOK')) {
-            return 'STOK';
-        }
-        if (str_contains($v, 'TRANSAKSI')) {
-            return 'TRANSAKSI';
-        }
-        return 'PRODUK';
+        return match ($v) {
+            'PRODUK', 'PRODUCTS', 'PRODUCT' => 'PRODUK',
+            'ANGGOTA', 'MEMBERS', 'MEMBER' => 'ANGGOTA',
+            'PEMASOK', 'SUPPLIERS', 'SUPPLIER' => 'PEMASOK',
+            'STOK', 'STOCK', 'STOCK_OPENING' => 'STOK',
+            'TRANSAKSI', 'TRANSACTIONS', 'TRANSACTION' => 'TRANSAKSI',
+            default => $strict
+                ? throw new \InvalidArgumentException("Tipe impor '{$raw}' tidak valid. Pilih PRODUK, ANGGOTA, PEMASOK, STOK, atau TRANSAKSI.")
+                : 'PRODUK',
+        };
     }
 }

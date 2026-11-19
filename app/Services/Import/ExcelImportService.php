@@ -12,10 +12,12 @@ use App\Models\Member;
 use App\Models\MemberCreditAccount;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Services\AuditService;
 use App\Services\InventoryService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use ZipArchive;
 
@@ -24,12 +26,16 @@ class ExcelImportService
     public const TYPE_MAP = [
         'PRODUK' => 'PRODUCTS',
         'PRODUCTS' => 'PRODUCTS',
+        'PRODUCT' => 'PRODUCTS',
         'ANGGOTA' => 'MEMBERS',
         'MEMBERS' => 'MEMBERS',
+        'MEMBER' => 'MEMBERS',
         'STOK' => 'STOCK_OPENING',
+        'STOCK' => 'STOCK_OPENING',
         'STOCK_OPENING' => 'STOCK_OPENING',
         'PEMASOK' => 'SUPPLIERS',
         'SUPPLIERS' => 'SUPPLIERS',
+        'SUPPLIER' => 'SUPPLIERS',
     ];
 
     public function __construct(
@@ -230,12 +236,34 @@ class ExcelImportService
         });
     }
 
+    private function normalizeHeaderName(string $header): string
+    {
+        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $header);
+        $clean = strtolower(trim((string) $clean));
+        $clean = preg_replace('/[^a-z0-9_]+/', '_', $clean);
+
+        return trim((string) $clean, '_');
+    }
+
+    private function pickValue(array $raw, array $aliases, mixed $default = ''): mixed
+    {
+        foreach ($aliases as $key) {
+            if (array_key_exists($key, $raw) && $raw[$key] !== null && trim((string) $raw[$key]) !== '') {
+                return $raw[$key];
+            }
+        }
+
+        return $default;
+    }
+
     private function normalizeRowKeys(array $raw): array
     {
         $out = [];
         foreach ($raw as $k => $v) {
-            $key = Str::slug((string) $k, '_');
-            $out[$key] = is_string($v) ? trim($v) : $v;
+            $key = $this->normalizeHeaderName((string) $k);
+            if ($key !== '') {
+                $out[$key] = is_string($v) ? trim($v) : $v;
+            }
         }
 
         return $out;
@@ -284,12 +312,15 @@ class ExcelImportService
 
             return [];
         }
-        $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+        $firstLine = preg_replace('/^\xEF\xBB\xBF/', '', $firstLine);
+        $delimiter = substr_count((string) $firstLine, ';') > substr_count((string) $firstLine, ',') ? ';' : ',';
         rewind($handle);
 
         $rows = [];
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
-            $rows[] = $data;
+            if (! empty($data)) {
+                $rows[] = array_values($data);
+            }
         }
         fclose($handle);
 
@@ -341,32 +372,76 @@ class ExcelImportService
             return [];
         }
 
-        $rows = [];
+        $sparseRows = [];
+        $maxCol = 0;
         foreach ($sheet->sheetData->row as $row) {
-            $rowData = [];
+            $rowCells = [];
+            $nextCol = 0;
             foreach ($row->c as $cell) {
                 $ref = (string) ($cell['r'] ?? '');
-                $colLetters = preg_replace('/[0-9]+/', '', $ref);
-                $colIndex = $this->columnLettersToIndex($colLetters);
-
-                $type = (string) ($cell['t'] ?? '');
-                $val = (string) ($cell->v ?? '');
-                if ($type === 's') {
-                    $idx = (int) $val;
-                    $val = $sharedStrings[$idx] ?? $val;
-                } elseif ($type === 'inlineStr') {
-                    $val = (string) ($cell->is->t ?? '');
+                $colLetters = preg_replace('/[^A-Za-z]/', '', $ref);
+                if ($colLetters !== '') {
+                    $colIndex = $this->columnLettersToIndex($colLetters);
+                    $nextCol = $colIndex + 1;
+                } else {
+                    $colIndex = $nextCol;
+                    $nextCol++;
                 }
 
-                while (count($rowData) < $colIndex) {
-                    $rowData[] = '';
-                }
-                $rowData[$colIndex] = $val;
+                $maxCol = max($maxCol, $colIndex);
+                $rowCells[$colIndex] = trim($this->extractXlsxCellValue($cell, $sharedStrings));
             }
-            $rows[] = $rowData;
+
+            $hasContent = false;
+            foreach ($rowCells as $v) {
+                if ($v !== '') {
+                    $hasContent = true;
+                    break;
+                }
+            }
+
+            if ($hasContent) {
+                $sparseRows[] = $rowCells;
+            }
+        }
+
+        $rows = [];
+        foreach ($sparseRows as $rowCells) {
+            $dense = [];
+            for ($c = 0; $c <= $maxCol; $c++) {
+                $dense[$c] = $rowCells[$c] ?? '';
+            }
+            $rows[] = $dense;
         }
 
         return $this->rowsArrayToAssociative($rows);
+    }
+
+    private function extractXlsxCellValue(\SimpleXMLElement $cell, array $sharedStrings): string
+    {
+        $type = (string) ($cell['t'] ?? '');
+        if ($type === 's') {
+            $idx = (int) ($cell->v ?? -1);
+
+            return (string) ($sharedStrings[$idx] ?? '');
+        }
+        if ($type === 'inlineStr') {
+            if (isset($cell->is->t)) {
+                return (string) $cell->is->t;
+            }
+            if (isset($cell->is->r)) {
+                $text = '';
+                foreach ($cell->is->r as $run) {
+                    $text .= (string) ($run->t ?? '');
+                }
+
+                return $text;
+            }
+
+            return '';
+        }
+
+        return (string) ($cell->v ?? '');
     }
 
     private function columnLettersToIndex(string $letters): int
@@ -391,11 +466,10 @@ class ExcelImportService
             return [];
         }
 
-        $headers = array_map(function ($h) {
-            $clean = preg_replace('/^\xEF\xBB\xBF/', '', trim((string) $h));
-
-            return Str::slug($clean, '_');
-        }, $rows[0]);
+        $headers = [];
+        foreach ($rows[0] as $idx => $h) {
+            $headers[$idx] = $this->normalizeHeaderName((string) $h);
+        }
 
         $result = [];
         foreach (array_slice($rows, 1) as $row) {
@@ -419,15 +493,15 @@ class ExcelImportService
     private function validateProductRow(array $raw): array
     {
         $errors = [];
-        $sku = trim((string) ($raw['sku'] ?? $raw['kode_sku'] ?? $raw['kode'] ?? ''));
-        $barcode = trim((string) ($raw['barcode'] ?? '')) ?: null;
-        $name = trim((string) ($raw['name'] ?? $raw['nama_produk'] ?? $raw['nama'] ?? ''));
-        $categoryName = trim((string) ($raw['category_name'] ?? $raw['category'] ?? $raw['kategori'] ?? 'Umum'));
-        $unit = trim((string) ($raw['unit'] ?? $raw['satuan'] ?? 'pcs')) ?: 'pcs';
-        $sellingPrice = $raw['selling_price'] ?? $raw['harga_jual'] ?? $raw['price'] ?? null;
-        $currentCost = $raw['current_cost'] ?? $raw['harga_pokok'] ?? $raw['hpp'] ?? $raw['cost'] ?? 0;
-        $reorderPoint = (int) ($raw['reorder_point'] ?? $raw['min_stock'] ?? $raw['stok_minimum'] ?? 5);
-        $initialStock = (int) ($raw['initial_stock'] ?? $raw['stok_awal'] ?? $raw['stok'] ?? 0);
+        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'kode']));
+        $barcode = trim((string) $this->pickValue($raw, ['barcode'])) ?: null;
+        $name = trim((string) $this->pickValue($raw, ['name', 'nama_produk', 'nama_barang', 'nama', 'produk']));
+        $categoryName = trim((string) $this->pickValue($raw, ['category_name', 'category', 'kategori'], 'Umum'));
+        $unit = trim((string) $this->pickValue($raw, ['unit', 'satuan'], 'pcs')) ?: 'pcs';
+        $sellingPrice = $this->pickValue($raw, ['selling_price', 'harga_jual', 'harga', 'price'], null);
+        $currentCost = $this->pickValue($raw, ['current_cost', 'harga_pokok', 'harga_modal', 'harga_beli', 'modal', 'hpp', 'cost'], 0);
+        $reorderPoint = (int) $this->pickValue($raw, ['reorder_point', 'min_stock', 'min_stok', 'stok_minimum'], 5);
+        $initialStock = (int) $this->pickValue($raw, ['initial_stock', 'stok_awal', 'stok', 'stock'], 0);
 
         if ($sku === '') {
             $errors[] = ['field' => 'sku', 'code' => 'REQUIRED', 'message' => 'SKU wajib diisi.'];
@@ -469,15 +543,16 @@ class ExcelImportService
     private function validateMemberRow(array $raw): array
     {
         $errors = [];
-        $employeeNumber = trim((string) ($raw['employee_number'] ?? $raw['nip'] ?? $raw['nim'] ?? $raw['member_number'] ?? $raw['no_anggota'] ?? ''));
-        $memberNumber = trim((string) ($raw['member_number'] ?? $raw['no_anggota'] ?? $employeeNumber));
-        $fullName = trim((string) ($raw['full_name'] ?? $raw['nama_lengkap'] ?? $raw['name'] ?? $raw['nama'] ?? ''));
-        $department = trim((string) ($raw['department'] ?? $raw['unit_kerja'] ?? $raw['divisi'] ?? 'Umum')) ?: 'Umum';
+        $employeeNumber = trim((string) $this->pickValue($raw, ['employee_number', 'nim_nip', 'nip', 'nim', 'id_karyawan', 'member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota']));
+        $memberNumber = trim((string) $this->pickValue($raw, ['member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota', 'nim_nip', 'nim', 'nip', 'employee_number', 'id_karyawan'], $employeeNumber));
+        $fullName = trim((string) $this->pickValue($raw, ['full_name', 'nama_lengkap', 'name', 'nama']));
+        $department = trim((string) $this->pickValue($raw, ['department', 'jurusan', 'unit_kerja', 'divisi', 'unit'], 'Umum')) ?: 'Umum';
+        $email = strtolower(trim((string) $this->pickValue($raw, ['email'])));
 
         if ($employeeNumber === '') {
-            $errors[] = ['field' => 'employee_number', 'code' => 'REQUIRED', 'message' => 'NIP / Nomor Pegawai wajib diisi.'];
+            $errors[] = ['field' => 'employee_number', 'code' => 'REQUIRED', 'message' => 'NIM / NIP / Nomor Pegawai wajib diisi.'];
         } elseif (Member::where('employee_number', $employeeNumber)->exists()) {
-            $errors[] = ['field' => 'employee_number', 'code' => 'DUPLICATE_DB', 'message' => "NIP '{$employeeNumber}' sudah terdaftar."];
+            $errors[] = ['field' => 'employee_number', 'code' => 'DUPLICATE_DB', 'message' => "NIM / NIP '{$employeeNumber}' sudah terdaftar."];
         }
 
         if ($memberNumber === '') {
@@ -490,11 +565,16 @@ class ExcelImportService
             $errors[] = ['field' => 'full_name', 'code' => 'REQUIRED', 'message' => 'Nama lengkap anggota wajib diisi.'];
         }
 
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = ['field' => 'email', 'code' => 'INVALID_EMAIL', 'message' => 'Format email tidak valid.'];
+        }
+
         $normalized = [
             'employee_number' => $employeeNumber,
             'member_number' => $memberNumber,
             'full_name' => $fullName,
             'department' => $department,
+            'email' => $email !== '' ? $email : null,
         ];
 
         return [$normalized, $errors, $employeeNumber !== '' ? $employeeNumber : null];
@@ -503,9 +583,9 @@ class ExcelImportService
     private function validateStockOpeningRow(array $raw): array
     {
         $errors = [];
-        $sku = trim((string) ($raw['sku'] ?? $raw['kode_sku'] ?? ''));
-        $qty = $raw['quantity'] ?? $raw['on_hand'] ?? $raw['qty'] ?? $raw['stok'] ?? null;
-        $unitCost = $raw['unit_cost'] ?? $raw['current_cost'] ?? $raw['hpp'] ?? null;
+        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'kode']));
+        $qty = $this->pickValue($raw, ['quantity', 'on_hand', 'qty', 'stok_fisik', 'stok_awal', 'stok', 'jumlah'], null);
+        $unitCost = $this->pickValue($raw, ['unit_cost', 'current_cost', 'harga_modal_baru', 'harga_modal', 'harga_beli', 'hpp', 'cost'], null);
 
         $product = $sku !== '' ? Product::where('sku', $sku)->first() : null;
         if (! $product) {
@@ -529,10 +609,10 @@ class ExcelImportService
     private function validateSupplierRow(array $raw): array
     {
         $errors = [];
-        $code = trim((string) ($raw['code'] ?? $raw['kode'] ?? $raw['kode_pemasok'] ?? ''));
-        $name = trim((string) ($raw['name'] ?? $raw['nama'] ?? $raw['nama_pemasok'] ?? ''));
-        $phone = trim((string) ($raw['phone'] ?? $raw['telepon'] ?? $raw['no_hp'] ?? '')) ?: null;
-        $address = trim((string) ($raw['address'] ?? $raw['alamat'] ?? '')) ?: null;
+        $code = trim((string) $this->pickValue($raw, ['code', 'kode', 'kode_pemasok']));
+        $name = trim((string) $this->pickValue($raw, ['name', 'nama', 'nama_pemasok']));
+        $phone = trim((string) $this->pickValue($raw, ['phone', 'kontak', 'telepon', 'no_hp'])) ?: null;
+        $address = trim((string) $this->pickValue($raw, ['address', 'alamat'])) ?: null;
 
         if ($code === '' && $name !== '') {
             $code = 'SUP-'.strtoupper(Str::random(5));
@@ -594,7 +674,22 @@ class ExcelImportService
 
     private function commitMemberRow(array $data): void
     {
+        $userId = null;
+        if (! empty($data['email'])) {
+            $email = strtolower(trim((string) $data['email']));
+            $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+            if (! $user) {
+                $user = new User(['email' => $email]);
+                $user->password_hash = Hash::make('password123');
+                $user->status = 'active';
+                $user->save();
+            }
+            $user->roles()->syncWithoutDetaching(['MEMBER']);
+            $userId = $user->id;
+        }
+
         $member = Member::create([
+            'user_id' => $userId,
             'employee_number' => $data['employee_number'],
             'member_number' => $data['member_number'],
             'full_name' => $data['full_name'],

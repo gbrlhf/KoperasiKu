@@ -112,28 +112,38 @@ class SimpleXlsxService
         }
 
         $grid = [];
+        $seqRow = 0;
         foreach ($xml->sheetData->row as $row) {
+            $seqRow++;
+            $excelRowNum = (int) ($row['r'] ?? $seqRow);
             $rowCells = [];
+            $nextCol = 0;
             foreach ($row->c as $cell) {
                 $ref = (string) ($cell['r'] ?? '');
-                $colLetters = preg_replace('/[0-9]/', '', $ref);
-                $colIdx = $colLetters !== '' ? $this->columnLettersToIndex($colLetters) : count($rowCells);
-
-                $type = (string) ($cell['t'] ?? '');
-                if ($type === 's') {
-                    $idx = (int) ($cell->v ?? -1);
-                    $val = $sharedStrings[$idx] ?? '';
-                } elseif ($type === 'inlineStr') {
-                    $val = (string) ($cell->is->t ?? '');
+                $colLetters = preg_replace('/[^A-Za-z]/', '', $ref);
+                if ($colLetters !== '') {
+                    $colIdx = $this->columnLettersToIndex($colLetters);
+                    $nextCol = $colIdx + 1;
                 } else {
-                    $val = (string) ($cell->v ?? '');
+                    $colIdx = $nextCol;
+                    $nextCol++;
                 }
 
+                $val = $this->extractCellValue($cell, $sharedStrings);
                 $rowCells[$colIdx] = trim($val);
             }
-            if (!empty($rowCells)) {
+
+            $hasContent = false;
+            foreach ($rowCells as $v) {
+                if ($v !== '') {
+                    $hasContent = true;
+                    break;
+                }
+            }
+
+            if ($hasContent) {
                 ksort($rowCells);
-                $grid[] = $rowCells;
+                $grid[] = ['row_num' => $excelRowNum > 0 ? $excelRowNum : $seqRow, 'cells' => $rowCells];
             }
         }
 
@@ -141,7 +151,7 @@ class SimpleXlsxService
             throw new RuntimeException('File Excel kosong atau hanya berisi header tanpa baris data.');
         }
 
-        $headerRow = $grid[0];
+        $headerRow = $grid[0]['cells'];
         $maxCol = max(array_keys($headerRow));
         $headers = [];
         for ($c = 0; $c <= $maxCol; $c++) {
@@ -150,7 +160,7 @@ class SimpleXlsxService
 
         $rows = [];
         for ($r = 1; $r < count($grid); $r++) {
-            $cells = $grid[$r];
+            $cells = $grid[$r]['cells'];
             $assoc = [];
             $hasValue = false;
             foreach ($headers as $c => $key) {
@@ -164,11 +174,40 @@ class SimpleXlsxService
                 $assoc[$key] = $val;
             }
             if ($hasValue) {
-                $rows[] = ['row_num' => $r + 1, 'data' => $assoc];
+                $rows[] = ['row_num' => $grid[$r]['row_num'], 'data' => $assoc];
             }
         }
 
         return ['headers' => array_values(array_filter($headers)), 'rows' => $rows];
+    }
+
+    /**
+     * Extract text or numeric value from a worksheet cell element, supporting rich inline strings.
+     */
+    private function extractCellValue(SimpleXMLElement $cell, array $sharedStrings): string
+    {
+        $type = (string) ($cell['t'] ?? '');
+
+        if ($type === 's') {
+            $idx = (int) ($cell->v ?? -1);
+            return (string) ($sharedStrings[$idx] ?? '');
+        }
+
+        if ($type === 'inlineStr') {
+            if (isset($cell->is->t)) {
+                return (string) $cell->is->t;
+            }
+            if (isset($cell->is->r)) {
+                $text = '';
+                foreach ($cell->is->r as $run) {
+                    $text .= (string) ($run->t ?? '');
+                }
+                return $text;
+            }
+            return '';
+        }
+
+        return (string) ($cell->v ?? '');
     }
 
     public function createXlsxTempFile(array $headers, array $rows, string $sheetName = 'KoperasiKu'): string
@@ -257,7 +296,8 @@ class SimpleXlsxService
 
     private function normalizeHeader(string $header): string
     {
-        $h = strtolower(trim($header));
+        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $header);
+        $h = strtolower(trim((string) $clean));
         $h = preg_replace('/[^a-z0-9_]+/', '_', $h);
         return trim((string) $h, '_');
     }

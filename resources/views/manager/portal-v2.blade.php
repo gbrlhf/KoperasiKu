@@ -1830,7 +1830,7 @@ async function submitProductForm(e, productId = null) {
 const DM = () => cdTable(
     'Daftar Anggota &amp; Peran Akses',
     tb(
-        ['Nama Anggota', 'No. Karyawan / Anggota', 'Divisi', 'Role', 'Keanggotaan', 'Piutang', 'Aksi'],
+        ['Nama Anggota', 'NIM / NIP', 'Jurusan', 'Role', 'Keanggotaan', 'Piutang', 'Aksi'],
         BOOTSTRAP.oltp.members.map(m => {
             const mid = escapeHtml(m.id);
             const isMemberActive = String(m.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
@@ -1872,9 +1872,9 @@ function openMemberFormModal(memberId = null) {
             ${fl('Nama Lengkap *', `<input class="form-control" id="mfFullName" required value="${escapeHtml(m?.full_name || '')}" placeholder="Nama lengkap pegawai / anggota">`)}
             <div class="row g-2">
                 <div class="col-12 col-md-6">${fl('Email *', `<input type="email" class="form-control" id="mfEmail" required value="${escapeHtml(m?.email || '')}" placeholder="nama@polman-bandung.ac.id">`)}</div>
-                <div class="col-12 col-md-6">${fl('Nomor Karyawan / Anggota *', `<input class="form-control" id="mfCode" required value="${escapeHtml(currentCode)}" placeholder="Contoh: EMP-001 atau MEM-001">`)}</div>
+                <div class="col-12 col-md-6">${fl('NIM / NIP *', `<input class="form-control" id="mfCode" required value="${escapeHtml(currentCode)}" placeholder="Contoh: 224443075 atau 198501012010011001">`)}</div>
             </div>
-            ${fl('Divisi / Unit Kerja *', `<input class="form-control" id="mfDepartment" required value="${escapeHtml(m?.department || '')}" placeholder="Contoh: Jurusan Teknik Mesin / Umum">`)}
+            ${fl('Jurusan *', `<input class="form-control" id="mfDepartment" required value="${escapeHtml(m?.department || '')}" placeholder="Contoh: Teknik Mesin / Teknik Otomasi Manufaktur">`)}
             <div class="row g-2">
                 <div class="col-6">${fl('Peran Akun *', `
                     <select class="form-select" id="mfRole" required>
@@ -2110,15 +2110,16 @@ function renderImportWizard() {
     } else if (state.importStep === 1) {
         const pv = state.importPreview || {};
         const errors = Array.isArray(pv.errors) ? pv.errors : [];
+        const validCount = Number(pv.valid_count ?? pv.valid_rows ?? 0);
         ib.innerHTML = cd('Pratinjau &amp; Validasi Baris', `
             <div class="d-flex gap-2 mb-3">
-                ${pl(`${pv.valid_count ?? 0} baris valid`, 'g')}
+                ${pl(`${validCount} baris valid`, 'g')}
                 ${pl(`${errors.length} baris error`, errors.length ? 'r' : 'g')}
             </div>
-            ${tb(['Baris', 'Identitas', 'Masalah'], errors.map(er => [er.row_number ?? '-', escapeHtml(er.identifier || '-'), pl(er.message || 'Error', 'r')]), 'Tidak ada error validasi.')}
+            ${tb(['Baris', 'Identitas', 'Masalah'], errors.map(er => [er.row_number ?? '-', escapeHtml(er.identifier || er.field_name || '-'), pl(er.message || 'Error', 'r')]), 'Tidak ada error validasi.')}
             <div class="d-flex gap-2 mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=0;renderImportWizard()">Kembali</button>
-                <button type="button" class="btn btn-primary btn-sm" ${(pv.valid_count ?? 0) === 0 ? 'disabled' : ''} onclick="state.importStep=2;renderImportWizard()">Lanjut ke Konfirmasi</button>${errors.length && state.importBatch?.id ? '<a class="btn btn-outline-danger btn-sm" href="/manager/excel/errors/'+encodeURIComponent(state.importBatch.id)+'"><i class="bi bi-download me-1"></i>Ekspor Baris Error (.xlsx)</a>' : ''}
+                <button type="button" class="btn btn-primary btn-sm" ${validCount === 0 ? 'disabled' : ''} onclick="state.importStep=2;renderImportWizard()">Lanjut ke Konfirmasi</button>${errors.length && state.importBatch?.id ? '<a class="btn btn-outline-danger btn-sm" href="/manager/excel/errors/'+encodeURIComponent(state.importBatch.id)+'"><i class="bi bi-download me-1"></i>Ekspor Baris Error (.xlsx)</a>' : ''}
             </div>
         `);
     } else if (state.importStep === 2) {

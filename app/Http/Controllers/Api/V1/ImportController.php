@@ -29,9 +29,13 @@ class ImportController extends Controller
 
     public function upload(Request $request): JsonResponse
     {
+        $request->merge([
+            'type' => strtoupper(trim((string) $request->input('type', ''))),
+        ]);
+
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:10240'],
-            'type' => ['required', 'string', 'in:PRODUK,ANGGOTA,STOK,PEMASOK,PRODUCTS,MEMBERS,STOCK_OPENING,SUPPLIERS'],
+            'type' => ['required', 'string', 'in:PRODUK,ANGGOTA,STOK,PEMASOK,PRODUCTS,PRODUCT,MEMBERS,MEMBER,STOCK,STOCK_OPENING,SUPPLIERS,SUPPLIER'],
             'cutoff_at' => ['nullable', 'date'],
             'cut_off_date' => ['nullable', 'date'],
         ]);
@@ -96,6 +100,7 @@ class ImportController extends Controller
             foreach ($row->errors as $err) {
                 $flatErrors[] = [
                     'row_number' => $row->row_number,
+                    'identifier' => $row->source_key ?: $err->field_name,
                     'field_name' => $err->field_name,
                     'error_code' => $err->error_code,
                     'message' => $err->error_message,
@@ -104,6 +109,8 @@ class ImportController extends Controller
         }
 
         $arr = $batch->toArray();
+        $arr['valid_count'] = $batch->valid_rows;
+        $arr['duplicate_count'] = $batch->duplicate_rows;
         $arr['errors'] = $flatErrors;
 
         return $arr;
