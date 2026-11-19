@@ -3,18 +3,9 @@
 @section('title', 'Pelayanan Cicilan & Pelunasan Piutang')
 
 @section('header')
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-2">
-        <h4 class="fw-bold mb-0 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
-        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-            <i class="bi bi-wallet2 me-1"></i> Modul Kasir FR-08B
-        </span>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs">
-            <i class="bi bi-shield-check me-1 text-primary"></i> Plafon Global: <strong>Rp {{ number_format($globalCreditLimit ?? 1000000, 0, ',', '.') }}</strong>
-        </span>
-    </div>
+<div>
+    <h4 class="fw-bold mb-1 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
+    <p class="text-secondary small mb-0">Verifikasi saldo tagihan anggota dan catat pembayaran cicilan atau pelunasan piutang di kasir.</p>
 </div>
 @endsection
 

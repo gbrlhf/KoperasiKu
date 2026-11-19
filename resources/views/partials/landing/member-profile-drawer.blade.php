@@ -186,6 +186,7 @@
         </div>
         @endif
 
+        @if(!empty($landingIsMemberRole))
         <!-- 2. KODE PICKUP PESANAN AKTIF (Jika Ada Pesanan Menunggu) -->
         @if(!empty($activeOrders))
             <div class="card border border-primary-subtle rounded-3 p-3 mb-3 bg-primary-subtle bg-opacity-25 shadow-xs">
@@ -245,18 +246,21 @@
                 @endforeach
             </div>
         @endif
+        @endif
 
-        <!-- 4. AKSI AKUN ANGGOTA -->
+        <!-- 4. AKSI AKUN -->
         <div class="pt-2">
             <div class="d-flex gap-2">
                 <a href="{{ route('logout') }}" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Keluar Akun</span>
                 </a>
-                <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
-                    <i class="bi bi-arrow-repeat"></i>
-                    <span>Ganti Akun</span>
-                </a>
+                @if(!empty($landingIsMemberRole))
+                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>Ganti Akun</span>
+                    </a>
+                @endif
             </div>
         </div>
 

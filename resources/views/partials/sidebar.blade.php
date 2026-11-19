@@ -99,7 +99,7 @@
             <li class="nav-item">
                 <a href="{{ route('manager.sistem') }}" data-mgr-page="sys" class="nav-link {{ request()->routeIs('manager.sistem') ? 'active' : '' }}">
                     <i class="bi bi-gear fs-5 me-1"></i>
-                    <span>Sistem &amp; Pengaturan</span>
+                    <span>Sistem &amp; Audit Log</span>
                 </a>
             </li>
         @endif

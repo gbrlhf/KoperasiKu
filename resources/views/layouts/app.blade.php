@@ -9,7 +9,7 @@
     <!-- Vite Assets (Bootstrap 5, Chart.js, Icons, Sass) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     @stack('styles')
-<link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261118-7">
+<link rel="stylesheet" href="{{ asset('css/usability.css') }}?v=20261119-2">
 <style>
     @keyframes appMainFadeIn {
         from { opacity: 0; }
@@ -45,12 +45,12 @@
                 <a href="{{ route('cashier.antrian') }}" class="btn btn-sm {{ request()->routeIs('cashier.antrian') ? 'btn-success' : 'btn-light border' }}">Antrian Pickup</a>
                 <a href="{{ route('cashier.piutang') }}" class="btn btn-sm {{ request()->routeIs('cashier.piutang') ? 'btn-success' : 'btn-light border' }}">Cicilan</a>
             @elseif($role === 'MANAGER')
-                <a href="{{ route('manager.dashboard') }}" class="btn btn-sm {{ request()->routeIs('manager.dashboard') || request()->routeIs('manager.index') ? 'btn-success' : 'btn-light border' }}">Beranda</a>
-                <a href="{{ route('manager.transaksi') }}" class="btn btn-sm {{ request()->routeIs('manager.transaksi') ? 'btn-success' : 'btn-light border' }}">Transaksi</a>
-                <a href="{{ route('manager.piutang') }}" class="btn btn-sm {{ request()->routeIs('manager.piutang') || request()->routeIs('manager.kredit') ? 'btn-success' : 'btn-light border' }}">Piutang &amp; Kredit</a>
-                <a href="{{ route('manager.produk') }}" class="btn btn-sm {{ request()->routeIs('manager.produk') || request()->routeIs('manager.import') ? 'btn-success' : 'btn-light border' }}">Master &amp; Stok</a>
-                <a href="{{ route('manager.laporan') }}" class="btn btn-sm {{ request()->routeIs('manager.laporan') ? 'btn-success' : 'btn-light border' }}">Laporan</a>
-                <a href="{{ route('manager.sistem') }}" class="btn btn-sm {{ request()->routeIs('manager.sistem') ? 'btn-success' : 'btn-light border' }}">Sistem</a>
+                <a href="{{ route('manager.dashboard') }}" data-mgr-page="home" class="btn btn-sm {{ request()->routeIs('manager.dashboard') || request()->routeIs('manager.index') ? 'btn-success' : 'btn-light border' }}">Beranda</a>
+                <a href="{{ route('manager.transaksi') }}" data-mgr-page="ops" class="btn btn-sm {{ request()->routeIs('manager.transaksi') ? 'btn-success' : 'btn-light border' }}">Transaksi</a>
+                <a href="{{ route('manager.piutang') }}" data-mgr-page="ar" class="btn btn-sm {{ request()->routeIs('manager.piutang') || request()->routeIs('manager.kredit') ? 'btn-success' : 'btn-light border' }}">Piutang &amp; Kredit</a>
+                <a href="{{ route('manager.produk') }}" data-mgr-page="data" class="btn btn-sm {{ request()->routeIs('manager.produk') || request()->routeIs('manager.import') ? 'btn-success' : 'btn-light border' }}">Master &amp; Stok</a>
+                <a href="{{ route('manager.laporan') }}" data-mgr-page="rep" class="btn btn-sm {{ request()->routeIs('manager.laporan') ? 'btn-success' : 'btn-light border' }}">Laporan</a>
+                <a href="{{ route('manager.sistem') }}" data-mgr-page="sys" class="btn btn-sm {{ request()->routeIs('manager.sistem') ? 'btn-success' : 'btn-light border' }}">Sistem</a>
             @endif
         </div>
     </div>
@@ -62,7 +62,7 @@
             @include('partials.sidebar')
 
             {{-- Main Content Area --}}
-            <main id="main-content" tabindex="-1" class="main-content app-page-enter flex-grow-1 d-flex flex-column px-4 py-4" style="min-width: 0;">
+            <main id="main-content" tabindex="-1" class="main-content app-page-enter flex-grow-1 d-flex flex-column pt-4 pb-5 px-4" style="min-width: 0;">
                 <div class="container-fluid px-0 w-100 flex-grow-1">
                     {{-- Flash Alert Messages --}}
                     @include('partials.flash-alert')

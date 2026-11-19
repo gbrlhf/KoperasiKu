@@ -381,19 +381,9 @@
 @endpush
 
 @section('header')
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-        <h4 class="fw-bold mb-0 text-dark" id="mgrPageHeading">Portal Manajer &amp; Analitik Koperasi</h4>
-        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-            <i class="bi bi-shop me-1"></i> Gerai Kanayakan Dago
-        </span>
-    </div>
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs" id="etlFreshBadge" title="Status sinkronisasi data analitik &amp; OLTP">
-            <i class="bi bi-database-check text-success me-1"></i>
-            <span>OLTP Real-Time &bull; {{ $managerBootstrap['oltp']['rendered_at'] }}</span>
-        </span>
-    </div>
+<div>
+    <h4 class="fw-bold mb-1 text-dark" id="mgrPageHeading">Portal Manajer &amp; Analitik Koperasi</h4>
+    <p class="text-secondary small mb-0">Pusat kendali transaksi, piutang anggota, master stok, dan laporan analitik koperasi.</p>
 </div>
 @endsection
 
@@ -461,19 +451,19 @@ const toast = t => {
     window.__tsTimer = setTimeout(() => { e.style.display = 'none'; }, 3400);
 };
 
-const cd = (title, body, actions = '') => `
-    <div class="card border-0 shadow-sm bg-white h-100 overflow-hidden">
-        <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+const cd = (title, body, actions = '', cardClass = 'h-100') => `
+    <div class="card border-0 shadow-sm bg-white ${cardClass}">
+        <div class="card-header bg-white px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="card-title fw-bold text-dark mb-0 small">${title}</h6>
             ${actions ? `<div class="d-flex align-items-center gap-2 flex-wrap">${actions}</div>` : ''}
         </div>
-        <div class="card-body p-3 p-md-4">${body}</div>
+        <div class="card-body px-4 py-3">${body}</div>
     </div>
 `;
 
 const cdTable = (title, body, actions = '') => `
     <div class="card border-0 shadow-sm bg-white">
-        <div class="card-header bg-white px-3 px-md-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="card-header bg-white px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="card-title fw-bold text-dark mb-0 small">${title}</h6>
             ${actions ? `<div class="d-flex align-items-center gap-2 flex-wrap">${actions}</div>` : ''}
         </div>
@@ -502,7 +492,7 @@ const tb = (headers, rows, emptyMsg = 'Tidak ada data untuk ditampilkan.') => {
 const fl = (label, inputHtml) => `<div class="mb-3"><label class="form-label small fw-semibold text-secondary mb-1">${label}</label>${inputHtml}</div>`;
 
 const ph = (title, subtitle, rightHtml = '') => `
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-1 mb-4">
         <div class="min-w-0">
             <h5 class="fw-bold text-dark mb-0">${escapeHtml(title)}</h5>
             ${subtitle ? `<small class="text-muted">${escapeHtml(subtitle)}</small>` : ''}
@@ -599,6 +589,12 @@ if (Object.prototype.hasOwnProperty.call(TB, BOOTSTRAP.initial_page)) {
 function syncSidebarActive(pageId) {
     document.querySelectorAll('.sidebar .nav-link[data-mgr-page]').forEach(link => {
         link.classList.toggle('active', link.dataset.mgrPage === pageId);
+    });
+    document.querySelectorAll('.mobile-role-nav a[data-mgr-page]').forEach(link => {
+        const isActive = link.dataset.mgrPage === pageId;
+        link.classList.toggle('btn-success', isActive);
+        link.classList.toggle('btn-light', !isActive);
+        link.classList.toggle('border', !isActive);
     });
 }
 
@@ -701,7 +697,7 @@ function renderAgingBarsHtml(rows) {
                 <div class="mgr-progress-track"><span class="mgr-progress-fill" style="width:${pct}%;background:${b.color}"></span></div>
             </div>
         `;
-    }).join('') + `<small class="text-muted d-block mt-2" style="font-size:0.72rem;">Saldo snapshot dari GET /api/v1/manager/receivables · tidak dijumlahkan lintas hari.</small>`;
+    }).join('') + `<small class="text-muted d-block mt-2" style="font-size:0.72rem;">Saldo snapshot terkini — tidak dijumlahkan lintas hari.</small>`;
 }
 
 function statCardHtml(title, value, sub, iconClass, iconBg, iconColor, valClass = 'text-dark') {
@@ -754,7 +750,7 @@ S.home = () => {
             ${cd('Aging Piutang (5 Kelompok)', '<div id="homeAgingBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="go(\'ar\')">Detail</button>')}
         </div>
         <div class="col-12 col-lg-4">
-            ${cd('Forecast Permintaan (7 / 30 Hari)', '<div id="homeForecastBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="TB.rep=3;go(\'rep\');route()">Detail</button>')}
+            ${cd('Prediksi Permintaan (7 / 30 Hari)', '<div id="homeForecastBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="TB.rep=3;go(\'rep\');route()">Detail</button>')}
         </div>
         <div class="col-12 col-lg-4">
             ${cd('Produk Terlaris &amp; Stok Kritis', '<div id="homeTopProductsBox">Memuat...</div>', '<button type="button" class="btn btn-outline-primary btn-sm pos-btn-compact" onclick="TB.data=0;go(\'data\');route()">Master</button>')}
@@ -794,22 +790,14 @@ async function loadExecutiveDashboard(period = 'month') {
     state.forecasts = forecastRes.status === 'fulfilled' ? (forecastRes.value.data || forecastRes.value) : null;
     state.agingSummary = agingRes.status === 'fulfilled' ? (agingRes.value.data || agingRes.value) : null;
 
-    updateFreshnessBadge();
+    const freshBadge = $('#etlFreshBadge');
+    if (freshBadge) updateFreshnessBadge();
     if ($('#kp')) renderHomeDashboardContent();
 }
 
 function updateFreshnessBadge() {
-    const badge = $('#etlFreshBadge');
-    if (!badge) return;
-    const src = state.analyticsSummary || state.financialReport;
-    if (src && src.last_updated_at) {
-        const stale = Boolean(src.is_stale);
-        badge.className = `badge ${stale ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle'} px-3 py-2 small shadow-xs`;
-        badge.innerHTML = `<i class="bi ${stale ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-1"></i><span>${stale ? 'ETL Stale' : 'Data Mart'} &bull; ${escapeHtml(src.last_updated_at)}</span>`;
-    } else {
-        badge.className = 'badge bg-white text-secondary border px-3 py-2 small shadow-xs';
-        badge.innerHTML = `<i class="bi bi-database-check text-success me-1"></i><span>OLTP Real-Time &bull; ${escapeHtml(BOOTSTRAP.oltp.rendered_at)}</span>`;
-    }
+    const el = $('#etlFreshBadge');
+    if (!el) return;
 }
 
 function renderHomeDashboardContent() {
@@ -846,10 +834,10 @@ function renderHomeDashboardContent() {
     if (banner) {
         const notes = [];
         if (!hasAnalytics) {
-            notes.push('Endpoint analitik periodik (<code>/api/v1/reports/financial</code> &amp; <code>/api/v1/analytics/summary</code>) belum aktif di backend; angka menampilkan ringkasan OLTP terkini dan endpoint piutang/order langsung.');
+            notes.push('Menampilkan ringkasan transaksi operasional terkini.');
         }
         if (isStale) {
-            notes.push(`<strong>ETL Stale:</strong> data mart tertinggal dari transaksi operasional (pembaruan terakhir: ${escapeHtml(fin.last_updated_at || '-')}).`);
+            notes.push(`<strong>Sinkronisasi Tertunda:</strong> data analitik belum terbarui dari transaksi terkini (pembaruan terakhir: ${escapeHtml(fin.last_updated_at || '-')}).`);
         }
         if (cogsIncomplete || expIncomplete) {
             notes.push('<strong>Estimasi / data belum lengkap:</strong> sebagian HPP historis atau biaya operasional belum tercatat penuh.');
@@ -860,7 +848,7 @@ function renderHomeDashboardContent() {
     }
 
     const kpiCards = [
-        ['Omzet Penjualan Selesai', rp(omzet), `${txCount} transaksi COMPLETED`, 'bi-cash-coin', '#ecfdf5', '#059669', 'text-dark'],
+        ['Omzet Penjualan Selesai', rp(omzet), `${txCount} Transaksi Selesai`, 'bi-cash-coin', '#ecfdf5', '#059669', 'text-dark'],
         ['Tunai / Transfer vs Kredit', rp(cashSales), `Penjualan piutang: ${rp(creditSales)}`, 'bi-credit-card-2-front', '#f3f4f6', '#4b5563', 'text-dark'],
         ['HPP & Laba Kotor', rp(grossProfit), `HPP: ${rp(cogs)} · Margin ${marginPct}%`, 'bi-graph-up-arrow', '#ecfdf5', '#059669', 'text-success'],
         ['Biaya & Estimasi Laba Bersih', rp(netProfit), `OPEX: ${rp(opex)} ${(cogsIncomplete || expIncomplete) ? '· estimasi' : ''}`, 'bi-calculator', '#f3f4f6', '#4b5563', 'text-dark'],
@@ -928,11 +916,11 @@ function renderHomeDashboardContent() {
                     escapeHtml(f.sku || f.name || '-'),
                     f.forecast_7d ?? '-',
                     f.forecast_30d ?? '-',
-                    f.insufficient_data ? pl('insufficient_data', 'o') : pl(f.model_version || 'Model OK', 'g')
+                    f.insufficient_data ? pl('Data Histori Kurang', 'o') : pl(f.model_version || 'Siap', 'g')
                 ])
             );
         } else {
-            forecastBox.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi 7/30 hari (<code>GET /api/v1/analytics/forecasts</code>) belum tersedia pada branch ini.</div>';
+            forecastBox.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi permintaan dan saran restok belum tersedia saat ini.</div>';
         }
     }
 
@@ -949,7 +937,7 @@ function renderHomeDashboardContent() {
                 .sort((a, b) => a.available - b.available)
                 .slice(0, 5);
             topBox.innerHTML = tb(
-                ['Produk (OLTP)', 'Tersedia', 'Status'],
+                ['Produk', 'Tersedia', 'Status'],
                 critical.map(p => [
                     escapeHtml(p.name),
                     `${p.available} ${escapeHtml(p.unit)}`,
@@ -986,7 +974,7 @@ function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
         const note = $('#homeTrendNote');
         if (note) {
             note.textContent = Array.isArray(trend) && trend.length
-                ? 'Sumber: data tren dari endpoint laporan/analitik.'
+                ? 'Sumber: data tren penjualan periode berjalan.'
                 : `Agregat periode saat ini · Omzet ${rp(omzet)}, HPP ${rp(cogs)}, Laba kotor ${rp(grossProfit)}.`;
         }
     }
@@ -1039,7 +1027,7 @@ const SO = () => {
     ];
     return `
         ${cdTable(
-            'Daftar Pesanan (GET /api/v1/cashier/orders)',
+            'Daftar Pesanan',
             '<div id="opsOrdersTableWrap" class="p-3 text-muted small">Memuat antrian pesanan...</div>',
             `<select class="form-select form-select-sm" style="width:auto;min-width:170px;" id="opsOrderStatusFilter" onchange="loadManagerOrders(this.value)">
                 ${statuses.map(([v, l]) => `<option value="${v}" ${state.orderStatusFilter === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -1086,7 +1074,7 @@ async function loadManagerOrders(status = '') {
 }
 
 const SK = () => cdTable(
-    'Persediaan Stok Gerai (OLTP Real-Time)',
+    'Persediaan Stok Gerai (Data Terkini)',
     tb(
         ['Produk', 'SKU / Barcode', 'Stok Fisik', 'Reservasi', 'Tersedia', 'Status'],
         BOOTSTRAP.oltp.products.map(p => {
@@ -1128,7 +1116,7 @@ function openReceiveStockModal(preselectedProductId = null) {
     const prodOpts = buildProductSelectOptions(preselectedProductId || targetProduct?.id);
     const costHint = targetProduct ? `HPP saat ini: ${rp(targetProduct.current_cost)}` : 'Kosongkan jika sama dengan HPP terakhir';
 
-    openMgrModal('Terima Stok dari Pemasok (FR-04)', `
+    openMgrModal('Terima Stok dari Pemasok', `
         <form id="receiveStockForm" onsubmit="submitReceiveStock(event)">
             ${fl('Produk *', `<select class="form-select" id="rcvProductId" required onchange="onRcvProductChange(this.value)">${prodOpts}</select>`)}
             ${fl('Pemasok', `<select class="form-select" id="rcvSupplierId">${supOpts}</select>`)}
@@ -1183,7 +1171,7 @@ async function submitReceiveStock(e) {
         location.reload();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? 'Endpoint POST /api/v1/inventory/receipts belum tersedia di routes/api.php (menunggu integrasi PIC C).'
+            ? 'Fitur pencatatan penerimaan stok belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -1199,7 +1187,7 @@ function openAdjustStockModal(preselectedProductId = null) {
         ? `Stok fisik saat ini: ${targetProduct.on_hand} ${targetProduct.unit} (Tersedia: ${targetProduct.available} ${targetProduct.unit})`
         : '';
 
-    openMgrModal('Penyesuaian Stok Barang (FR-04)', `
+    openMgrModal('Penyesuaian Stok Barang', `
         <form id="adjustStockForm" onsubmit="submitAdjustStock(event)">
             ${fl('Produk *', `<select class="form-select" id="adjProductId" required onchange="onAdjProductChange(this.value)">${prodOpts}</select><small class="text-muted d-block mt-1" id="adjStockHint">${escapeHtml(currentHint)}</small>`)}
             <div class="row g-2">
@@ -1284,7 +1272,7 @@ async function submitAdjustStock(e) {
         location.reload();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? 'Endpoint POST /api/v1/inventory/adjustments belum tersedia di routes/api.php (menunggu integrasi PIC C).'
+            ? 'Fitur penyesuaian stok barang belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -1293,42 +1281,40 @@ async function submitAdjustStock(e) {
 
 /* ---------- 3. PIUTANG & KEBIJAKAN LIMIT GLOBAL (LIVE API) ---------- */
 S.ar = () => `${ph(
-    'Piutang & Kebijakan Kredit Global',
-    'Pantau tagihan terbuka/menunggak dari server dan kelola satu limit global seragam (jatuh tempo tetap 7 hari).'
+    'Piutang & Kebijakan Kredit',
+    'Pantau tagihan anggota, analisis aging piutang, dan atur limit kredit global koperasi.'
 )}
-<div class="row g-3 g-xl-4 mb-4" id="arKpiGrid"></div>
-<div class="row g-3 g-xl-4">
-    <div class="col-12 col-lg-7">
+<div class="row g-4 mb-4" id="arKpiGrid"></div>
+<div class="row g-4 align-items-start">
+    <div class="col-12 col-lg-7 d-flex flex-column gap-4">
         ${cdTable(
-            'Tagihan Aktif &amp; Penunggak (GET /api/v1/manager/receivables)',
-            '<div id="arReceivablesTableWrap" class="p-3 text-muted small">Memuat tagihan dari server...</div>',
+            'Tagihan Aktif &amp; Penunggak',
+            '<div id="arReceivablesTableWrap" class="px-4 py-3 text-muted small">Memuat tagihan dari server...</div>',
             '<input class="form-control form-control-sm" id="arSearchInput" placeholder="Cari anggota / no order..." style="width:210px;" oninput="renderReceivablesTables()">'
         )}
-        <div class="mt-4">
-            ${cdTable('Riwayat Perubahan Kebijakan Global', tb(
-                ['Waktu', 'Limit Lama', 'Limit Baru', 'Alasan'],
-                BOOTSTRAP.oltp.policy_logs.map(l => [
-                    escapeHtml(l.changed_at),
-                    l.old_limit_amount !== null ? rp(l.old_limit_amount) : '—',
-                    `<strong class="text-success">${rp(l.new_limit_amount)}</strong>`,
-                    escapeHtml(l.reason),
-                ]),
-                'Belum ada log perubahan kebijakan limit global.'
-            ))}
-        </div>
+        ${cdTable('Riwayat Perubahan Kebijakan Global', tb(
+            ['Waktu', 'Limit Lama', 'Limit Baru', 'Alasan'],
+            BOOTSTRAP.oltp.policy_logs.map(l => [
+                escapeHtml(l.changed_at),
+                l.old_limit_amount !== null ? rp(l.old_limit_amount) : '—',
+                `<strong class="text-success">${rp(l.new_limit_amount)}</strong>`,
+                escapeHtml(l.reason),
+            ]),
+            'Belum ada log perubahan kebijakan limit global.'
+        ))}
+        ${cd('Fasilitas Piutang Anggota', '<div id="arMemberStatusWrap"></div>', '', '')}
     </div>
     <div class="col-12 col-lg-5 d-flex flex-column gap-4">
-        ${cd('Aging Piutang (5 Kelompok)', '<div id="arAgingWrap">Memuat...</div>')}
+        ${cd('Aging Piutang (5 Kelompok)', '<div id="arAgingWrap">Memuat...</div>', '', '')}
         ${cd('Kebijakan Kredit Global (Semua Anggota)', `
             <form id="creditPolicyForm" onsubmit="submitCreditPolicy(event)">
                 ${fl('Limit Global Seragam (Rp)', '<input type="number" class="form-control fw-bold" id="inputGlobalLimit" min="0" step="1000" required placeholder="Masukkan nominal >= 0">')}
-                ${fl('Masa Jatuh Tempo (Terkunci MVP)', '<input class="form-control bg-light text-muted" id="policyDueDays" value="7 hari kalender sejak serah terima" disabled>')}
+                ${fl('Masa Jatuh Tempo', '<input class="form-control bg-light text-muted" id="policyDueDays" value="7 hari kalender sejak serah terima" disabled>')}
                 ${fl('Alasan Perubahan (Audit Log)', '<input class="form-control" id="policyReason" placeholder="Contoh: Penyesuaian rapat pengurus koperasi">')}
                 <small class="text-muted d-block mb-3">Satu nilai untuk seluruh anggota. Tanpa bunga/denda otomatis. Menurunkan limit tidak mengubah tagihan lama.</small>
-                <button type="submit" class="btn btn-primary w-100" id="btnSavePolicy">Simpan Limit Global</button>
+                <button type="submit" class="btn btn-primary w-100" id="btnSavePolicy">Simpan Kebijakan Limit</button>
             </form>
-        `)}
-        ${cd('Fasilitas Piutang Anggota (ACTIVE / BLOCKED)', '<div id="arMemberStatusWrap"></div>')}
+        `, '', '')}
     </div>
 </div>`;
 
@@ -1381,7 +1367,7 @@ function renderArKpis() {
 
     const cards = [
         ['Total Piutang Terbuka', rp(totalOpen), `${activeRows.length} faktur belum lunas`, 'bi-receipt-cutoff', '#ecfdf5', '#059669', 'text-dark'],
-        ['Piutang Overdue (Server)', rp(totalOverdue), `${overdueMemberCount} anggota menunggak`, 'bi-exclamation-triangle', '#FFEAEA', '#EF144A', 'text-danger'],
+        ['Piutang Jatuh Tempo', rp(totalOverdue), `${overdueMemberCount} anggota menunggak`, 'bi-exclamation-triangle', '#FFEAEA', '#EF144A', 'text-danger'],
         ['Limit Global Aktif', state.creditPolicy ? rp(state.creditPolicy.limit_amount) : 'Belum diatur', 'Seragam semua anggota', 'bi-sliders', '#f3f4f6', '#4b5563', 'text-dark'],
         ['Jatuh Tempo Baku', `${state.creditPolicy ? (state.creditPolicy.due_days ?? 7) : 7} Hari`, 'Kalender sejak serah terima', 'bi-calendar-check', '#ecfdf5', '#059669', 'text-success'],
     ];
@@ -1510,7 +1496,7 @@ function renderProductThumbHtml(p, size = 40) {
 }
 
 const DP = () => cdTable(
-    'Master Produk &amp; Harga (OLTP)',
+    'Master Produk, Stok &amp; Harga Gerai',
     tb(
         ['Foto', 'Produk', 'Barcode', 'Kategori', 'HPP Acuan', 'Harga Jual', 'Stok Tersedia', 'Min. Stok', 'Status', 'Aksi'],
         BOOTSTRAP.oltp.products.map(p => {
@@ -1581,7 +1567,7 @@ function openProductFormModal(productId = null) {
         ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="w-100 h-100" style="object-fit:cover;" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none');"><i class="d-none bi bi-image fs-3 text-muted" aria-hidden="true"></i>`
         : '<i class="bi bi-image fs-3 text-muted" aria-hidden="true"></i>';
 
-    openMgrModal(isEdit ? `Edit Produk — ${p.name}` : 'Tambah Produk Master (FR-03)', `
+    openMgrModal(isEdit ? `Edit Produk — ${p.name}` : 'Tambah Produk Master', `
         <form id="productMasterForm" onsubmit="submitProductForm(event, ${isEdit ? `'${escapeHtml(p.id)}'` : 'null'})">
             <div class="d-flex align-items-center gap-3 p-2.5 bg-light border rounded-3 mb-3">
                 <div id="pfImagePreview" class="rounded-2 border bg-white d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width:76px;height:76px;">
@@ -1693,7 +1679,7 @@ async function submitProductForm(e, productId = null) {
         location.reload();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? `Endpoint Master Produk (${isEdit ? `PATCH ${endpoint}` : 'POST /api/v1/products'}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            ? 'Fitur penyimpanan data master produk belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -1701,7 +1687,7 @@ async function submitProductForm(e, productId = null) {
 }
 
 const DM = () => cdTable(
-    'Daftar Anggota &amp; Peran RBAC',
+    'Daftar Anggota &amp; Peran Akses',
     tb(
         ['Nama Anggota', 'No. Karyawan / Anggota', 'Divisi', 'Role', 'Keanggotaan', 'Piutang', 'Aksi'],
         BOOTSTRAP.oltp.members.map(m => {
@@ -1749,7 +1735,7 @@ function openMemberFormModal(memberId = null) {
             </div>
             ${fl('Divisi / Unit Kerja *', `<input class="form-control" id="mfDepartment" required value="${escapeHtml(m?.department || '')}" placeholder="Contoh: Jurusan Teknik Mesin / Umum">`)}
             <div class="row g-2">
-                <div class="col-6">${fl('Role RBAC *', `
+                <div class="col-6">${fl('Peran Akun *', `
                     <select class="form-select" id="mfRole" required>
                         <option value="MEMBER" ${primaryRole === 'MEMBER' ? 'selected' : ''}>MEMBER (Anggota)</option>
                         <option value="CASHIER" ${primaryRole === 'CASHIER' ? 'selected' : ''}>CASHIER (Kasir)</option>
@@ -1801,7 +1787,7 @@ async function submitMemberForm(e, memberId = null) {
         location.reload();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? `Endpoint Master Anggota (${method} ${endpoint}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            ? 'Fitur pengelolaan data anggota belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -1823,7 +1809,7 @@ async function toggleMemberAccountStatus(memberId) {
         route();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? `Endpoint ubah status anggota (PATCH /api/v1/members/${memberId}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            ? 'Fitur perubahan status keanggotaan belum tersedia saat ini.'
             : err.message);
     }
 }
@@ -1915,7 +1901,7 @@ async function submitSupplierForm(e, supplierId = null) {
         location.reload();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? `Endpoint Master Pemasok (${method} ${endpoint}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            ? 'Fitur pengelolaan data pemasok belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -1936,17 +1922,17 @@ async function toggleSupplierStatus(supplierId) {
         route();
     } catch (err) {
         toast(err.status === 404 || err.status === 405
-            ? `Endpoint ubah status pemasok (PATCH /api/v1/suppliers/${supplierId}) belum tersedia di routes/api.php (menunggu integrasi PIC C).`
+            ? 'Fitur perubahan status pemasok belum tersedia saat ini.'
             : err.message);
     }
 }
 
-const IMPORT_STEPS = ['Upload & Pilih Jenis', 'Preview & Validasi', 'Konfirmasi Commit', 'Selesai'];
+const IMPORT_STEPS = ['Upload & Pilih Jenis', 'Preview & Validasi', 'Konfirmasi Simpan', 'Selesai'];
 
 const DI = () => `
     <div class="mgr-stepper mb-3" id="stp"></div>
     <div id="ib" class="mb-4"></div>
-    ${cdTable('Riwayat Batch Impor', tb(
+    ${cdTable('Riwayat Impor Data', tb(
         ['Batch ID', 'Tipe Data', 'Nama File', 'Diterima', 'Ditolak', 'Status'],
         BOOTSTRAP.oltp.import_batches.map(b => [
             `<span class="font-monospace">${escapeHtml(String(b.id).slice(0, 8))}</span>`,
@@ -1956,7 +1942,7 @@ const DI = () => `
             b.error_rows ?? b.rejected_count ?? 0,
             pl(b.status || '-', b.status === 'COMMITTED' || b.status === 'COMPLETED' ? 'g' : 'o'),
         ]),
-        'Belum ada riwayat batch impor pada database.'
+        'Belum ada riwayat impor data.'
     ))}
 `;
 
@@ -1968,14 +1954,14 @@ function renderImportWizard() {
     stp.innerHTML = IMPORT_STEPS.map((s, i) => `<span class="mgr-step-pill ${i === state.importStep ? 'active' : (i < state.importStep ? 'done' : '')}">${escapeHtml(s)}</span>`).join('');
 
     if (state.importStep === 0) {
-        ib.innerHTML = cd('Unggah File Excel / CSV (POST /api/v1/imports)', `
+        ib.innerHTML = cd('Unggah File Excel / CSV', `
             <form id="importUploadForm" onsubmit="submitImportUpload(event)">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">${fl('Jenis Data', `<select class="form-select" id="impType" onchange="toggleImportCutoffField(this.value)"><option value="PRODUK">Produk &amp; Harga</option><option value="ANGGOTA">Anggota Koperasi</option><option value="STOK">Stok Awal (Cut-Off)</option><option value="TRANSAKSI">Histori Transaksi</option></select>`)}</div>
                     <div class="col-12 col-md-6">${fl('File XLSX / CSV', '<input class="form-control" type="file" id="impFile" accept=".xlsx,.xls,.csv" required>')}</div>
                 </div>
                 <div id="impCutoffWrap" class="d-none">
-                    ${fl('Tanggal Cut-Off Stok Awal (Wajib untuk Stok Awal — FR-05)', '<input class="form-control" type="date" id="impCutoffDate">')}
+                    ${fl('Tanggal Cut-Off Stok Awal (Wajib untuk Stok Awal)', '<input class="form-control" type="date" id="impCutoffDate">')}
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm px-3" id="btnUploadImport">Unggah &amp; Validasi Preview</button>
             </form>
@@ -1983,7 +1969,7 @@ function renderImportWizard() {
     } else if (state.importStep === 1) {
         const pv = state.importPreview || {};
         const errors = Array.isArray(pv.errors) ? pv.errors : [];
-        ib.innerHTML = cd('Pratinjau &amp; Validasi Baris (GET /api/v1/imports/{id}/preview)', `
+        ib.innerHTML = cd('Pratinjau &amp; Validasi Baris', `
             <div class="d-flex gap-2 mb-3">
                 ${pl(`${pv.valid_count ?? 0} baris valid`, 'g')}
                 ${pl(`${errors.length} baris error`, errors.length ? 'r' : 'g')}
@@ -1995,22 +1981,22 @@ function renderImportWizard() {
             </div>
         `);
     } else if (state.importStep === 2) {
-        ib.innerHTML = cd('Konfirmasi Commit Idempotent (POST /api/v1/imports/{id}/commit)', `
+        ib.innerHTML = cd('Konfirmasi Simpan Data Impor', `
             <div class="alert alert-warning small">Histori sebelum tanggal cut-off tidak mengubah stok berjalan atau membuat piutang aktif.</div>
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" id="impConfirmCheck" onchange="$('#btnCommitImp').disabled=!this.checked">
                 <label class="form-check-label small fw-semibold" for="impConfirmCheck">
-                    Saya telah memeriksa pratinjau validasi dan menyetujui commit batch ini.
+                    Saya telah memeriksa pratinjau validasi dan menyetujui penyimpanan data impor ini.
                 </label>
             </div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=1;renderImportWizard()">Kembali</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btnCommitImp" disabled onclick="executeImportCommit()">Commit Sekarang</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnCommitImp" disabled onclick="executeImportCommit()">Simpan Data Impor</button>
             </div>
         `);
     } else {
         ib.innerHTML = cd('Impor Selesai', `
-            <div class="alert alert-success small mb-3">Batch impor berhasil di-commit ke database secara idempoten.</div>
+            <div class="alert alert-success small mb-3">Data impor berhasil disimpan dan aman dari duplikasi.</div>
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="state.importStep=0;renderImportWizard()">Impor Berkas Baru</button>
         `);
     }
@@ -2056,8 +2042,8 @@ async function submitImportUpload(e) {
         state.importStep = 1;
         renderImportWizard();
     } catch (err) {
-        toast(err.status === 404
-            ? 'Endpoint Impor (/api/v1/imports) belum terpasang di routes/api.php (menunggu integrasi PIC C).'
+        toast(err.status === 404 || err.status === 405
+            ? 'Layanan unggah dan validasi file impor belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -2074,7 +2060,7 @@ async function executeImportCommit() {
         const res = await managerApi(`/api/v1/imports/${encodeURIComponent(batchId)}/commit`, 'POST', {
             idempotency_key: idemKey,
         });
-        toast(res.message || 'Impor berhasil di-commit.');
+        toast(res.message || 'Data impor berhasil disimpan.');
         state.importStep = 3;
         renderImportWizard();
     } catch (err) {
@@ -2088,10 +2074,10 @@ S.rep = () => {
     const { start, end } = getPeriodRange(state.period);
     return `${ph(
         'Laporan & Analitik',
-        'Laporan keuangan terpadu, pencatatan biaya operasional, analitik produk, dan prediksi restock.',
+        'Laporan keuangan terpadu, pencatatan biaya operasional, analitik produk, serta prediksi permintaan dan restok.',
         `<a class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=pdf" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf"></i><span>Ekspor PDF</span></a>
         <a class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1.5" href="/api/v1/reports/financial/export?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&format=xlsx" target="_blank" rel="noopener"><i class="bi bi-file-earmark-excel"></i><span>Ekspor Excel</span></a>`
-    )}${renderSubTabShell('rep', ['Keuangan', 'Biaya Operasional', 'Analitik', 'Forecast & Restock'], [RK, RB, RA, RF])}`;
+    )}${renderSubTabShell('rep', ['Keuangan', 'Biaya Operasional', 'Analitik', 'Prediksi Permintaan & Restok'], [RK, RB, RA, RF])}`;
 };
 
 H.rep = () => {
@@ -2137,11 +2123,11 @@ function renderReportFinancialSection() {
         const opexSum = BOOTSTRAP.oltp.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
         const gp = oltp.sales_revenue - oltp.cogs;
         wrap.innerHTML = `
-            <div class="alert alert-light border small mb-3">Endpoint <code>GET /api/v1/reports/financial</code> belum tersedia pada branch ini. Menampilkan ringkasan OLTP transaksi selesai terkini.</div>
-            ${cdTable('Ringkasan Operasional (OLTP)', tb(
+            <div class="alert alert-light border small mb-3">Ringkasan laporan keuangan periodik belum tersedia. Menampilkan ringkasan transaksi selesai terkini.</div>
+            ${cdTable('Ringkasan Transaksi Selesai', tb(
                 ['Komponen', 'Nilai'],
                 [
-                    ['Omzet Penjualan Selesai (COMPLETED)', rp(oltp.sales_revenue)],
+                    ['Omzet Penjualan (Transaksi Selesai)', rp(oltp.sales_revenue)],
                     ['HPP Terjual (Snapshot)', rp(oltp.cogs)],
                     ['Laba Kotor (Estimasi)', `<strong>${rp(gp)}</strong>`],
                     ['Biaya Operasional Tercatat', rp(opexSum)],
@@ -2157,7 +2143,7 @@ function renderReportFinancialSection() {
     const m = fin.metrics || {};
     const cogsIncomplete = fin.data_quality ? !fin.data_quality.cogs_complete : false;
     const expIncomplete = fin.data_quality ? !fin.data_quality.expenses_complete : false;
-    const banner = (fin.is_stale ? '<div class="alert alert-warning small mb-3">Data mart analitik berstatus <strong>stale</strong>. Periksa waktu pembaruan terakhir.</div>' : '')
+    const banner = (fin.is_stale ? '<div class="alert alert-warning small mb-3">Data analitik sedang dalam <strong>sinkronisasi tertunda</strong>. Periksa waktu pembaruan terakhir.</div>' : '')
         + ((cogsIncomplete || expIncomplete) ? '<div class="alert alert-light border small mb-3">HPP atau biaya operasional belum lengkap. Laba bersih berstatus <strong>estimasi</strong>.</div>' : '');
 
     wrap.innerHTML = banner + cdTable(`Laporan Keuangan (per ${escapeHtml(fin.last_updated_at || '-')})`, tb(
@@ -2171,7 +2157,7 @@ function renderReportFinancialSection() {
             ['Kas Masuk Terverifikasi', rp(m.cash_receipts)],
             ['Penjualan Piutang Baru', rp(m.new_credit_sales)],
             ['Piutang Terbuka (Akhir Periode)', rp(m.receivables_outstanding_as_of_end)],
-            ['Piutang Overdue (Akhir Periode)', rp(m.overdue_outstanding_as_of_end)],
+            ['Piutang Jatuh Tempo (Akhir Periode)', rp(m.overdue_outstanding_as_of_end)],
         ]
     ));
 }
@@ -2187,15 +2173,15 @@ const RB = () => `
                     escapeHtml(e.description || '-'),
                     `<strong>${rp(e.amount)}</strong>`,
                 ]),
-                'Belum ada catatan biaya operasional di tabel operating_expenses.'
+                'Belum ada catatan biaya operasional.'
             ))}
         </div>
         <div class="col-12 col-lg-5">
-            ${cd('Catat Biaya Operasional (FR-09)', `
+            ${cd('Catat Biaya Operasional', `
                 <form id="expenseForm" onsubmit="submitOperatingExpense(event)">
                     ${fl('Tanggal Biaya', `<input type="date" class="form-control" id="expDate" value="${escapeHtml(BOOTSTRAP.today_jakarta)}" required>`)}
                     ${fl('Jenis / Kategori Biaya', '<select class="form-select" id="expCategory" required><option value="Listrik">Listrik &amp; Utilitas</option><option value="Sewa">Sewa Gerai</option><option value="Perlengkapan">ATK &amp; Perlengkapan</option><option value="Gaji">Honor Petugas</option><option value="Lainnya">Lainnya</option></select>')}
-                    ${fl('Deskripsi Biaya (Wajib — FR-09)', '<input class="form-control" id="expDesc" required maxlength="255" placeholder="Contoh: Tagihan listrik chiller November">')}
+                    ${fl('Deskripsi Biaya *', '<input class="form-control" id="expDesc" required maxlength="255" placeholder="Contoh: Tagihan listrik chiller November">')}
                     ${fl('Jumlah (Rp)', '<input type="number" class="form-control" id="expAmount" min="1" step="100" required>')}
                     ${fl('Bukti Pembayaran (Opsional)', '<input type="file" class="form-control" id="expProof" accept="image/*,.pdf">')}
                     <button type="submit" class="btn btn-primary w-100" id="btnSaveExp">Simpan Biaya Operasional</button>
@@ -2222,8 +2208,8 @@ async function submitOperatingExpense(e) {
         toast(res.message || 'Biaya operasional berhasil dicatat.');
         location.reload();
     } catch (err) {
-        toast(err.status === 404
-            ? 'Endpoint POST /api/v1/operating-expenses belum terpasang di routes/api.php (menunggu integrasi PIC C).'
+        toast(err.status === 404 || err.status === 405
+            ? 'Fitur pencatatan biaya operasional belum tersedia saat ini.'
             : err.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -2257,11 +2243,11 @@ const RA = () => {
 const RF = () => `
     <div class="alert alert-light border small mb-3">
         <i class="bi bi-shield-check text-success me-1"></i>
-        Forecast merupakan saran analitik. Sistem <strong>tidak pernah</strong> membuat pesanan pembelian otomatis tanpa persetujuan manual Manajer.
+        Prediksi ini hanya merupakan saran analitik. Sistem <strong>tidak pernah</strong> membuat pesanan pembelian otomatis ke pemasok tanpa persetujuan manual Manajer.
     </div>
     <div class="mgr-tabs mb-3">
-        <button type="button" class="btn-tab ${state.forecastHorizon === 7 ? 'active' : ''}" onclick="state.forecastHorizon=7;TB.rep=3;route()">Horizon 7 Hari</button>
-        <button type="button" class="btn-tab ${state.forecastHorizon === 30 ? 'active' : ''}" onclick="state.forecastHorizon=30;TB.rep=3;route()">Horizon 30 Hari</button>
+        <button type="button" class="btn-tab ${state.forecastHorizon === 7 ? 'active' : ''}" onclick="state.forecastHorizon=7;TB.rep=3;route()">Prediksi 7 Hari ke Depan</button>
+        <button type="button" class="btn-tab ${state.forecastHorizon === 30 ? 'active' : ''}" onclick="state.forecastHorizon=30;TB.rep=3;route()">Prediksi 30 Hari ke Depan</button>
     </div>
     <div id="repForecastWrap" class="text-muted small">Memuat hasil prediksi permintaan...</div>
 `;
@@ -2270,40 +2256,46 @@ function renderReportForecastSection() {
     const wrap = $('#repForecastWrap');
     if (!wrap) return;
     if (!state.forecasts) {
-        wrap.innerHTML = '<div class="alert alert-light border small mb-0">Endpoint <code>GET /api/v1/analytics/forecasts</code> belum aktif pada branch ini (menunggu integrasi PIC E).</div>';
+        wrap.innerHTML = '<div class="alert alert-light border small mb-0">Data prediksi permintaan dan saran restok belum tersedia saat ini.</div>';
         return;
     }
     const items = state.forecasts.items || state.forecasts || [];
-    wrap.innerHTML = cdTable(`Rekomendasi Restock &amp; Evaluasi Model (Horizon ${state.forecastHorizon} Hari)`, tb(
+    wrap.innerHTML = cdTable(`Rekomendasi Restok &amp; Evaluasi Model (Prediksi ${state.forecastHorizon} Hari ke Depan)`, tb(
         ['Produk', 'Tersedia', 'Prediksi', 'Saran Beli', 'Evaluasi / Status'],
         items.map(f => [
             escapeHtml(f.name || f.sku || '-'),
             f.available_stock ?? '-',
             f.predicted_units ?? '-',
             f.recommended_qty ?? 0,
-            f.insufficient_data ? pl('insufficient_data', 'o') : pl(`WAPE ${f.wape ?? '-'}%`, 'g'),
+            f.insufficient_data ? pl('Data Histori Kurang', 'o') : pl(`Akurasi Prediksi: ${f.wape ?? '-'}%`, 'g'),
         ]),
         'Belum ada data prediksi permintaan.'
     ));
 }
 
 /* ---------- 6. SISTEM & AUDIT LOG ---------- */
-S.sys = () => `${ph('Sistem & Jejak Audit', 'Konfigurasi waktu operasional, status analitik, dan catatan audit dari PostgreSQL.')}
+S.sys = () => `${ph('Sistem & Audit Log', 'Konfigurasi waktu operasional, status layanan, dan jejak aktivitas sistem.')}
 <div class="row g-3 g-xl-4 mb-4">
     <div class="col-12 col-md-4">${statCardHtml('Zona Waktu Operasional', 'WIB (UTC+7)', 'Asia/Jakarta · Pekan dimulai Senin', 'bi-clock', '#ecfdf5', '#059669', 'text-dark')}</div>
-    <div class="col-12 col-md-4">${statCardHtml('Kebijakan Kredit (OLTP)', state.creditPolicy ? rp(state.creditPolicy.limit_amount) : 'Buka menu Piutang', 'Jatuh tempo terkunci 7 hari', 'bi-sliders', '#f3f4f6', '#4b5563', 'text-dark')}</div>
-    <div class="col-12 col-md-4">${statCardHtml('Ketahanan Analitik (AC-21)', state.analyticsSummary?.last_updated_at || 'OLTP Mandiri', 'Operasional berjalan walau ETL offline', 'bi-shield-check', '#ecfdf5', '#059669', 'text-success')}</div>
+    <div class="col-12 col-md-4">${statCardHtml('Kebijakan Kredit Aktif', state.creditPolicy ? rp(state.creditPolicy.limit_amount) : 'Buka menu Piutang', 'Jatuh tempo terkunci 7 hari', 'bi-sliders', '#f3f4f6', '#4b5563', 'text-dark')}</div>
+    <div class="col-12 col-md-4">${statCardHtml('Ketahanan Operasional', state.analyticsSummary?.last_updated_at || 'Operasional Mandiri', 'Transaksi gerai berjalan normal setiap saat', 'bi-shield-check', '#ecfdf5', '#059669', 'text-success')}</div>
 </div>
-${cdTable('Audit Log Aktivitas Sistem (Tabel audit_logs)', tb(
+${cdTable('Jejak Aktivitas Sistem', tb(
     ['Waktu (WIB)', 'Aktor', 'Aksi', 'Entitas', 'Target'],
-    BOOTSTRAP.oltp.audit_logs.map(a => [
-        escapeHtml(a.created_at),
-        escapeHtml(a.actor),
-        pl(a.action, 'i'),
-        escapeHtml(a.entity_type),
-        `<span class="font-monospace">${escapeHtml(String(a.entity_id).slice(0, 18))}</span>`,
-    ]),
-    'Belum ada rekaman pada tabel audit_logs.'
+    BOOTSTRAP.oltp.audit_logs.map(a => {
+        const rawTarget = String(a.entity_id || '').trim();
+        const formattedTarget = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(rawTarget)
+            ? '#' + rawTarget.slice(-6).toUpperCase()
+            : (rawTarget || '-');
+        return [
+            escapeHtml(a.created_at),
+            escapeHtml(a.actor),
+            pl(a.action, 'i'),
+            escapeHtml(a.entity_type),
+            `<span class="font-monospace">${escapeHtml(formattedTarget)}</span>`,
+        ];
+    }),
+    'Belum ada rekaman aktivitas sistem.'
 ))}`;
 
 /* ---------- BOOTSTRAP ---------- */
@@ -2312,7 +2304,7 @@ document.addEventListener('DOMContentLoaded', () => {
         history.replaceState(null, '', '#' + (BOOTSTRAP.initial_page || 'home'));
     }
 
-    document.querySelectorAll('.sidebar .nav-link[data-mgr-page]').forEach(link => {
+    document.querySelectorAll('.sidebar .nav-link[data-mgr-page], .mobile-role-nav a[data-mgr-page]').forEach(link => {
         link.addEventListener('click', e => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
             const targetPage = link.dataset.mgrPage;

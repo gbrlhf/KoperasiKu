@@ -61,7 +61,7 @@ html,body{overflow-x:clip}
 @media(max-width:767px){
  .ui-polished:not(.manager-v2) .main-content{margin:12px 8px;border-radius:20px;padding:18px 12px!important}
  .ui-polished:not(.manager-v2)>.navbar{padding-block:10px!important}
- .ui-polished .mobile-role-nav .btn-success{background:#4353e8;border-color:#4353e8}
+ .ui-polished .mobile-role-nav .btn-success{background:#059669;border-color:#059669}
  .ui-polished.landing-page .hero-main-banner,.ui-polished.landing-page .hero-side-banner{border-radius:22px}
 }
 .ui-polished{--ui-accent:#4353e8;--ui-ink:#202952;--ui-line:#e5e8f5;accent-color:var(--ui-accent)}
@@ -144,7 +144,7 @@ html,body{overflow-x:clip}
 .ui-polished.role-cashier .sidebar .nav-link,.ui-polished.role-manager .sidebar .nav-link{color:#4B5563!important;border-radius:8px!important;padding:10px 12px!important;font-size:.84rem!important;font-weight:500!important;border-left:3px solid transparent!important;margin-bottom:4px!important}
 .ui-polished.role-cashier .sidebar .nav-link:hover:not(.active),.ui-polished.role-manager .sidebar .nav-link:hover:not(.active){background:#F5F7F9!important;color:var(--tokped-ink)!important}
 .ui-polished.role-cashier .sidebar .nav-link.active,.ui-polished.role-manager .sidebar .nav-link.active{background:var(--tokped-green-soft)!important;color:var(--tokped-green)!important;font-weight:700!important;border-left:3px solid var(--tokped-green)!important;box-shadow:none!important}
-.ui-polished.role-cashier .main-content,.ui-polished.role-manager .main-content{background:transparent!important;border:none!important;box-shadow:none!important;padding:24px!important;width:calc(100% - 246px)!important;max-width:none!important;margin:0!important}
+.ui-polished.role-cashier .main-content,.ui-polished.role-manager .main-content{background:transparent!important;border:none!important;box-shadow:none!important;padding:24px 24px 48px!important;width:calc(100% - 246px)!important;max-width:none!important;margin:0!important}
 .ui-polished.role-cashier .card,.ui-polished.role-manager .card{border:1px solid var(--tokped-line)!important;border-radius:12px!important;box-shadow:0 1px 4px rgba(49,53,59,.06)!important;background:#fff}
 .ui-polished.role-cashier .card-header,.ui-polished.role-manager .card-header{background:#fff!important;border-bottom:1px solid var(--tokped-line)!important;border-radius:12px 12px 0 0!important}
 .ui-polished.role-cashier .btn-primary,.ui-polished.role-cashier .btn-success,.ui-polished.role-manager .btn-primary,.ui-polished.role-manager .btn-success{--bs-btn-bg:#059669;--bs-btn-border-color:#059669;--bs-btn-hover-bg:#047857;--bs-btn-hover-border-color:#047857;--bs-btn-active-bg:#065f46;box-shadow:none!important;border-radius:8px!important;font-weight:700}

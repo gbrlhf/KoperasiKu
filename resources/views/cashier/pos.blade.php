@@ -344,13 +344,9 @@
 @endpush
 
 @section('header')
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-2">
-        <h4 class="fw-bold mb-0 text-dark">Portal Kasir & Operasional Gerai</h4>
-        <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-            <i class="bi bi-shop me-1"></i> Gerai Kanayakan Dago
-        </span>
-    </div>
+<div>
+    <h4 class="fw-bold mb-1 text-dark">Portal Kasir & Operasional Gerai</h4>
+    <p class="text-secondary small mb-0">Proses transaksi kasir langsung, verifikasi pesanan pickup, dan pantau ketersediaan stok gerai.</p>
 </div>
 @endsection
 
@@ -1245,7 +1241,7 @@
                 <div class="alert alert-warning py-2.5 px-3 small d-flex align-items-start gap-2 mb-3">
                     <i class="bi bi-info-circle-fill text-warning-emphasis fs-5 flex-shrink-0 mt-0.5"></i>
                     <div>
-                        <strong>Ketentuan Pembatalan (PRD AC-12):</strong>
+                        <strong>Ketentuan Pembatalan Pesanan:</strong>
                         <div class="text-secondary mt-0.5">
                             Pembatalan sebelum serah terima akan secara otomatis <strong>melepaskan reservasi stok barang</strong> kembali ke rak gerai dan <strong>melepaskan penahanan limit kredit (credit hold)</strong> anggota tanpa membentuk tagihan piutang.
                         </div>
