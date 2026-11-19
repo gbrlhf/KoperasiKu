@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Pelayanan Cicilan & Pelunasan Piutang')
+@section('title', 'Pelayanan Piutang')
 
 @section('header')
 <div>

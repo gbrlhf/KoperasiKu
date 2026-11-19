@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', config('koperasi.brand_name') . ' — ' . config('koperasi.tagline'))</title>
+    <title>@yield('title', config('koperasi.brand_name', 'KoperasiKu') . ' - KOPEG POLMAN Bandung')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.svg') }}">
     <meta name="description" content="{{ config('koperasi.slogan') }} - Ambil langsung di koperasi (Pickup Only).">
 
     <!-- Assets Vite (Bootstrap 5, Icons, Plus Jakarta Sans, Custom Landing CSS & JS) -->

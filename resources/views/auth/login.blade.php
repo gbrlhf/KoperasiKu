@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Masuk Akun')
+@section('title', 'Masuk')
 
 @section('content')
 <div class="card shadow-sm border">

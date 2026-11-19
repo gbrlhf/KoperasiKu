@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Portal Manajer & Analitik Koperasi')
+@section('title', 'Portal Manajer')
 
 @php
     use Illuminate\Support\Facades\Auth;
@@ -579,6 +579,16 @@ if (Object.prototype.hasOwnProperty.call(TB, BOOTSTRAP.initial_page)) {
     TB[BOOTSTRAP.initial_page] = Number(BOOTSTRAP.initial_tab || 0);
 }
 
+const MGR_BRAND_NAME = @json(config('koperasi.brand_name', 'KoperasiKu'));
+const MGR_PAGE_TITLES = {
+    home: 'Portal Manajer',
+    ops: 'Transaksi & Operasional',
+    ar: 'Piutang & Kebijakan Kredit',
+    data: 'Master Data & Stok',
+    rep: 'Laporan & Analitik',
+    sys: 'Sistem & Audit Log',
+};
+
 function syncSidebarActive(pageId) {
     document.querySelectorAll('.sidebar .nav-link[data-mgr-page]').forEach(link => {
         link.classList.toggle('active', link.dataset.mgrPage === pageId);
@@ -589,6 +599,8 @@ function syncSidebarActive(pageId) {
         link.classList.toggle('btn-light', !isActive);
         link.classList.toggle('border', !isActive);
     });
+    const pageTitle = MGR_PAGE_TITLES[pageId] || 'Portal Manajer';
+    document.title = `${pageTitle} - ${MGR_BRAND_NAME}`;
 }
 
 const go = id => { location.hash = id; };

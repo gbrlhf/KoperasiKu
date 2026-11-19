@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', config('koperasi.brand_name', 'KoperasiKu') . ' — Etalase Belanja Koperasi Konsumen Pegawai')
+@section('title', config('koperasi.brand_name', 'KoperasiKu') . ' - KOPEG POLMAN Bandung')
 
 @section('content')
 

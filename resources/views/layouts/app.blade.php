@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Beranda') — {{ config('koperasi.brand_name', 'KoperasiKu') }}</title>
+    <title>@yield('title', 'Beranda') - {{ config('koperasi.brand_name', 'KoperasiKu') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.svg') }}">
 
     <!-- Vite Assets (Bootstrap 5, Chart.js, Icons, Sass) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
