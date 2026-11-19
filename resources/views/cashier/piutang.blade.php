@@ -3,27 +3,9 @@
 @section('title', 'Pelayanan Piutang')
 
 @section('header')
-<<<<<<< HEAD
 <div>
     <h4 class="fw-bold mb-1 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
     <p class="text-secondary small mb-0">Verifikasi saldo tagihan anggota dan catat pembayaran cicilan atau pelunasan piutang di kasir.</p>
-=======
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-            <h4 class="fw-bold mb-0 text-dark">Pelayanan Cicilan & Pelunasan Piutang</h4>
-            <span class="badge bg-success text-white rounded-pill px-2.5 py-1 small">
-                <i class="bi bi-wallet2 me-1"></i> Modul Kasir FR-08B
-            </span>
-        </div>
-        <p class="text-secondary small mb-0">Cari anggota, periksa faktur tempo 7 hari, catat penerimaan cicilan/pelunasan tunai atau transfer, dan pulihkan limit belanja anggota.</p>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-white text-secondary border px-3 py-2 small shadow-xs">
-            <i class="bi bi-shield-check me-1 text-primary"></i> Plafon Global: <strong>Rp {{ number_format($globalCreditLimit ?? 0, 0, ',', '.') }}</strong>
-        </span>
-    </div>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
 </div>
 @endsection
 
@@ -32,7 +14,6 @@
     $cashierDisplayName = session('user.name', Auth::user()?->member?->full_name ?? Auth::user()?->email ?? 'Petugas Kasir');
 @endphp
 
-<<<<<<< HEAD
 <style>
     .piutang-search-group > .form-control,
     .piutang-search-group > .btn {
@@ -51,6 +32,9 @@
     }
 </style>
 
+<div id="repaymentFeedback" class="alert d-none" role="status" aria-live="polite"></div>
+<dialog id="repaymentVerifyDialog" class="p-4 border rounded shadow"><form method="dialog"><p id="repaymentVerifyText"></p><button value="cancel" class="btn btn-outline-secondary">Batal</button> <button value="ok" class="btn btn-primary">Konfirmasi</button></form></dialog>
+
 <!-- 1. PENCARIAN ANGGOTA YANG DILAYANI (Tanpa membocorkan daftar piutang anggota lain) -->
 <div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-3">
     <div class="row g-3">
@@ -66,66 +50,34 @@
                 </button>
             </div>
             <div id="memberLookupError" class="alert alert-danger py-1.5 px-2.5 small d-none mt-2 mb-0" role="alert"></div>
-=======
-<div id="repaymentFeedback" class="alert d-none" role="status" aria-live="polite"></div>
-<dialog id="repaymentVerifyDialog" class="p-4 border rounded shadow"><form method="dialog"><p id="repaymentVerifyText"></p><button value="cancel" class="btn btn-outline-secondary">Batal</button> <button value="ok" class="btn btn-primary">Konfirmasi</button></form></dialog>
-<!-- 1. PENCARIAN & PEMILIHAN ANGGOTA -->
-<div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-4">
-    <div class="row g-3 align-items-center">
-        <div class="col-12 col-md-5">
-            <label class="form-label small fw-bold text-secondary mb-1">
-                <i class="bi bi-person-search text-primary me-1"></i> Cari Nomor Anggota / ID Karyawan:
-            </label>
-            <select class="form-select form-select-sm fw-semibold" id="memberSelect" onchange="onSelectMember(this.value)">
-                <option value="">-- Pilih Anggota yang Dilayani di Kasir --</option>
-                @foreach($debtorMembers as $m)
-                    <option value="{{ $m['id'] }}">
-                        {{ $m['id'] }} | {{ $m['name'] }} — {{ $m['unit'] }} ({{ $m['total_debt'] > 0 ? 'Hutang: Rp ' . number_format($m['total_debt'], 0, ',', '.') : 'Lunas (Rp 0)' }})
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-12 col-md-7">
-            <small class="text-muted">Data anggota dan tagihan berasal dari database.</small>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
         </div>
     </div>
 </div>
 
-<<<<<<< HEAD
-<!-- 2. EMPTY STATE SEBELUM ANGGOTA DICARI -->
-<div id="emptyMemberState" class="card border-0 shadow-sm bg-white p-5 text-center mb-3">
-=======
-<div class="card p-3 mb-3">
-    <h6>Transfer piutang menunggu verifikasi</h6>
+<!-- TRANSFER PIUTANG MENUNGGU VERIFIKASI -->
+<div class="card border-0 shadow-sm bg-white p-3 p-md-4 mb-3">
+    <h6 class="fw-bold text-dark mb-2">Transfer piutang menunggu verifikasi</h6>
     @forelse($pendingTransfers as $payment)
         <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
             <span>{{ $payment->member?->full_name }} | Rp {{ number_format($payment->amount, 2, ',', '.') }} | {{ $payment->external_reference }}</span>
-            <button class="btn btn-sm btn-success" onclick="verifyReceivable(this, '{{ $payment->id }}', 'VERIFY')">Verifikasi dana diterima</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="verifyReceivable(this, '{{ $payment->id }}', 'REJECT')">Tolak</button>
+            <button type="button" class="btn btn-sm btn-success" onclick="verifyReceivable(this, '{{ $payment->id }}', 'VERIFY')">Verifikasi dana diterima</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="verifyReceivable(this, '{{ $payment->id }}', 'REJECT')">Tolak</button>
         </div>
     @empty
-        <span class="text-muted">Tidak ada transfer tertunda.</span>
+        <span class="text-muted small">Tidak ada transfer tertunda.</span>
     @endforelse
 </div>
-<!-- 2. EMPTY STATE SEBELUM ANGGOTA DIPILIH -->
-<div id="emptyMemberState" class="card border-0 shadow-sm bg-white p-5 text-center mb-4">
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+
+<!-- 2. EMPTY STATE SEBELUM ANGGOTA DICARI -->
+<div id="emptyMemberState" class="card border-0 shadow-sm bg-white p-5 text-center mb-3">
     <div class="py-4">
         <div class="p-3.5 rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center mb-3" style="width: 72px; height: 72px;">
             <i class="bi bi-wallet2 fs-1"></i>
         </div>
-<<<<<<< HEAD
-        <h5 class="fw-bold text-dark mb-0">Cari Anggota Koperasi Terlebih Dahulu</h5>
-=======
-        <h5 class="fw-bold text-dark mb-2">Pilih Anggota Koperasi Terlebih Dahulu</h5>
-        <p class="text-secondary small mb-3 mx-auto" style="max-width: 480px;">
-            Gunakan kotak pencarian di atas untuk memuat kartu plafon kredit, daftar faktur piutang yang belum lunas, dan form pencatatan cicilan kasir.
+        <h5 class="fw-bold text-dark mb-2">Cari Anggota Koperasi Terlebih Dahulu</h5>
+        <p class="text-secondary small mb-0 mx-auto" style="max-width: 480px;">
+            Masukkan NIK atau nomor anggota pada kotak pencarian di atas untuk memuat status plafon kredit, daftar faktur piutang, dan pencatatan cicilan kasir.
         </p>
-        <span class="badge bg-light text-secondary border px-3 py-1.5 small">
-            <i class="bi bi-info-circle text-primary me-1"></i> Sesuai Aturan: Jatuh tempo seragam 7 hari kalender sejak pickup
-        </span>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
     </div>
 </div>
 
@@ -153,11 +105,7 @@
                     <div class="col-6 col-sm-3">
                         <div class="p-2.5 rounded-2 bg-light border text-center h-100">
                             <small class="text-secondary d-block fw-semibold" style="font-size: 0.68rem;">Plafon Limit Global</small>
-<<<<<<< HEAD
-                            <span class="fw-bold text-dark font-monospace fs-6" id="cardGlobalLimit">Rp 0</span>
-=======
-                            <span class="fw-bold text-dark font-monospace fs-6">Rp {{ number_format($globalCreditLimit, 0, ',', '.') }}</span>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+                            <span class="fw-bold text-dark font-monospace fs-6" id="cardGlobalLimit">Rp {{ number_format($globalCreditLimit ?? 0, 0, ',', '.') }}</span>
                             <small class="text-muted d-block" style="font-size: 0.65rem;">Limit seragam koperasi</small>
                         </div>
                     </div>
@@ -215,11 +163,7 @@
                     </li>
                 </ul>
                 <div class="p-2 rounded bg-light border small text-muted" style="font-size: 0.72rem;">
-<<<<<<< HEAD
                     Kasir bertugas: <strong>{{ $cashierDisplayName }}</strong>
-=======
-                    Kasir bertugas: <strong>{{ session('user.name', auth()->user()->email) }}</strong>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                 </div>
             </div>
         </div>
@@ -233,11 +177,7 @@
             </div>
             <h6 class="fw-bold text-dark mb-1">Anggota Tidak Memiliki Tagihan Piutang</h6>
             <p class="text-secondary small mb-0">
-<<<<<<< HEAD
                 Seluruh tagihan transaksi anggota telah lunas (Saldo Piutang: Rp 0). Sisa limit kredit tersedia: <strong id="zeroDebtLimitText">Rp 0</strong>.
-=======
-                Seluruh tagihan transaksi anggota telah lunas (Saldo Piutang: Rp 0). Plafon global: Rp {{ number_format($globalCreditLimit, 0, ',', '.') }}.
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
             </p>
         </div>
     </div>
@@ -435,11 +375,7 @@
                     <div class="mb-2 pb-2 border-bottom border-dashed">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Kasir Penerima:</span>
-<<<<<<< HEAD
                             <span class="fw-bold text-dark">{{ $cashierDisplayName }}</span>
-=======
-                            <span class="fw-bold text-dark">{{ session('user.name', auth()->user()->email) }}</span>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Anggota:</span>
@@ -509,24 +445,13 @@
 </div>
 
 <script>
-<<<<<<< HEAD
 let currentMember = null;
 let lastSearchedMemberQuery = '';
 let allocationMode = 'auto';
 let invoiceAllocations = {};
 let currentRepayIdempotencyKey = null;
-=======
-// ==============================================================================
-// 1. DATA MASTER & STATE PELAYANAN PIUTANG
-// ==============================================================================
-const debtorCatalogue = @js($debtorMembers);
-let currentMember = null;
-let allocationMode = 'auto'; // 'auto' (FIFO) or 'manual'
-let invoiceAllocations = {};
 const moneyMinor = v => Math.round(Number(v || 0) * 100);
-const allocationTotal = () => Object.values(invoiceAllocations).reduce((sum,v) => sum + moneyMinor(v),0)/100;
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); // invoice_id -> allocated_amount
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+const allocationTotal = () => Object.values(invoiceAllocations).reduce((sum, v) => sum + moneyMinor(v), 0) / 100;
 
 function escapeHtml(str) {
     return String(str ?? '')
@@ -774,13 +699,8 @@ function renderInvoicesTable() {
         html += `
             <tr id="invRow-${escapeHtml(inv.id)}">
                 <td>
-<<<<<<< HEAD
                     <span class="fw-bold text-dark font-monospace">${escapeHtml(inv.order_no)}</span>
                     <small class="text-muted d-block font-monospace" style="font-size: 0.68rem;">${escapeHtml(String(inv.id).slice(0, 8))}...</small>
-=======
-                    <span class="fw-bold text-dark font-monospace">${inv.id}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">${escapeHtml(inv.items_summary)}</small>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                 </td>
                 <td>${escapeHtml(inv.pickup_date)}</td>
                 <td>
@@ -803,11 +723,7 @@ function renderInvoicesTable() {
                         </span>
                         ${allocated >= inv.remaining_amount ? '<small class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size: 0.62rem;">LUNAS</small>' : ''}
                     ` : `
-<<<<<<< HEAD
-                        <input type="number" class="form-control form-control-sm text-end font-monospace py-0.5 px-1.5" style="font-size: 0.78rem;" value="${allocated}" max="${inv.remaining_amount}" min="0" oninput="onManualAllocationChange('${escapeHtml(inv.id)}', this.value)">
-=======
-                        <input type="number" class="form-control form-control-sm text-end font-monospace py-0.5 px-1.5" style="font-size: 0.78rem;" value="${allocated}" max="${inv.remaining_amount}" min="0" step="0.01" onchange="onManualAllocationChange('${inv.id}', this.value)">
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+                        <input type="number" class="form-control form-control-sm text-end font-monospace py-0.5 px-1.5" style="font-size: 0.78rem;" value="${allocated}" max="${inv.remaining_amount}" min="0" step="0.01" oninput="onManualAllocationChange('${escapeHtml(inv.id)}', this.value)">
                     `}
                 </td>
             </tr>
@@ -816,22 +732,11 @@ function renderInvoicesTable() {
 
     tbody.innerHTML = html;
 
-<<<<<<< HEAD
-    const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
+    const totalAlloc = allocationTotal();
     document.getElementById('tableTotalAllocated').textContent = `Rp ${totalAlloc.toLocaleString('id-ID')}`;
 
     const newDebt = Math.max(0, currentMember.total_debt - totalAlloc);
     const newLimit = currentMember.available_limit + totalAlloc;
-=======
-    // Total Allocated Display
-    const totalAlloc = allocationTotal();
-    document.getElementById('tableTotalAllocated').textContent = `Rp ${totalAlloc.toLocaleString('id-ID')}`;
-
-    // Update Live Impact Preview
-    const currentDebt = currentMember.total_debt;
-    const newDebt = Math.max(0, currentDebt - totalAlloc);
-    const newLimit = Math.max(0, currentMember.global_limit - currentMember.total_debt + totalAlloc - currentMember.active_hold);
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
 
     document.getElementById('previewNewDebt').textContent = `Rp ${newDebt.toLocaleString('id-ID')}`;
     document.getElementById('previewNewLimit').textContent = `Rp ${newLimit.toLocaleString('id-ID')} (+Rp ${totalAlloc.toLocaleString('id-ID')})`;
@@ -860,14 +765,10 @@ function recalculateFifoAllocation(totalPay) {
 }
 
 function onPaymentAmountInput(val) {
-<<<<<<< HEAD
     currentRepayIdempotencyKey = null;
     hideInlineError('repayErrorAlert');
 
-    const pay = parseFloat(val) || 0;
-=======
-    const pay = moneyMinor(val)/100;
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+    const pay = moneyMinor(val) / 100;
     const errEl = document.getElementById('paymentAmountError');
 
     if (pay < 0 || (currentMember && pay > currentMember.total_debt + 0.001)) {
@@ -910,11 +811,7 @@ function toggleAllocationMode(mode) {
     const help = document.getElementById('allocModeHelp');
     if (mode === 'auto') {
         help.textContent = "Sistem memprioritaskan pembayaran ke faktur yang memiliki tanggal jatuh tempo terawal terlebih dahulu (FIFO).";
-<<<<<<< HEAD
-        const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
-=======
-        const pay = moneyMinor(document.getElementById('paymentAmountInput').value)/100;
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+        const pay = moneyMinor(document.getElementById('paymentAmountInput').value) / 100;
         recalculateFifoAllocation(pay);
     } else {
         help.textContent = "Mode Manual: Anda dapat menyesuaikan alokasi pembayaran rupiah per masing-masing faktur.";
@@ -923,23 +820,14 @@ function toggleAllocationMode(mode) {
 }
 
 function onManualAllocationChange(invId, val) {
-<<<<<<< HEAD
     currentRepayIdempotencyKey = null;
-    const amt = Math.max(0, parseFloat(val) || 0);
-=======
-    const amt = moneyMinor(val)/100;
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
+    const amt = Math.max(0, moneyMinor(val) / 100);
     const inv = currentMember.invoices.find(i => i.id === invId);
     if (!inv) return;
 
     invoiceAllocations[invId] = Math.max(0, Math.min(amt, inv.remaining_amount));
 
-<<<<<<< HEAD
-    const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
-=======
-    // Sum manual
     const totalAlloc = allocationTotal();
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
     document.getElementById('paymentAmountInput').value = totalAlloc;
     renderInvoicesTable();
 }
@@ -967,13 +855,8 @@ function validateRepaymentForm() {
         return;
     }
 
-<<<<<<< HEAD
-    const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
-    const totalAlloc = Object.values(invoiceAllocations).reduce((sum, v) => sum + v, 0);
-=======
-    const pay = moneyMinor(document.getElementById('paymentAmountInput').value)/100;
+    const pay = moneyMinor(document.getElementById('paymentAmountInput').value) / 100;
     const totalAlloc = allocationTotal();
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
     const method = document.getElementById('repaymentMethod').value;
     const matchBadge = document.getElementById('allocationMatchBadge');
 
@@ -1005,9 +888,8 @@ function validateRepaymentForm() {
     btn.title = "Klik untuk menyimpan pembayaran cicilan";
 }
 
-<<<<<<< HEAD
 async function openRepaymentReceiptModal() {
-    const pay = parseFloat(document.getElementById('paymentAmountInput').value) || 0;
+    const pay = moneyMinor(document.getElementById('paymentAmountInput').value) / 100;
     if (pay <= 0 || !currentMember) return;
 
     const method = document.getElementById('repaymentMethod').value;
@@ -1112,60 +994,61 @@ async function openRepaymentReceiptModal() {
 function onCloseReceiptModal() {
     document.getElementById('repayTransferRef').value = '';
     document.getElementById('repayTransferCheck').checked = false;
+    if (document.getElementById('repaymentMethod').value === 'BANK_TRANSFER') {
+        location.reload();
+        return;
+    }
     if (lastSearchedMemberQuery) {
         lookupMemberReceivables(lastSearchedMemberQuery);
     }
-=======
-// ==============================================================================
-// 4. STRUK PELUNASAN / CICILAN MODAL (FR-08B & PRD AC-09)
-// ==============================================================================
+}
+
 function repaymentFeedback(message, success = false) {
     const el = document.getElementById('repaymentFeedback');
     el.className = 'alert ' + (success ? 'alert-success' : 'alert-danger');
-    el.textContent = message; el.scrollIntoView({block:'nearest'});
+    el.textContent = message;
+    el.scrollIntoView({ block: 'nearest' });
 }
+
 function confirmRepayment(text) {
     const dialog = document.getElementById('repaymentVerifyDialog');
     document.getElementById('repaymentVerifyText').textContent = text;
-    return new Promise(resolve => { dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), {once:true}); dialog.returnValue = 'cancel'; dialog.showModal(); });
+    return new Promise(resolve => {
+        dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
+        dialog.returnValue = 'cancel';
+        dialog.showModal();
+    });
 }
+
 async function repaymentRequest(url, payload) {
-    const response = await fetch(url, {method:'POST', credentials:'same-origin', headers:{'Accept':'application/json','Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify(payload)});
+    const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify(payload),
+    });
     const data = await response.json();
     if (!response.ok || !data.success) throw new Error(data.message || 'Permintaan gagal.');
     return data;
 }
-let repaymentKey = null;
-let repaymentPayload = null;
-async function openRepaymentReceiptModal() {
-    const btn = document.getElementById('btnSubmitRepayment');
-    if (!currentMember || btn.disabled) return;
-    const pay = Number(document.getElementById('paymentAmountInput').value);
-    const method = document.getElementById('repaymentMethod').value;
-    const allocations = Object.entries(invoiceAllocations).filter(([id,amount]) => amount > 0).map(([id,amount]) => ({receivable_id:id,amount}));
-    const payload = {member_id:currentMember.id,method,amount:pay,allocations,external_reference:method==='BANK_TRANSFER'?document.getElementById('repayTransferRef').value.trim():null};
-    const fingerprint = JSON.stringify(payload);
-    if (repaymentPayload !== fingerprint) {
-        repaymentKey = globalThis.crypto?.randomUUID?.() || ('repay-' + Date.now() + '-' + Math.random().toString(36).slice(2)); repaymentPayload = fingerprint;
-    }
+
+async function verifyReceivable(btn, id, action) {
+    if (!await confirmRepayment(action === 'VERIFY' ? 'Pastikan dana benar-benar diterima. Lanjutkan?' : 'Tolak transfer ini?')) return;
     btn.disabled = true;
     try {
-        const result = await repaymentRequest('/api/v1/receivables/payments',{...payload,idempotency_key:repaymentKey});
-        try { sessionStorage.setItem('repaymentFeedback',result.message + ' ID pembayaran: ' + result.data.payment_id); } catch(e) {}
+        const result = await repaymentRequest('/api/v1/payments/' + encodeURIComponent(id) + '/verify', { action });
+        try { sessionStorage.setItem('repaymentFeedback', result.message); } catch (e) {}
         location.reload();
-    } catch (e) { repaymentFeedback(e.message); btn.disabled = false; }
+    } catch (e) {
+        repaymentFeedback(e.message);
+        btn.disabled = false;
+    }
 }
-async function verifyReceivable(btn,id,action) {
-    if (!await confirmRepayment(action==='VERIFY'?'Pastikan dana benar-benar diterima. Lanjutkan?':'Tolak transfer ini?')) return;
-    btn.disabled = true;
-    try {
-        const result = await repaymentRequest('/api/v1/payments/'+encodeURIComponent(id)+'/verify',{action});
-        try { sessionStorage.setItem('repaymentFeedback', result.message); } catch(e) {} location.reload();
-    } catch(e) { repaymentFeedback(e.message); btn.disabled = false; }
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
-}
-function onCloseReceiptModal() { location.reload(); }
-try { const feedback = sessionStorage.getItem('repaymentFeedback'); if (feedback) { sessionStorage.removeItem('repaymentFeedback'); repaymentFeedback(feedback,true); } } catch(e) {}
+try { const feedback = sessionStorage.getItem('repaymentFeedback'); if (feedback) { sessionStorage.removeItem('repaymentFeedback'); repaymentFeedback(feedback, true); } } catch (e) {}
 
 </script>
 @endsection

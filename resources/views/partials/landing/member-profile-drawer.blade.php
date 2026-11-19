@@ -251,21 +251,22 @@
         <!-- 4. AKSI AKUN -->
         <div class="pt-2">
             <div class="d-flex gap-2">
-<<<<<<< HEAD
-                <a href="{{ route('logout') }}" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Keluar Akun</span>
-                </a>
+                <form class="flex-fill" method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Keluar Akun</span>
+                    </button>
+                </form>
                 @if(!empty($landingIsMemberRole))
-                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
-                        <i class="bi bi-arrow-repeat"></i>
-                        <span>Ganti Akun</span>
-                    </a>
+                    <form class="flex-fill" method="POST" action="{{ route('switch-account') }}">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <span>Ganti Akun</span>
+                        </button>
+                    </form>
                 @endif
-=======
-                <form class="flex-fill" method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="btn btn-outline-danger btn-sm w-100">Keluar Akun</button></form>
-                <form class="flex-fill" method="POST" action="{{ route('switch-account') }}">@csrf<button type="submit" class="btn btn-outline-secondary btn-sm w-100">Ganti Akun</button></form>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
             </div>
         </div>
 

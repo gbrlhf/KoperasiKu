@@ -1,17 +1,5 @@
 @php
     $currentRole = $uiRole ?? session('active_role', 'MEMBER');
-<<<<<<< HEAD
-=======
-    $availableRoles = auth()->user()?->roleCodes() ?? [];
-
-    $roleBadges = [
-        'MEMBER' => ['label' => 'Pelanggan / Anggota', 'desc' => 'Pesan & Cek Hutang', 'badge' => 'bg-primary-subtle text-primary border border-primary-subtle', 'icon' => 'bi-person-badge'],
-        'CASHIER' => ['label' => 'Kasir / Petugas', 'desc' => 'Stok Barang & POS', 'badge' => 'bg-success-subtle text-success border border-success-subtle', 'icon' => 'bi-shop'],
-        'MANAGER' => ['label' => 'Manajer Eksekutif', 'desc' => 'Analitik & Penjualan', 'badge' => 'bg-danger-subtle text-danger border border-danger-subtle', 'icon' => 'bi-speedometer2'],
-    ];
-
-    $activeInfo = $roleBadges[$currentRole] ?? $roleBadges['MEMBER'];
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
 @endphp
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top border-bottom border-secondary-subtle py-2">
@@ -42,19 +30,22 @@
                 @php
                     $authUser = auth()->user();
                     $sessionUser = session('user');
-<<<<<<< HEAD
-                    $displayName = $authUser?->name ?? ($sessionUser['name'] ?? match($currentRole) {
-                        'CASHIER' => 'Petugas Kasir Gerai',
-                        'MANAGER' => 'Manajer Operasional',
-                        default => 'Ahmad Fauzi',
-                    });
+                    $displayName = $authUser?->member?->full_name
+                        ?? $authUser?->name
+                        ?? ($sessionUser['name'] ?? match($currentRole) {
+                            'CASHIER' => 'Petugas Kasir Gerai',
+                            'MANAGER' => 'Manajer Operasional',
+                            default => 'Ahmad Fauzi',
+                        });
                     $rawId = (string) ($authUser?->id ?? ($sessionUser['id'] ?? match($currentRole) {
                         'CASHIER' => 'KASIR-01',
                         'MANAGER' => 'MGR-01',
                         default => 'EMP-001',
                     }));
                     $userEmail = $authUser?->email ?? ($sessionUser['email'] ?? null);
-                    $employeeCode = $authUser?->employee_id ?? ($sessionUser['employee_id'] ?? ($sessionUser['member_no'] ?? null));
+                    $employeeCode = $authUser?->member?->employee_number
+                        ?? $authUser?->employee_id
+                        ?? ($sessionUser['employee_id'] ?? ($sessionUser['member_no'] ?? null));
                     if ($employeeCode) {
                         $displayProfileMeta = 'ID: ' . $employeeCode;
                     } elseif ($userEmail) {
@@ -64,10 +55,6 @@
                     } else {
                         $displayProfileMeta = 'ID: ' . $rawId;
                     }
-=======
-                    $displayName = auth()->user()?->member?->full_name ?? $sessionUser['name'] ?? auth()->user()?->email ?? '-';
-                    $displayId = auth()->user()?->member?->employee_number ?? auth()->user()?->id ?? '-';
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                 @endphp
                 <!-- User Profile / Mock Session -->
                 <div class="dropdown">
@@ -77,14 +64,9 @@
                         </div>
                         <span class="text-white small fw-medium">{{ $displayName }}</span>
                     </button>
-<<<<<<< HEAD
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" style="min-width: 200px; max-width: 260px;">
                         <li><span class="dropdown-item-text text-muted small text-truncate d-block" title="{{ $displayProfileMeta }}">{{ $displayProfileMeta }}</span></li>
-=======
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
-                        <li><span class="dropdown-item-text text-muted small">ID: {{ $displayId }}</span></li>
                         <li><form method="POST" action="{{ route('switch-account') }}">@csrf<button type="submit" class="dropdown-item small"><i class="bi bi-box-arrow-in-right me-2"></i>Ganti Akun Login</button></form></li>
->>>>>>> 129ab67a6654a6c37d9378c68a6567951b2b9110
                         <li><hr class="dropdown-divider"></li>
                         <li><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="dropdown-item small text-danger"><i class="bi bi-box-arrow-right me-2"></i>Keluar</button></form></li>
                     </ul>
