@@ -56,10 +56,11 @@ class ImportController extends Controller
         ], 201);
     }
 
-    public function validateBatch(string $id): JsonResponse
+    public function validateBatch(Request $request, string $id): JsonResponse
     {
         $batch = ImportBatch::findOrFail($id);
-        $validatedBatch = $this->importService->validateBatch($batch);
+        $customMapping = is_array($request->input('mapping')) ? $request->input('mapping') : null;
+        $validatedBatch = $this->importService->validateBatch($batch, $customMapping);
 
         return response()->json([
             'success' => true,
@@ -109,8 +110,14 @@ class ImportController extends Controller
         }
 
         $arr = $batch->toArray();
+        $colMeta = is_array($batch->column_mapping) ? $batch->column_mapping : [];
         $arr['valid_count'] = $batch->valid_rows;
         $arr['duplicate_count'] = $batch->duplicate_rows;
+        $arr['header_row_num'] = (int) ($colMeta['header_row_num'] ?? 1);
+        $arr['file_headers'] = $colMeta['file_headers'] ?? [];
+        $arr['column_mapping'] = $colMeta['mapping'] ?? $colMeta;
+        $arr['fields_meta'] = $colMeta['fields_meta'] ?? [];
+        $arr['missing_required'] = $colMeta['missing_required'] ?? [];
         $arr['errors'] = $flatErrors;
 
         return $arr;

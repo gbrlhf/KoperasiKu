@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\MemberCreditAccount;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Import\SmartImportMapper;
 use App\Services\SimpleXlsxService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -184,51 +185,191 @@ class ManagerExcelController extends Controller
         $ext = strtolower($file->getClientOriginalExtension());
 
         try {
-            $parsed = $this->xlsx->parseFile($file->getRealPath(), $ext);
+            $parsed = $this->xlsx->parseFile($file->getRealPath(), $ext, $type);
         } catch (Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
+        $fileHeaders = $parsed['file_headers'] ?? array_map(
+            fn ($h) => ['key' => (string) $h, 'label' => (string) $h],
+            $parsed['headers'] ?? []
+        );
+        $mapping = SmartImportMapper::autoMapHeaders($fileHeaders, $type);
+        $rawRows = $parsed['rows'] ?? [];
+        $validation = $this->validateRowsWithMapping($type, $rawRows, $fileHeaders, $mapping);
+
+        $batchId = (string) Str::uuid();
+        $checksum = hash_file('sha256', $file->getRealPath()) ?: sha1($batchId);
+        $headerRowNum = (int) ($parsed['header_row_num'] ?? 1);
+
+        DB::table('import_batches')->insert([
+            'id' => $batchId,
+            'uploaded_by' => auth()->id(),
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => 'imports/' . $batchId . '.' . $ext,
+            'checksum' => $checksum,
+            'import_type' => $type,
+            'status' => 'PREVIEW',
+            'cutoff_at' => $request->input('cut_off_date') ?: null,
+            'total_rows' => count($rawRows),
+            'valid_rows' => count($validation['valid_rows']),
+            'error_rows' => count($validation['errors']),
+            'duplicate_rows' => $validation['duplicate_count'],
+            'column_mapping' => json_encode($mapping),
+            'quality_metadata' => json_encode([
+                'header_row_num' => $headerRowNum,
+                'file_headers' => $fileHeaders,
+                'raw_rows' => $rawRows,
+                'mapping' => $mapping,
+                'fields_meta' => $validation['fields_meta'],
+                'missing_required' => $validation['missing_required'],
+                'valid_rows' => $validation['valid_rows'],
+                'errors' => $validation['errors'],
+            ]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $preview = [
+            'valid_count' => count($validation['valid_rows']),
+            'duplicate_count' => $validation['duplicate_count'],
+            'errors' => $validation['errors'],
+            'header_row_num' => $headerRowNum,
+            'file_headers' => $fileHeaders,
+            'column_mapping' => $mapping,
+            'fields_meta' => $validation['fields_meta'],
+            'missing_required' => $validation['missing_required'],
+        ];
+
+        return response()->json([
+            'id' => $batchId,
+            'batch' => [
+                'id' => $batchId,
+                'import_type' => $type,
+                'file_name' => $file->getClientOriginalName(),
+                'valid_rows' => count($validation['valid_rows']),
+                'error_rows' => count($validation['errors']),
+                'status' => 'PREVIEW',
+            ],
+            'preview' => $preview,
+            'valid_count' => count($validation['valid_rows']),
+            'duplicate_count' => $validation['duplicate_count'],
+            'errors' => $validation['errors'],
+            'header_row_num' => $headerRowNum,
+            'file_headers' => $fileHeaders,
+            'column_mapping' => $mapping,
+            'fields_meta' => $validation['fields_meta'],
+            'missing_required' => $validation['missing_required'],
+        ]);
+    }
+
+    public function revalidateMapping(Request $request, string $id): JsonResponse
+    {
+        $batch = DB::table('import_batches')->where('id', $id)->first();
+        if (!$batch) {
+            return response()->json(['message' => 'Batch impor tidak ditemukan.'], 404);
+        }
+        if ($batch->status === 'COMMITTED') {
+            return response()->json(['message' => 'Batch sudah di-commit dan tidak dapat divalidasi ulang.'], 422);
+        }
+
+        $validated = $request->validate([
+            'mapping' => ['required', 'array'],
+        ]);
+
+        $meta = json_decode((string) ($batch->quality_metadata ?? '{}'), true);
+        $rawRows = is_array($meta['raw_rows'] ?? null) ? $meta['raw_rows'] : [];
+        $fileHeaders = is_array($meta['file_headers'] ?? null) ? $meta['file_headers'] : [];
+        $type = (string) $batch->import_type;
+
+        $allowedKeys = array_flip(array_map(fn ($h) => (string) ($h['key'] ?? ''), $fileHeaders));
+        $defs = SmartImportMapper::fieldDefinitions($type);
+        $newMapping = [];
+        foreach ($defs as $field => $_def) {
+            $chosen = isset($validated['mapping'][$field]) ? trim((string) $validated['mapping'][$field]) : '';
+            $newMapping[$field] = ($chosen !== '' && isset($allowedKeys[$chosen])) ? $chosen : null;
+        }
+
+        $result = $this->validateRowsWithMapping($type, $rawRows, $fileHeaders, $newMapping);
+
+        $meta['mapping'] = $newMapping;
+        $meta['fields_meta'] = $result['fields_meta'];
+        $meta['missing_required'] = $result['missing_required'];
+        $meta['valid_rows'] = $result['valid_rows'];
+        $meta['errors'] = $result['errors'];
+
+        DB::table('import_batches')->where('id', $id)->update([
+            'valid_rows' => count($result['valid_rows']),
+            'error_rows' => count($result['errors']),
+            'duplicate_rows' => $result['duplicate_count'],
+            'column_mapping' => json_encode($newMapping),
+            'quality_metadata' => json_encode($meta),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'id' => $batch->id,
+            'import_type' => $batch->import_type,
+            'file_name' => $batch->file_name,
+            'valid_count' => count($result['valid_rows']),
+            'duplicate_count' => $result['duplicate_count'],
+            'errors' => $result['errors'],
+            'header_row_num' => (int) ($meta['header_row_num'] ?? 1),
+            'file_headers' => $fileHeaders,
+            'column_mapping' => $newMapping,
+            'fields_meta' => $result['fields_meta'],
+            'missing_required' => $result['missing_required'],
+        ]);
+    }
+
+    /**
+     * Validate parsed rows against an explicit column mapping and smart currency/number normalization.
+     */
+    private function validateRowsWithMapping(string $type, array $rawRows, array $fileHeaders, array $mapping): array
+    {
         $validRows = [];
         $errors = [];
         $duplicateCount = 0;
 
-        foreach ($parsed['rows'] as $entry) {
-            $rowNum = $entry['row_num'];
-            $d = $entry['data'];
+        foreach ($rawRows as $entry) {
+            $rowNum = $entry['row_num'] ?? '-';
+            $d = SmartImportMapper::applyMappingToRow($entry['data'] ?? [], $mapping);
 
             if ($type === 'PRODUK') {
-                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku', 'kode']));
+                $sku = trim((string) $this->pick($d, ['sku', 'kode_barang', 'kode_produk', 'kode_sku', 'id_produk', 'kode']));
                 $barcode = trim((string) $this->pick($d, ['barcode']));
-                $name = trim((string) $this->pick($d, ['nama', 'nama_produk', 'nama_barang', 'produk', 'name']));
-                $category = trim((string) $this->pick($d, ['kategori', 'category', 'category_name'], 'Sembako & Beras'));
-                $supCode = trim((string) $this->pick($d, ['kode_pemasok', 'supplier_code', 'pemasok']));
-                $unit = trim((string) $this->pick($d, ['satuan', 'unit'], 'Pcs'));
-                $costRaw = $this->pick($d, ['harga_modal', 'harga_beli', 'modal', 'harga_pokok', 'hpp', 'current_cost', 'cost'], '0');
-                $costRaw = $costRaw === '' ? '0' : $costRaw;
-                $priceRaw = $this->pick($d, ['harga_jual', 'harga', 'selling_price', 'price']);
-                $stockRaw = $this->pick($d, ['stok_awal', 'stok', 'stock', 'initial_stock']);
-                $minStockRaw = $this->pick($d, ['min_stok', 'min_stock', 'stok_minimum', 'reorder_point'], '10');
-                $minStockRaw = $minStockRaw === '' ? '10' : $minStockRaw;
+                $name = trim((string) $this->pick($d, ['name', 'nama', 'nama_produk', 'nama_barang', 'produk', 'barang', 'item', 'deskripsi']));
+                $category = trim((string) $this->pick($d, ['category', 'kategori', 'category_name'], 'Sembako & Beras'));
+                $supCode = trim((string) $this->pick($d, ['supplier_code', 'kode_pemasok', 'pemasok']));
+                $unit = trim((string) $this->pick($d, ['unit', 'satuan'], 'Pcs'));
+
+                $costVal = $this->pick($d, ['current_cost', 'harga_modal', 'harga_beli', 'modal', 'harga_pokok', 'hpp', 'beli', 'cost'], '');
+                $costParsed = $costVal === '' ? 0.0 : SmartImportMapper::parseNumber($costVal);
+                $priceVal = $this->pick($d, ['selling_price', 'harga_jual', 'harga', 'price', 'jual', 'tarif'], '');
+                $priceParsed = SmartImportMapper::parseNumber($priceVal);
+                $stockVal = $this->pick($d, ['initial_stock', 'stok_awal', 'stok', 'stock', 'qty', 'jumlah', 'kuantitas', 'saldo'], '');
+                $stockParsed = $stockVal === '' ? null : SmartImportMapper::parseNumber($stockVal);
+                $minStockVal = $this->pick($d, ['reorder_point', 'min_stok', 'min_stock', 'stok_minimum'], '10');
+                $minStockParsed = SmartImportMapper::parseNumber($minStockVal);
                 $statusRaw = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($sku === '') {
-                    $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'Kode barang (SKU) kosong'];
+                    $errors[] = ['row_number' => $rowNum, 'identifier' => $name !== '' ? $name : '—', 'message' => 'Kode barang (SKU) kosong'];
                     continue;
                 }
                 if ($name === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Nama produk kosong'];
                     continue;
                 }
-                if (!is_numeric($costRaw) || (float) $costRaw < 0) {
-                    $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Harga modal bukan angka valid'];
+                if ($costParsed === null || $costParsed < 0) {
+                    $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Harga modal / HPP bukan angka valid'];
                     continue;
                 }
-                if (!is_numeric($priceRaw) || (float) $priceRaw <= 0) {
+                if ($priceParsed === null || $priceParsed <= 0) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Harga jual harus angka > 0'];
                     continue;
                 }
-                if ($stockRaw !== '' && (!is_numeric($stockRaw) || (int) $stockRaw < 0)) {
+                if ($stockVal !== '' && ($stockParsed === null || (int) round($stockParsed) < 0)) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Stok awal harus angka >= 0'];
                     continue;
                 }
@@ -244,22 +385,25 @@ class ManagerExcelController extends Controller
                     'category' => $category !== '' ? $category : 'Sembako & Beras',
                     'supplier_code' => $supCode !== '' ? $supCode : null,
                     'unit' => $unit !== '' ? $unit : 'Pcs',
-                    'current_cost' => (float) $costRaw,
-                    'selling_price' => (float) $priceRaw,
-                    'stock' => $stockRaw !== '' ? (int) $stockRaw : null,
-                    'reorder_point' => is_numeric($minStockRaw) ? max(0, (int) $minStockRaw) : 10,
+                    'current_cost' => round($costParsed, 2),
+                    'selling_price' => round($priceParsed, 2),
+                    'stock' => $stockParsed !== null ? (int) round($stockParsed) : null,
+                    'reorder_point' => $minStockParsed !== null ? max(0, (int) round($minStockParsed)) : 10,
                     'is_active' => !in_array($statusRaw, ['INACTIVE', 'NONAKTIF', '0', 'FALSE'], true),
                 ];
             } elseif ($type === 'ANGGOTA') {
-                $memberNo = trim((string) $this->pick($d, ['nim_nip', 'nim', 'nip', 'no_anggota', 'member_number', 'nomor_anggota', 'kode_anggota', 'id_karyawan', 'employee_number']));
-                $empNo = trim((string) $this->pick($d, ['id_karyawan', 'employee_number', 'nip', 'nim', 'nim_nip', 'no_anggota', 'member_number'], $memberNo));
-                $fullName = trim((string) $this->pick($d, ['nama_lengkap', 'nama', 'full_name', 'name']));
-                $dept = trim((string) $this->pick($d, ['jurusan', 'department', 'divisi', 'unit_kerja', 'unit'], 'Umum'));
+                $empNo = trim((string) $this->pick($d, ['employee_number', 'nim_nip', 'nim', 'nip', 'id_karyawan', 'id_anggota', 'no_anggota', 'member_number', 'nomor_anggota', 'kode_anggota', 'nomor', 'member']));
+                $memberNo = trim((string) $this->pick($d, ['member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota'], $empNo));
+                if ($memberNo === '') {
+                    $memberNo = $empNo;
+                }
+                $fullName = trim((string) $this->pick($d, ['full_name', 'nama_lengkap', 'nama', 'name']));
+                $dept = trim((string) $this->pick($d, ['department', 'jurusan', 'prodi', 'divisi', 'unit_kerja', 'unit', 'departemen', 'bagian'], 'Umum'));
                 $email = strtolower(trim((string) $this->pick($d, ['email'])));
                 $status = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($memberNo === '') {
-                    $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'NIM / NIP / No. anggota kosong'];
+                    $errors[] = ['row_number' => $rowNum, 'identifier' => $fullName !== '' ? $fullName : '—', 'message' => 'NIM / NIP / No. anggota kosong'];
                     continue;
                 }
                 if ($fullName === '') {
@@ -288,12 +432,15 @@ class ManagerExcelController extends Controller
                     'status' => in_array($status, ['ACTIVE', 'INACTIVE'], true) ? $status : 'ACTIVE',
                 ];
             } elseif ($type === 'PEMASOK') {
-                $code = strtoupper(trim((string) $this->pick($d, ['kode_pemasok', 'kode', 'code'])));
-                $name = trim((string) $this->pick($d, ['nama_pemasok', 'nama', 'name']));
-                $phone = trim((string) $this->pick($d, ['kontak', 'telepon', 'no_hp', 'phone']));
-                $address = trim((string) $this->pick($d, ['alamat', 'address']));
-                $leadRaw = $this->pick($d, ['lead_time_hari', 'lead_time_days', 'lead_time'], '2');
-                $leadRaw = $leadRaw === '' ? '2' : $leadRaw;
+                $name = trim((string) $this->pick($d, ['name', 'nama_pemasok', 'nama', 'pemasok', 'supplier', 'perusahaan']));
+                $code = strtoupper(trim((string) $this->pick($d, ['code', 'kode_pemasok', 'kode', 'id_pemasok'])));
+                if ($code === '' && $name !== '') {
+                    $code = 'SUP-' . strtoupper(Str::random(5));
+                }
+                $phone = trim((string) $this->pick($d, ['phone', 'kontak', 'telepon', 'telp', 'no_hp', 'hp']));
+                $address = trim((string) $this->pick($d, ['address', 'alamat', 'lokasi']));
+                $leadVal = $this->pick($d, ['lead_time_days', 'lead_time_hari', 'lead_time'], '2');
+                $leadParsed = $leadVal === '' ? 2.0 : SmartImportMapper::parseNumber($leadVal);
                 $statusRaw = strtoupper(trim((string) $this->pick($d, ['status'], 'ACTIVE')));
 
                 if ($code === '') {
@@ -304,7 +451,7 @@ class ManagerExcelController extends Controller
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $code, 'message' => 'Nama pemasok kosong'];
                     continue;
                 }
-                if (!is_numeric($leadRaw) || (int) $leadRaw < 0) {
+                if ($leadParsed === null || (int) round($leadParsed) < 0) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $code, 'message' => 'Lead time harus angka >= 0'];
                     continue;
                 }
@@ -318,13 +465,15 @@ class ManagerExcelController extends Controller
                     'name' => $name,
                     'phone' => $phone !== '' ? $phone : null,
                     'address' => $address !== '' ? $address : null,
-                    'lead_time_days' => (int) $leadRaw,
+                    'lead_time_days' => (int) round($leadParsed),
                     'is_active' => !in_array($statusRaw, ['INACTIVE', 'NONAKTIF', '0', 'FALSE'], true),
                 ];
             } elseif ($type === 'STOK') {
-                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku', 'kode']));
-                $stockRaw = $this->pick($d, ['stok_fisik', 'stok_awal', 'stok', 'qty', 'quantity', 'jumlah', 'on_hand']);
-                $costRaw = $this->pick($d, ['harga_modal_baru', 'harga_modal', 'harga_beli', 'hpp', 'unit_cost', 'current_cost', 'cost']);
+                $sku = trim((string) $this->pick($d, ['sku', 'kode_barang', 'kode_produk', 'kode_sku', 'id_produk', 'kode']));
+                $stockVal = $this->pick($d, ['quantity', 'stok_fisik', 'stok_awal', 'stok', 'stock', 'qty', 'jumlah', 'kuantitas', 'saldo', 'on_hand'], '');
+                $stockParsed = SmartImportMapper::parseNumber($stockVal);
+                $costVal = $this->pick($d, ['unit_cost', 'harga_modal_baru', 'harga_modal', 'harga_beli', 'hpp', 'modal', 'current_cost', 'cost'], '');
+                $costParsed = $costVal === '' ? null : SmartImportMapper::parseNumber($costVal);
 
                 if ($sku === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => '—', 'message' => 'Kode barang (SKU) kosong'];
@@ -334,11 +483,11 @@ class ManagerExcelController extends Controller
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'SKU tidak ditemukan di master produk'];
                     continue;
                 }
-                if (!is_numeric($stockRaw) || (int) $stockRaw < 0) {
+                if ($stockParsed === null || (int) round($stockParsed) < 0) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Stok fisik harus angka >= 0'];
                     continue;
                 }
-                if ($costRaw !== '' && (!is_numeric($costRaw) || (float) $costRaw < 0)) {
+                if ($costVal !== '' && ($costParsed === null || $costParsed < 0)) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $sku, 'message' => 'Harga modal baru tidak valid'];
                     continue;
                 }
@@ -346,80 +495,46 @@ class ManagerExcelController extends Controller
                 $duplicateCount++;
                 $validRows[] = [
                     'sku' => $sku,
-                    'stock' => (int) $stockRaw,
-                    'new_cost' => $costRaw !== '' ? (float) $costRaw : null,
+                    'stock' => (int) round($stockParsed),
+                    'new_cost' => $costParsed !== null ? round($costParsed, 2) : null,
                 ];
             } elseif ($type === 'TRANSAKSI') {
-                $ref = trim((string) $this->pick($d, ['no_referensi', 'nomor_transaksi']));
-                $sku = trim((string) $this->pick($d, ['kode_barang', 'kode_produk', 'kode_sku', 'sku']));
-                $qty = $this->pick($d, ['qty', 'quantity', 'jumlah']);
-                $price = $this->pick($d, ['harga_satuan', 'harga']);
+                $ref = trim((string) $this->pick($d, ['ref', 'no_referensi', 'nomor_transaksi']));
+                $sku = trim((string) $this->pick($d, ['sku', 'kode_barang', 'kode_produk', 'kode_sku']));
+                $qtyVal = $this->pick($d, ['qty', 'quantity', 'jumlah', 'kuantitas'], '');
+                $qtyParsed = SmartImportMapper::parseNumber($qtyVal);
+                $priceVal = $this->pick($d, ['price', 'harga_satuan', 'harga'], '');
+                $priceParsed = SmartImportMapper::parseNumber($priceVal);
 
                 if ($ref === '' || $sku === '') {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $ref ?: '—', 'message' => 'No. referensi dan kode barang wajib diisi'];
                     continue;
                 }
-                if (!is_numeric($qty) || (int) $qty <= 0 || !is_numeric($price) || (float) $price < 0) {
+                if ($qtyParsed === null || (int) round($qtyParsed) <= 0 || $priceParsed === null || $priceParsed < 0) {
                     $errors[] = ['row_number' => $rowNum, 'identifier' => $ref, 'message' => 'Qty atau harga satuan tidak valid'];
                     continue;
                 }
 
                 $validRows[] = [
                     'ref' => $ref,
-                    'tanggal' => trim((string) ($d['tanggal'] ?? date('Y-m-d'))),
+                    'tanggal' => trim((string) $this->pick($d, ['tanggal'], date('Y-m-d'))),
                     'sku' => $sku,
-                    'qty' => (int) $qty,
-                    'harga_satuan' => (float) $price,
-                    'metode_bayar' => strtoupper(trim((string) ($d['metode_bayar'] ?? 'CASH'))),
+                    'qty' => (int) round($qtyParsed),
+                    'harga_satuan' => round($priceParsed, 2),
+                    'metode_bayar' => strtoupper(trim((string) $this->pick($d, ['metode_bayar'], 'CASH'))),
                 ];
             }
         }
 
-        $batchId = (string) Str::uuid();
-        $checksum = hash_file('sha256', $file->getRealPath()) ?: sha1($batchId);
+        $summary = SmartImportMapper::mappingSummary($fileHeaders, $mapping, $type);
 
-        DB::table('import_batches')->insert([
-            'id' => $batchId,
-            'uploaded_by' => auth()->id(),
-            'file_name' => $file->getClientOriginalName(),
-            'file_path' => 'imports/' . $batchId . '.' . $ext,
-            'checksum' => $checksum,
-            'import_type' => $type,
-            'status' => 'PREVIEW',
-            'cutoff_at' => $request->input('cut_off_date') ?: null,
-            'total_rows' => count($validRows) + count($errors),
-            'valid_rows' => count($validRows),
-            'error_rows' => count($errors),
-            'duplicate_rows' => $duplicateCount,
-            'column_mapping' => json_encode($parsed['headers']),
-            'quality_metadata' => json_encode([
-                'valid_rows' => $validRows,
-                'errors' => $errors,
-            ]),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $preview = [
-            'valid_count' => count($validRows),
+        return [
+            'valid_rows' => $validRows,
+            'errors' => $errors,
             'duplicate_count' => $duplicateCount,
-            'errors' => $errors,
+            'fields_meta' => $summary['fields'],
+            'missing_required' => $summary['missing_required'],
         ];
-
-        return response()->json([
-            'id' => $batchId,
-            'batch' => [
-                'id' => $batchId,
-                'import_type' => $type,
-                'file_name' => $file->getClientOriginalName(),
-                'valid_rows' => count($validRows),
-                'error_rows' => count($errors),
-                'status' => 'PREVIEW',
-            ],
-            'preview' => $preview,
-            'valid_count' => count($validRows),
-            'errors' => $errors,
-        ]);
     }
 
     public function getPreview(string $id): JsonResponse
@@ -440,6 +555,11 @@ class ManagerExcelController extends Controller
             'valid_count' => count($validRows),
             'duplicate_count' => (int) ($batch->duplicate_rows ?? 0),
             'errors' => $errors,
+            'header_row_num' => (int) ($meta['header_row_num'] ?? 1),
+            'file_headers' => $meta['file_headers'] ?? [],
+            'column_mapping' => $meta['mapping'] ?? json_decode((string) ($batch->column_mapping ?? '{}'), true),
+            'fields_meta' => $meta['fields_meta'] ?? [],
+            'missing_required' => $meta['missing_required'] ?? [],
         ]);
     }
 

@@ -572,69 +572,178 @@ async function managerApi(url, method = 'GET', body = null) {
 }
 
 const MGR_PERIOD_OPTIONS = [
-    ['day', 'Hari Ini'],
-    ['week', 'Pekan Ini'],
+    ['today', 'Hari Ini'],
+    ['yesterday', 'Kemarin'],
+    ['last_7_days', '7 Hari Terakhir'],
+    ['last_week', 'Pekan Lalu'],
+    ['last_30_days', '30 Hari Terakhir'],
     ['month', 'Bulan Ini'],
+    ['last_month', 'Bulan Lalu'],
     ['year', 'Tahun Ini'],
+    ['last_year', 'Tahun Lalu'],
+    ['custom', 'Pilih Tanggal'],
 ];
 
 function normalizePeriodKey(period = 'month') {
     const p = String(period || 'month').toLowerCase().trim();
-    if (['day', 'today', 'daily', 'harian', 'hari_ini'].includes(p)) return 'day';
-    if (['week', 'this_week', 'weekly', 'pekanan', 'pekan_ini'].includes(p)) return 'week';
+    if (['today', 'day', 'daily', 'harian', 'hari_ini'].includes(p)) return 'today';
+    if (['yesterday', 'kemarin'].includes(p)) return 'yesterday';
+    if (['last_7_days', '7_days', '7d', 'week', 'this_week', 'weekly', 'pekanan', 'pekan_ini'].includes(p)) return 'last_7_days';
+    if (['last_week', 'pekan_lalu', 'minggu_lalu', 'prev_week'].includes(p)) return 'last_week';
+    if (['last_30_days', '30_days', '30d'].includes(p)) return 'last_30_days';
+    if (['month', 'this_month', 'monthly', 'bulanan', 'bulan_ini'].includes(p)) return 'month';
+    if (['last_month', 'bulan_lalu', 'prev_month'].includes(p)) return 'last_month';
     if (['year', 'this_year', 'yearly', 'tahunan', 'tahun_ini'].includes(p)) return 'year';
+    if (['last_year', 'tahun_lalu', 'prev_year'].includes(p)) return 'last_year';
+    if (['custom', 'kustom'].includes(p)) return 'custom';
     return 'month';
+}
+
+function shiftJakartaDate(baseStr, deltaDays) {
+    const [y, m, d] = baseStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+
+function formatUtcDate(dt) {
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
 }
 
 function getPeriodRange(period = 'month') {
     const key = normalizePeriodKey(period);
     const todayStr = BOOTSTRAP.today_jakarta || new Date().toISOString().slice(0, 10);
     const [y, m, d] = todayStr.split('-').map(Number);
-    const baseDate = new Date(Date.UTC(y, m - 1, d));
-    const fmt = dt => `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
 
-    if (key === 'day') return { start: todayStr, end: todayStr };
-    if (key === 'week') {
-        const dow = baseDate.getUTCDay() || 7; // Senin=1 .. Minggu=7
-        const monday = new Date(baseDate.getTime());
-        monday.setUTCDate(monday.getUTCDate() - (dow - 1));
-        return { start: fmt(monday), end: todayStr };
+    if (key === 'today') return { start: todayStr, end: todayStr };
+    if (key === 'yesterday') {
+        const yst = shiftJakartaDate(todayStr, -1);
+        return { start: yst, end: yst };
+    }
+    if (key === 'last_7_days') return { start: shiftJakartaDate(todayStr, -6), end: todayStr };
+    if (key === 'last_week') {
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        const isoDow = (dt.getUTCDay() + 6) % 7;
+        return {
+            start: shiftJakartaDate(todayStr, -isoDow - 7),
+            end: shiftJakartaDate(todayStr, -isoDow - 1),
+        };
+    }
+    if (key === 'last_30_days') return { start: shiftJakartaDate(todayStr, -29), end: todayStr };
+    if (key === 'last_month') {
+        const lastDayPrevMonth = new Date(Date.UTC(y, m - 1, 0));
+        const pmYear = lastDayPrevMonth.getUTCFullYear();
+        const pmMonth = String(lastDayPrevMonth.getUTCMonth() + 1).padStart(2, '0');
+        return {
+            start: `${pmYear}-${pmMonth}-01`,
+            end: formatUtcDate(lastDayPrevMonth),
+        };
     }
     if (key === 'year') return { start: `${y}-01-01`, end: todayStr };
+    if (key === 'last_year') return { start: `${y - 1}-01-01`, end: `${y - 1}-12-31` };
+    if (key === 'custom') {
+        const fallbackStart = `${y}-${String(m).padStart(2, '0')}-01`;
+        const from = (state.customStart || fallbackStart).slice(0, 10);
+        const to = (state.customEnd || todayStr).slice(0, 10);
+        return from <= to ? { start: from, end: to } : { start: to, end: from };
+    }
     return { start: `${y}-${String(m).padStart(2, '0')}-01`, end: todayStr };
 }
 
-function renderPeriodButtonsHtml(activePeriod = state.period, scope = 'rep') {
+let mgrPeriodControlSeq = 0;
+
+function renderPeriodFilterBarHtml(activePeriod = state.period, scope = 'rep') {
     const activeKey = normalizePeriodKey(activePeriod);
+    const { start, end } = getPeriodRange(activeKey);
+    const fromVal = activeKey === 'custom' && state.customStart ? state.customStart : start;
+    const toVal = activeKey === 'custom' && state.customEnd ? state.customEnd : end;
+    const uid = ++mgrPeriodControlSeq;
+
     return `
-        <div class="mgr-tabs" role="group" aria-label="Filter Periode Laporan">
-            ${MGR_PERIOD_OPTIONS.map(([val, lbl]) => `
-                <button type="button"
-                        class="btn-tab mgr-period-btn ${activeKey === val ? 'active' : ''}"
-                        data-period="${val}"
-                        onclick="onManagerPeriodChange('${val}', '${scope}')">
-                    ${escapeHtml(lbl)}
-                </button>
-            `).join('')}
+        <div class="mgr-period-bar d-flex flex-wrap align-items-center gap-2 bg-white border rounded-3 px-2 py-1" data-scope="${scope}">
+            <div class="d-flex align-items-center gap-1">
+                <label class="small text-muted fw-semibold mb-0" for="mgrPeriodSel_${uid}">Periode</label>
+                <select id="mgrPeriodSel_${uid}"
+                        class="form-select form-select-sm mgr-period-select"
+                        style="width:auto;min-width:155px;"
+                        onchange="onManagerPeriodChange(this.value, '${scope}')">
+                    ${MGR_PERIOD_OPTIONS.map(([val, lbl]) => `
+                        <option value="${val}" ${activeKey === val ? 'selected' : ''}>${escapeHtml(lbl)}</option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-1">
+                <label class="small text-muted fw-semibold mb-0" for="mgrFrom_${uid}">Dari</label>
+                <input id="mgrFrom_${uid}"
+                       type="date"
+                       class="form-control form-control-sm mgr-period-from"
+                       style="width:auto;"
+                       value="${escapeHtml(fromVal)}"
+                       onchange="onManagerCustomDateChange(this, '${scope}', 'from')">
+                <label class="small text-muted mb-0" for="mgrTo_${uid}">s.d.</label>
+                <input id="mgrTo_${uid}"
+                       type="date"
+                       class="form-control form-control-sm mgr-period-to"
+                       style="width:auto;"
+                       value="${escapeHtml(toVal)}"
+                       onchange="onManagerCustomDateChange(this, '${scope}', 'to')">
+            </div>
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1"
+                    onclick="reloadManagerPeriodScope('${scope}')">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                <span>Muat Ulang</span>
+            </button>
         </div>
     `;
+}
+
+function reloadManagerPeriodScope(scope = 'rep') {
+    if (scope === 'home' || activePageId === 'home') {
+        loadExecutiveDashboard(state.period);
+    } else {
+        loadReportsAndAnalytics(state.period);
+    }
+}
+
+function onManagerCustomDateChange(inputEl, scope = 'rep', changedSide = 'from') {
+    const bar = inputEl?.closest('.mgr-period-bar');
+    const fromIn = bar?.querySelector('.mgr-period-from');
+    const toIn = bar?.querySelector('.mgr-period-to');
+    let fromVal = (fromIn?.value || state.customStart || '').trim();
+    let toVal = (toIn?.value || state.customEnd || '').trim();
+    if (!fromVal && toVal) fromVal = toVal;
+    if (!toVal && fromVal) toVal = fromVal;
+    if (!fromVal || !toVal) return;
+
+    if (fromVal > toVal) {
+        if (changedSide === 'from') {
+            toVal = fromVal;
+        } else {
+            fromVal = toVal;
+        }
+    }
+    state.customStart = fromVal;
+    state.customEnd = toVal;
+    onManagerPeriodChange('custom', scope);
 }
 
 function syncPeriodControlsAndExports() {
     const activeKey = normalizePeriodKey(state.period);
     const { start, end } = getPeriodRange(activeKey);
 
-    document.querySelectorAll('.mgr-period-btn[data-period]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.period === activeKey);
+    document.querySelectorAll('.mgr-period-select').forEach(sel => {
+        if (sel.value !== activeKey) sel.value = activeKey;
     });
-    const perSel = $('#per');
-    if (perSel && perSel.value !== activeKey) {
-        perSel.value = activeKey;
-    }
+    document.querySelectorAll('.mgr-period-bar').forEach(bar => {
+        const fromIn = bar.querySelector('.mgr-period-from');
+        const toIn = bar.querySelector('.mgr-period-to');
+        if (fromIn) fromIn.value = start;
+        if (toIn) toIn.value = end;
+    });
 
     const pdfBtn = $('#btnExportPdf');
     const xlsxBtn = $('#btnExportXlsx');
-    const qs = `period=${encodeURIComponent(activeKey)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const qs = `period=${encodeURIComponent(activeKey)}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     if (pdfBtn) pdfBtn.href = `/api/v1/reports/financial/export?${qs}&format=pdf`;
     if (xlsxBtn) xlsxBtn.href = `/api/v1/reports/financial/export?${qs}&format=xlsx`;
 }
@@ -670,19 +779,29 @@ function computeLocalOltpSummaryForPeriod(period = state.period) {
 
 function onManagerPeriodChange(period, scope = 'rep') {
     state.period = normalizePeriodKey(period);
-    syncPeriodControlsAndExports();
-    if (scope === 'home' || activePageId === 'home') {
-        loadExecutiveDashboard(state.period);
-    } else {
-        loadReportsAndAnalytics(state.period);
+    if (state.period !== 'custom') {
+        const { start, end } = getPeriodRange(state.period);
+        state.customStart = start;
+        state.customEnd = end;
     }
+    syncPeriodControlsAndExports();
+    reloadManagerPeriodScope(scope);
 }
 
 /* ---------- State Portal Manajer ---------- */
 const state = {
     period: 'month',
-    orderStatusFilter: '',
+    customStart: (BOOTSTRAP.today_jakarta || new Date().toISOString().slice(0, 10)).slice(0, 7) + '-01',
+    customEnd: BOOTSTRAP.today_jakarta || new Date().toISOString().slice(0, 10),
+    orderStatusFilter: 'ALL',
+    orderChannelFilter: '',
+    orderSearch: '',
+    orderCounts: null,
     orders: [],
+    stockSearch: '',
+    stockFilter: '',
+    stockMovements: [],
+    purchaseReceipts: [],
     receivables: [],
     creditPolicy: null,
     agingSummary: null,
@@ -830,17 +949,34 @@ function renderAgingBarsHtml(rows) {
     }).join('') + `<small class="text-muted d-block mt-2" style="font-size:0.72rem;">Saldo snapshot terkini — tidak dijumlahkan lintas hari.</small>`;
 }
 
-function statCardHtml(title, value, sub, iconClass, iconBg, iconColor, valClass = 'text-dark') {
+function statCardHtml(title, value, sub, iconClass, iconBg, iconColor, valClass = 'text-dark', valSizeClass = 'fs-5') {
+    const subHtml = sub
+        ? `<small class="text-muted d-block text-truncate mt-1" style="font-size:0.7rem;" title="${escapeHtml(sub)}">${escapeHtml(sub)}</small>`
+        : '';
     return `
         <div class="tokped-stat-card h-100 d-flex align-items-start justify-content-between gap-2">
             <div class="min-w-0">
                 <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">${escapeHtml(title)}</small>
-                <h4 class="fw-bold ${valClass} mb-0 fs-5 tokped-price">${escapeHtml(value)}</h4>
-                <small class="text-muted d-block text-truncate mt-1" style="font-size:0.7rem;" title="${escapeHtml(sub)}">${escapeHtml(sub)}</small>
+                <h4 class="fw-bold ${valClass} mb-0 ${valSizeClass} tokped-price">${escapeHtml(value)}</h4>
+                ${subHtml}
             </div>
             <span class="tokped-stat-icon" style="background:${iconBg};color:${iconColor};">
                 <i class="bi ${iconClass}"></i>
             </span>
+        </div>
+    `;
+}
+
+function homeStatCardHtml(title, value, iconClass, iconBg, iconColor, valClass = 'text-dark') {
+    return `
+        <div class="tokped-stat-card h-100 d-flex flex-column justify-content-between gap-2 p-3">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <span class="text-muted fw-semibold small">${escapeHtml(title)}</span>
+                <span class="tokped-stat-icon flex-shrink-0" style="background:${iconBg};color:${iconColor};">
+                    <i class="bi ${iconClass}"></i>
+                </span>
+            </div>
+            <div class="fs-4 fw-bold ${valClass} tokped-price lh-sm">${escapeHtml(value)}</div>
         </div>
     `;
 }
@@ -850,15 +986,10 @@ S.home = () => {
     return `${ph(
         'Beranda & Ringkasan',
         `Selamat datang, ${BOOTSTRAP.user.first_name}. Ringkasan operasional, keuangan, piutang, dan analitik koperasi.`,
-        `${renderPeriodButtonsHtml(state.period, 'home')}
-        <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5" onclick="loadExecutiveDashboard(state.period)">
-            <i class="bi bi-arrow-clockwise"></i>
-            <span>Muat Ulang</span>
-        </button>`
+        renderPeriodFilterBarHtml(state.period, 'home')
     )}
     <div id="homeStatusBanner"></div>
     <div class="row g-3 g-xl-4 mb-4" id="kp"></div>
-    <div class="row g-3 g-xl-4 mb-4" id="homeQuickActions"></div>
     <div class="row g-3 g-xl-4 mb-4">
         <div class="col-12 col-lg-8">
             ${cd('Omzet vs Laba Kotor', '<div class="mgr-chart-wrap"><canvas id="homeRevenueChart"></canvas></div><small class="text-muted d-block mt-2" id="homeTrendNote">Memuat data periode...</small>')}
@@ -890,7 +1021,7 @@ async function loadExecutiveDashboard(period = state.period || 'month') {
     state.period = normalizePeriodKey(period);
     syncPeriodControlsAndExports();
     const { start, end } = getPeriodRange(state.period);
-    const query = `?period=${encodeURIComponent(state.period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const query = `?period=${encodeURIComponent(state.period)}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
 
     const [ordersRes, recvRes, policyRes, finRes, summaryRes, topRes, forecastRes, agingRes] = await Promise.allSettled([
         managerApi('/api/v1/cashier/orders'),
@@ -970,58 +1101,17 @@ function renderHomeDashboardContent() {
     }
 
     const kpiCards = [
-        ['Omzet Penjualan Selesai', rp(omzet), `${txCount} Transaksi Selesai`, 'bi-cash-coin', '#ecfdf5', '#059669', 'text-dark'],
-        ['Tunai / Transfer vs Kredit', rp(cashSales), `Penjualan piutang: ${rp(creditSales)}`, 'bi-credit-card-2-front', '#f3f4f6', '#4b5563', 'text-dark'],
-        ['HPP & Laba Kotor', rp(grossProfit), `HPP: ${rp(cogs)} · Margin ${marginPct}%`, 'bi-graph-up-arrow', '#ecfdf5', '#059669', 'text-success'],
-        ['Biaya & Estimasi Laba Bersih', rp(netProfit), `OPEX: ${rp(opex)} ${(cogsIncomplete || expIncomplete) ? '· estimasi' : ''}`, 'bi-calculator', '#f3f4f6', '#4b5563', 'text-dark'],
-        ['Kas Masuk Terverifikasi', rp(cashIn), collectedRecv !== null ? `Cicilan piutang: ${rp(collectedRecv)}` : 'Pembayaran status VERIFIED', 'bi-wallet2', '#ecfdf5', '#059669', 'text-success'],
-        ['Piutang Terbuka (Snapshot)', rp(openRecv), `Jatuh tempo (OVERDUE): ${rp(overdueRecv)}`, 'bi-exclamation-circle', '#fff7ed', '#d97706', overdueRecv > 0 ? 'text-danger' : 'text-dark'],
-        ['Stok Tersedia Gerai', `${totalStockAvail.toLocaleString('id-ID')} unit`, `${BOOTSTRAP.oltp.products.filter(p => p.available <= 0).length} SKU stok habis`, 'bi-box-seam', '#f3f4f6', '#4b5563', 'text-dark'],
-        ['Anggota Aktif & Limit Global', `${activeMembersCount} anggota`, state.creditPolicy ? `Limit global: ${rp(state.creditPolicy.limit_amount)} (7 hari)` : 'Limit global belum dimuat', 'bi-people', '#ecfdf5', '#059669', 'text-dark'],
+        ['Total Omzet', rp(omzet), 'bi-cash-coin', '#ecfdf5', '#059669', 'text-dark'],
+        ['Total HPP', rp(cogs), 'bi-receipt', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['Laba Bersih', rp(netProfit), 'bi-graph-up-arrow', '#ecfdf5', '#059669', netProfit < 0 ? 'text-danger' : 'text-success'],
+        ['Piutang Aktif', rp(openRecv), 'bi-exclamation-circle', '#fff7ed', '#d97706', overdueRecv > 0 ? 'text-danger' : 'text-dark'],
     ];
 
     $('#kp').innerHTML = kpiCards.map(c => `
-        <div class="col-6 col-md-3">
-            ${statCardHtml(c[0], c[1], c[2], c[3], c[4], c[5], c[6])}
+        <div class="col-12 col-sm-6 col-xl-3">
+            ${homeStatCardHtml(c[0], c[1], c[2], c[3], c[4], c[5])}
         </div>
     `).join('');
-
-    const activeOrdersCount = state.orders.filter(o => ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(o.status)).length;
-    const overdueCount = state.receivables.filter(r => r.effective_status === 'OVERDUE').length;
-    const criticalStockCount = BOOTSTRAP.oltp.products.filter(p => p.available <= Math.max(p.reorder_point, 10)).length;
-
-    $('#homeQuickActions').innerHTML = `
-        <div class="col-12 col-md-4">
-            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="go('ops')">
-                <div class="min-w-0">
-                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Antrian Pesanan Aktif</small>
-                    <h5 class="fw-bold text-dark mb-0 tokped-price">${activeOrdersCount} Pesanan</h5>
-                    <small class="text-success d-block mt-1" style="font-size:0.7rem;">Lihat operasional pesanan →</small>
-                </div>
-                <span class="tokped-stat-icon" style="background:#FFF5E6;color:#FA591D;"><i class="bi bi-bag-check"></i></span>
-            </button>
-        </div>
-        <div class="col-12 col-md-4">
-            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="go('ar')">
-                <div class="min-w-0">
-                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Faktur Piutang Overdue</small>
-                    <h5 class="fw-bold text-danger mb-0 tokped-price">${overdueCount} Faktur</h5>
-                    <small class="text-muted d-block mt-1" style="font-size:0.7rem;">Total jatuh tempo: ${rp(overdueRecv)}</small>
-                </div>
-                <span class="tokped-stat-icon" style="background:#FFEAEA;color:#EF144A;"><i class="bi bi-clock-history"></i></span>
-            </button>
-        </div>
-        <div class="col-12 col-md-4">
-            <button type="button" class="tokped-stat-card mgr-quick-btn h-100 d-flex align-items-center justify-content-between gap-2" onclick="TB.ops=1;go('ops');route()">
-                <div class="min-w-0">
-                    <small class="text-muted fw-semibold d-block mb-1" style="font-size:0.74rem;">Stok Habis / Kritis</small>
-                    <h5 class="fw-bold text-dark mb-0 tokped-price">${criticalStockCount} SKU</h5>
-                    <small class="text-success d-block mt-1" style="font-size:0.7rem;">Periksa persediaan gerai →</small>
-                </div>
-                <span class="tokped-stat-icon" style="background:#ecfdf5;color:#059669;"><i class="bi bi-boxes"></i></span>
-            </button>
-        </div>
-    `;
 
     renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs);
 
@@ -1142,14 +1232,26 @@ function renderHomeCharts(omzet, grossProfit, cashSales, creditSales, cogs) {
     }
 }
 
-/* ---------- 2. TRANSAKSI & STOK (TANPA POS SIMULASI ACAK) ---------- */
+/* ---------- 2. TRANSAKSI & OPERASIONAL (LIVE DATABASE) ---------- */
 S.ops = () => `${ph(
     'Transaksi & Operasional',
-    'Pantau antrian order dari server dan kondisi persediaan gerai.'
-)}${renderSubTabShell('ops', ['Pesanan & Pickup', 'Persediaan Stok'], [SO, SK])}`;
+    'Pantau transaksi POS & pickup, persediaan stok, serta mutasi penerimaan barang langsung dari database.'
+)}
+<div class="row g-3 g-xl-4 mb-4" id="opsKpiGrid"></div>
+${renderSubTabShell('ops', ['Pesanan & Pickup', 'Persediaan Stok', 'Mutasi & Penerimaan'], [SO, SK, SM])}`;
 
 H.ops = () => {
-    if (TB.ops === 0) loadManagerOrders(state.orderStatusFilter);
+    renderOpsKpis();
+    if (TB.ops === 0) {
+        loadManagerOrders();
+        loadManagerStock({ silent: true });
+    } else if (TB.ops === 1) {
+        loadManagerStock();
+        if (!state.orderCounts) loadManagerOrders({ silent: true });
+    } else if (TB.ops === 2) {
+        loadManagerMovements();
+        if (!state.orderCounts) loadManagerOrders({ silent: true });
+    }
 };
 
 const ORDER_BADGES = {
@@ -1160,84 +1262,410 @@ const ORDER_BADGES = {
     CANCELLED: ['Dibatalkan', 'r'],
 };
 
+function fmtWibDateTime(raw) {
+    if (!raw) return '-';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    return d.toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }) + ' WIB';
+}
+
+function renderOpsKpis() {
+    const grid = $('#opsKpiGrid');
+    if (!grid) return;
+    const c = state.orderCounts || {
+        total: state.orders.length,
+        active: state.orders.filter(o => ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(o.status)).length,
+        pending_payment: state.orders.filter(o => o.status === 'PENDING_PAYMENT').length,
+        ready_pickup: state.orders.filter(o => ['PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(o.status)).length,
+        completed: state.orders.filter(o => o.status === 'COMPLETED').length,
+        cancelled: state.orders.filter(o => o.status === 'CANCELLED').length,
+    };
+    const prods = BOOTSTRAP.oltp.products || [];
+    const outOfStock = prods.filter(p => Number(p.available || 0) <= 0).length;
+    const criticalStock = prods.filter(p => {
+        const av = Number(p.available || 0);
+        return av > 0 && av <= Math.max(Number(p.min_stock ?? p.reorder_point ?? 0), 10);
+    }).length;
+    const totalAvail = prods.reduce((s, p) => s + Number(p.available || 0), 0);
+
+    const cards = [
+        ['Total Transaksi', `${Number(c.total || 0).toLocaleString('id-ID')} Order`, `Selesai: ${c.completed ?? 0} · Batal: ${c.cancelled ?? 0}`, 'bi-receipt', '#ecfdf5', '#059669', 'text-dark'],
+        ['Antrian Aktif', `${Number(c.active || 0).toLocaleString('id-ID')} Order`, `Bayar: ${c.pending_payment ?? 0} · Siap Pickup: ${c.ready_pickup ?? 0}`, 'bi-hourglass-split', '#fff7ed', '#d97706', (c.active || 0) > 0 ? 'text-warning' : 'text-dark'],
+        ['Total Stok Tersedia', `${totalAvail.toLocaleString('id-ID')} Unit`, `${prods.length} SKU aktif di database`, 'bi-box-seam', '#f3f4f6', '#4b5563', 'text-dark'],
+        ['Perlu Perhatian Stok', `${outOfStock + criticalStock} SKU`, `Habis: ${outOfStock} · Kritis: ${criticalStock}`, 'bi-exclamation-triangle', '#FFEAEA', '#EF144A', (outOfStock + criticalStock) > 0 ? 'text-danger' : 'text-success'],
+    ];
+    grid.innerHTML = cards.map(item => `<div class="col-6 col-md-3">${statCardHtml(item[0], item[1], item[2], item[3], item[4], item[5], item[6])}</div>`).join('');
+}
+
+let opsOrderSearchTimer = null;
+function onOpsOrderSearchInput(val) {
+    state.orderSearch = val;
+    clearTimeout(opsOrderSearchTimer);
+    opsOrderSearchTimer = setTimeout(() => loadManagerOrders(), 260);
+}
+
 const SO = () => {
     const statuses = [
-        ['', 'Semua Aktif'],
+        ['ALL', 'Semua Transaksi'],
+        ['ACTIVE', 'Antrian Aktif'],
         ['PENDING_PAYMENT', 'Menunggu Bayar'],
         ['PENDING_PICKUP', 'Pickup Kredit'],
         ['READY_FOR_PICKUP', 'Siap Diambil'],
         ['COMPLETED', 'Selesai'],
+        ['CANCELLED', 'Dibatalkan'],
+    ];
+    const channels = [
+        ['', 'Semua Channel'],
+        ['ONLINE_PICKUP', 'Online Pickup'],
+        ['POS', 'Kasir POS'],
     ];
     return `
         ${cdTable(
-            'Daftar Pesanan',
-            '<div id="opsOrdersTableWrap" class="p-3 text-muted small">Memuat antrian pesanan...</div>',
-            `<select class="form-select form-select-sm" style="width:auto;min-width:170px;" id="opsOrderStatusFilter" onchange="loadManagerOrders(this.value)">
+            'Daftar Transaksi & Antrian Pickup',
+            '<div id="opsOrdersTableWrap" class="p-3 text-muted small">Memuat transaksi dari database...</div>',
+            `<input type="search" class="form-control form-control-sm" style="width:200px;" id="opsOrderSearchInput" value="${escapeHtml(state.orderSearch || '')}" placeholder="Cari order, PKP, anggota..." oninput="onOpsOrderSearchInput(this.value)">
+            <select class="form-select form-select-sm" style="width:auto;min-width:145px;" id="opsOrderChannelFilter" onchange="state.orderChannelFilter=this.value;loadManagerOrders()">
+                ${channels.map(([v, l]) => `<option value="${v}" ${state.orderChannelFilter === v ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+            <select class="form-select form-select-sm" style="width:auto;min-width:160px;" id="opsOrderStatusFilter" onchange="state.orderStatusFilter=this.value;loadManagerOrders()">
                 ${statuses.map(([v, l]) => `<option value="${v}" ${state.orderStatusFilter === v ? 'selected' : ''}>${l}</option>`).join('')}
             </select>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="loadManagerOrders(state.orderStatusFilter)"><i class="bi bi-arrow-clockwise"></i> Muat Ulang</button>`
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="loadManagerOrders()"><i class="bi bi-arrow-clockwise"></i> Muat Ulang</button>`
         )}
         <div class="alert alert-light border small mt-3 mb-0">
             <i class="bi bi-info-circle text-success me-1"></i>
-            Stok fisik berkurang dan penjualan/HPP dicatat atomik hanya setelah serah terima pickup dikonfirmasi.
+            Terhubung langsung dengan tabel <code>orders</code>, <code>order_items</code>, <code>members</code>, <code>payments</code>, dan <code>receivables</code>. Stok fisik dan HPP dicatat atomik saat transaksi selesai.
         </div>
     `;
 };
 
-async function loadManagerOrders(status = '') {
-    state.orderStatusFilter = status;
+async function loadManagerOrders(opts = {}) {
+    if (typeof opts === 'string') {
+        state.orderStatusFilter = opts || 'ALL';
+        opts = {};
+    }
+    const silent = Boolean(opts.silent);
     const wrap = $('#opsOrdersTableWrap');
-    if (wrap) wrap.innerHTML = '<div class="p-4 text-muted small">Memuat dari server...</div>';
+    if (wrap && !silent) wrap.innerHTML = '<div class="p-4 text-muted small">Memuat data transaksi dari database...</div>';
     try {
-        const q = status ? `?status=${encodeURIComponent(status)}` : '';
-        const res = await managerApi(`/api/v1/cashier/orders${q}`);
+        const params = new URLSearchParams();
+        params.set('status', state.orderStatusFilter || 'ALL');
+        if (state.orderChannelFilter) params.set('channel', state.orderChannelFilter);
+        if ((state.orderSearch || '').trim() !== '') params.set('search', state.orderSearch.trim());
+
+        const res = await managerApi(`/api/v1/cashier/orders?${params.toString()}`);
         state.orders = Array.isArray(res.data) ? res.data : [];
-        if (wrap) {
+        if (res.meta?.counts) state.orderCounts = res.meta.counts;
+        renderOpsKpis();
+
+        if (wrap && !silent) {
             wrap.className = '';
             wrap.innerHTML = tb(
-                ['Order & Pickup', 'Channel', 'Item', 'Total', 'Metode', 'Status'],
+                ['Waktu (WIB)', 'Order &amp; Pickup', 'Anggota / Pembeli', 'Rincian Barang', 'Total &amp; Metode', 'Status', 'Aksi'],
                 state.orders.map(o => {
                     const stInfo = ORDER_BADGES[o.status] || [o.status, 'i'];
-                    const itemCount = Array.isArray(o.items) ? o.items.reduce((s, it) => s + Number(it.quantity || 0), 0) : 0;
+                    const items = Array.isArray(o.items) ? o.items : [];
+                    const totalQty = items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+                    const itemPreview = items.slice(0, 2).map(it => `${it.product?.name || 'Produk'} ×${it.quantity}`).join(', ')
+                        + (items.length > 2 ? ` +${items.length - 2} lainnya` : '');
+                    const memberName = o.member?.full_name || 'Pembeli Umum (POS)';
+                    const memberCode = o.member?.employee_number || o.member?.member_number || '';
+                    const channelPill = o.channel === 'ONLINE_PICKUP' ? pl('Online Pickup', 'i') : pl('POS', 'g');
+                    const payBadge = o.payment_choice === 'CREDIT'
+                        ? '<span class="text-warning-emphasis fw-semibold">Piutang 7H</span>'
+                        : (o.payment_choice === 'BANK_TRANSFER' ? '<span class="text-primary fw-semibold">Transfer</span>' : '<span class="text-success fw-semibold">Tunai</span>');
+                    const txTime = fmtWibDateTime(o.completed_at || o.created_at);
+
                     return [
-                        `<span class="fw-bold font-monospace">${escapeHtml(o.order_no || '-')}</span><br><small class="text-muted font-monospace">${escapeHtml(o.pickup_code || o.id)}</small>`,
-                        escapeHtml(o.channel || '-'),
-                        `${itemCount} unit`,
-                        `<span class="fw-bold tokped-price">${rp(o.total_amount)}</span>`,
-                        escapeHtml(o.payment_choice || '-'),
+                        `<small class="text-muted text-nowrap">${escapeHtml(txTime)}</small>`,
+                        `<span class="fw-bold font-monospace">${escapeHtml(o.order_no || '-')}</span><br>${o.pickup_code ? `<small class="badge bg-light text-dark border font-monospace me-1">${escapeHtml(o.pickup_code)}</small>` : ''}${channelPill}`,
+                        `<span class="fw-semibold text-dark">${escapeHtml(memberName)}</span>${memberCode ? `<br><small class="text-muted font-monospace">${escapeHtml(memberCode)}</small>` : ''}`,
+                        `<div style="max-width:240px;"><span class="small text-dark">${escapeHtml(itemPreview || '-')}</span><br><small class="text-muted">${totalQty} unit (${items.length} item)</small></div>`,
+                        `<span class="fw-bold tokped-price d-block">${rp(o.total_amount)}</span><small>${payBadge}</small>`,
                         pl(stInfo[0], stInfo[1]),
+                        `<button type="button" class="btn btn-outline-primary btn-sm py-0.5 px-2" onclick="openManagerOrderDetail('${escapeHtml(o.id)}')">Detail</button>`,
                     ];
                 }),
-                'Tidak ada pesanan pada filter status ini.'
+                'Tidak ada pesanan yang cocok dengan filter ini.'
             );
         }
     } catch (err) {
-        if (wrap) wrap.innerHTML = `<div class="alert alert-danger m-3 mb-0 small">${escapeHtml(err.message)}</div>`;
+        if (wrap && !silent) wrap.innerHTML = `<div class="alert alert-danger m-3 mb-0 small">${escapeHtml(err.message)}</div>`;
     }
 }
 
-const SK = () => cdTable(
-    'Persediaan Stok Gerai (Data Terkini)',
-    tb(
-        ['Produk', 'SKU / Barcode', 'Stok Fisik', 'Reservasi', 'Tersedia', 'Status'],
-        BOOTSTRAP.oltp.products.map(p => {
+function openManagerOrderDetail(orderId) {
+    const o = state.orders.find(x => String(x.id) === String(orderId));
+    if (!o) return;
+    const stInfo = ORDER_BADGES[o.status] || [o.status, 'i'];
+    const items = Array.isArray(o.items) ? o.items : [];
+    const payments = Array.isArray(o.payments) ? o.payments : [];
+    const isActive = ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(o.status);
+
+    const itemsTable = tb(
+        ['Produk', 'Qty', 'Harga', 'HPP', 'Subtotal'],
+        items.map(it => {
+            const sub = Number(it.quantity || 0) * Number(it.unit_price_snapshot || 0);
+            const hpp = it.hpp_snapshot !== null && it.hpp_snapshot !== undefined ? rp(it.hpp_snapshot) : '<span class="text-muted">Belum final</span>';
+            return [
+                `<span class="fw-semibold">${escapeHtml(it.product?.name || 'Produk')}</span><br><small class="text-muted font-monospace">${escapeHtml(it.product?.sku || '')}</small>`,
+                `${it.quantity} ${escapeHtml(it.product?.unit || '')}`,
+                rp(it.unit_price_snapshot),
+                hpp,
+                `<strong>${rp(sub)}</strong>`,
+            ];
+        }),
+        'Tidak ada rincian item.'
+    );
+
+    const payInfoHtml = o.payment_choice === 'CREDIT'
+        ? `<div class="p-2.5 rounded-2 bg-light border small mt-3">
+            <strong>Status Piutang:</strong> ${o.receivable
+                ? `${escapeHtml(o.receivable.status)} · Sisa ${rp(o.receivable.outstanding_amount)} (Jatuh tempo ${escapeHtml(String(o.receivable.due_date || '-').slice(0, 10))})`
+                : 'Reservasi Credit Hold (belum serah terima)'}
+           </div>`
+        : (payments.length
+            ? `<div class="p-2.5 rounded-2 bg-light border small mt-3">
+                <strong>Catatan Pembayaran:</strong>
+                ${payments.map(p => `<div class="mt-1 d-flex justify-content-between"><span>${escapeHtml(p.method)} (${escapeHtml(p.status)})${p.external_reference ? ` · Ref: ${escapeHtml(p.external_reference)}` : ''}</span><strong>${rp(p.amount)}</strong></div>`).join('')}
+               </div>`
+            : `<div class="p-2.5 rounded-2 bg-light border small mt-3 text-muted">Belum ada catatan pembayaran terverifikasi.</div>`);
+
+    openMgrModal(`Detail Transaksi — ${o.order_no || o.pickup_code || o.id.slice(-6)}`, `
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+            <div>
+                <div class="fw-bold text-dark">${escapeHtml(o.member?.full_name || 'Pembeli Umum (POS)')}</div>
+                <small class="text-muted font-monospace">${escapeHtml(o.member?.employee_number || o.member?.member_number || o.channel)} · ${escapeHtml(fmtWibDateTime(o.completed_at || o.created_at))}</small>
+            </div>
+            <div>${pl(stInfo[0], stInfo[1])}</div>
+        </div>
+        <div class="border rounded-3 overflow-hidden">${itemsTable}</div>
+        <div class="d-flex justify-content-between align-items-center mt-3 px-1">
+            <span class="text-muted small">Total Transaksi (${escapeHtml(o.payment_choice)})</span>
+            <strong class="fs-5 text-primary tokped-price">${rp(o.total_amount)}</strong>
+        </div>
+        ${payInfoHtml}
+        <div class="d-flex justify-content-between align-items-center gap-2 mt-4">
+            ${isActive ? `<button type="button" class="btn btn-outline-danger btn-sm" id="btnCancelMgrOrder" onclick="cancelManagerOrder('${escapeHtml(o.id)}', '${escapeHtml(o.order_no || o.pickup_code || '')}')"><i class="bi bi-x-circle me-1"></i>Batalkan Pesanan</button>` : '<span></span>'}
+            <button type="button" class="btn btn-secondary btn-sm px-3" onclick="closeMgrModal()">Tutup</button>
+        </div>
+    `);
+}
+
+async function cancelManagerOrder(orderId, label) {
+    if (!confirm(`Batalkan pesanan ${label}? Reservasi stok dan credit hold akan dilepas otomatis.`)) return;
+    const btn = $('#btnCancelMgrOrder');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await managerApi(`/api/v1/orders/${encodeURIComponent(orderId)}/cancel`, 'POST', {});
+        closeMgrModal();
+        toast(res.message || 'Pesanan berhasil dibatalkan.');
+        await Promise.allSettled([loadManagerOrders(), loadManagerStock({ silent: true }), loadManagerMovements({ silent: true })]);
+    } catch (err) {
+        toast(err.message);
+        if (btn) btn.disabled = false;
+    }
+}
+
+const SK = () => `
+    ${cdTable(
+        'Persediaan Stok Gerai (Live Database)',
+        '<div id="opsStockTableWrap" class="p-3 text-muted small">Memuat persediaan stok dari database...</div>',
+        `<input type="search" class="form-control form-control-sm" style="width:190px;" id="opsStockSearchInput" value="${escapeHtml(state.stockSearch || '')}" placeholder="Cari SKU / nama produk..." oninput="state.stockSearch=this.value;renderManagerStockTable()">
+        <select class="form-select form-select-sm" style="width:auto;min-width:130px;" id="opsStockFilterSelect" onchange="state.stockFilter=this.value;renderManagerStockTable()">
+            <option value="" ${state.stockFilter === '' ? 'selected' : ''}>Semua Stok</option>
+            <option value="OUT" ${state.stockFilter === 'OUT' ? 'selected' : ''}>Stok Habis</option>
+            <option value="LOW" ${state.stockFilter === 'LOW' ? 'selected' : ''}>Stok Kritis</option>
+            <option value="OK" ${state.stockFilter === 'OK' ? 'selected' : ''}>Stok Aman</option>
+        </select>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="loadManagerStock()"><i class="bi bi-arrow-clockwise"></i></button>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Penyesuaian</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok</button>`
+    )}
+`;
+
+function mapApiProductToBootstrap(p) {
+    const onHand = Number(p.inventory?.on_hand ?? p.on_hand ?? 0);
+    const reserved = Number(p.inventory?.reserved ?? p.reserved ?? 0);
+    const available = Math.max(0, onHand - reserved);
+    const reorderPoint = Number(p.reorder_point ?? p.min_stock ?? 10);
+    const rawImg = String(p.image_url || p.image_path || p.image || '').trim();
+    const imageUrl = rawImg && !rawImg.startsWith('http') && !rawImg.startsWith('/') ? `/storage/${rawImg.replace(/^storage\//, '')}` : rawImg;
+    return {
+        id: String(p.id),
+        sku: String(p.sku || ''),
+        barcode: String(p.barcode || ''),
+        name: String(p.name || ''),
+        category: String(p.category_relation?.name || p.category || 'Umum'),
+        category_id: String(p.category_id || ''),
+        supplier_id: String(p.supplier_id || ''),
+        supplier_name: String(p.supplier?.name || ''),
+        unit: String(p.unit || 'Pcs'),
+        current_cost: Number(p.current_cost || 0),
+        selling_price: Number(p.selling_price || 0),
+        on_hand: onHand,
+        reserved,
+        available,
+        reorder_point: reorderPoint,
+        min_stock: reorderPoint,
+        image_url: imageUrl,
+        sales_count: Number(p.sales_count || 0),
+        is_active: p.is_active !== false,
+    };
+}
+
+async function loadManagerStock(opts = {}) {
+    const silent = Boolean(opts.silent);
+    const wrap = $('#opsStockTableWrap');
+    if (wrap && !silent && !BOOTSTRAP.oltp.products.length) {
+        wrap.innerHTML = '<div class="p-4 text-muted small">Memuat data stok terkini dari server...</div>';
+    }
+    try {
+        const res = await managerApi('/api/v1/products?per_page=200');
+        const rawList = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+        if (rawList.length) {
+            BOOTSTRAP.oltp.products = rawList.map(mapApiProductToBootstrap);
+        }
+        renderOpsKpis();
+        if (!silent) renderManagerStockTable();
+    } catch (err) {
+        if (!silent) {
+            renderManagerStockTable();
+            toast(`Gagal menyegarkan stok live: ${err.message}`);
+        }
+    }
+}
+
+function renderManagerStockTable() {
+    const wrap = $('#opsStockTableWrap');
+    if (!wrap) return;
+    const kw = (state.stockSearch || '').trim().toLowerCase();
+    const flt = state.stockFilter || '';
+
+    const rows = (BOOTSTRAP.oltp.products || []).filter(p => {
+        const avail = Number(p.available || 0);
+        const minThreshold = Math.max(Number(p.min_stock ?? p.reorder_point ?? 0), 10);
+        if (flt === 'OUT' && avail > 0) return false;
+        if (flt === 'LOW' && !(avail > 0 && avail <= minThreshold)) return false;
+        if (flt === 'OK' && avail <= minThreshold) return false;
+        if (kw) {
+            const hay = `${p.name} ${p.sku} ${p.barcode} ${p.category} ${p.supplier_name || ''}`.toLowerCase();
+            if (!hay.includes(kw)) return false;
+        }
+        return true;
+    });
+
+    wrap.className = '';
+    wrap.innerHTML = tb(
+        ['Produk &amp; Pemasok', 'SKU / Barcode', 'HPP (WAC) &amp; Jual', 'Stok Fisik', 'Reservasi', 'Tersedia', 'Status', 'Aksi'],
+        rows.map(p => {
             const avail = Number(p.available || 0);
             const minThreshold = Math.max(Number(p.min_stock ?? p.reorder_point ?? 0), 10);
             const st = avail <= 0 ? pl('Stok Habis', 'r') : (avail <= minThreshold ? pl('Stok Kritis', 'o') : pl('Aman', 'g'));
+            const supLabel = p.supplier_name ? ` · ${escapeHtml(p.supplier_name)}` : '';
             return [
-                `<div class="d-flex align-items-center gap-2">${renderProductThumbHtml(p, 36)}<div><span class="fw-semibold text-dark">${escapeHtml(p.name)}</span><br><small class="text-muted">${escapeHtml(p.category)}</small></div></div>`,
+                `<div class="d-flex align-items-center gap-2">${renderProductThumbHtml(p, 36)}<div><span class="fw-semibold text-dark">${escapeHtml(p.name)}</span><br><small class="text-muted">${escapeHtml(p.category)}${supLabel}</small></div></div>`,
                 `<span class="font-monospace fw-bold">${escapeHtml(p.sku)}</span>${p.barcode ? `<br><small class="text-muted font-monospace">${escapeHtml(p.barcode)}</small>` : ''}`,
+                `<span class="small d-block">HPP: <strong>${rp(p.current_cost)}</strong></span><small class="text-muted">Jual: ${rp(p.selling_price)}</small>`,
                 `${p.on_hand} ${escapeHtml(p.unit)}`,
                 `${p.reserved} ${escapeHtml(p.unit)}`,
-                `<strong class="text-success">${avail} ${escapeHtml(p.unit)}</strong>`,
+                `<strong class="${avail <= 0 ? 'text-danger' : 'text-success'}">${avail} ${escapeHtml(p.unit)}</strong>`,
                 st,
+                `<div class="d-inline-flex gap-1">
+                    <button type="button" class="btn btn-outline-success btn-sm py-0.5 px-2" title="Terima Stok Pemasok" onclick="openReceiveStockModal('${escapeHtml(p.id)}')">+Stok</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2" title="Penyesuaian Stok" onclick="openAdjustStockModal('${escapeHtml(p.id)}')">Opname</button>
+                 </div>`,
             ];
         }),
-        'Belum ada data produk di database.'
-    ),
-    `<button type="button" class="btn btn-outline-primary btn-sm" onclick="openAdjustStockModal()"><i class="bi bi-sliders"></i> Penyesuaian Stok</button>
-    <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok Pemasok</button>`
-);
+        'Tidak ada produk yang cocok dengan filter stok ini.'
+    );
+}
+
+const SM = () => `
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="loadManagerMovements()"><i class="bi bi-arrow-clockwise"></i> Muat Ulang Riwayat</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openReceiveStockModal()"><i class="bi bi-box-arrow-in-down"></i> Terima Stok Baru</button>
+    </div>
+    <div class="row g-3 g-xl-4">
+        <div class="col-12 col-lg-5">
+            ${cdTable('Penerimaan Barang Pemasok', '<div id="opsReceiptsWrap" class="p-3 text-muted small">Memuat penerimaan barang...</div>')}
+        </div>
+        <div class="col-12 col-lg-7">
+            ${cdTable('Kartu Mutasi Stok Terkini', '<div id="opsMovementsWrap" class="p-3 text-muted small">Memuat mutasi stok...</div>')}
+        </div>
+    </div>
+`;
+
+async function loadManagerMovements(opts = {}) {
+    const silent = Boolean(opts.silent);
+    const movWrap = $('#opsMovementsWrap');
+    const recWrap = $('#opsReceiptsWrap');
+    if (!silent && movWrap) movWrap.innerHTML = '<div class="p-3 text-muted small">Memuat mutasi stok dari database...</div>';
+    if (!silent && recWrap) recWrap.innerHTML = '<div class="p-3 text-muted small">Memuat penerimaan barang...</div>';
+
+    try {
+        const [movRes, recRes] = await Promise.allSettled([
+            managerApi('/api/v1/inventory/movements?limit=60'),
+            managerApi('/api/v1/inventory/receipts'),
+        ]);
+
+        if (movRes.status === 'fulfilled') {
+            state.stockMovements = Array.isArray(movRes.value.data) ? movRes.value.data : [];
+        }
+        if (recRes.status === 'fulfilled') {
+            const rd = recRes.value.data;
+            state.purchaseReceipts = Array.isArray(rd?.data) ? rd.data : (Array.isArray(rd) ? rd : []);
+        }
+
+        if (!silent && recWrap) {
+            recWrap.className = '';
+            recWrap.innerHTML = tb(
+                ['Nota &amp; Waktu', 'Pemasok', 'Item Masuk'],
+                state.purchaseReceipts.map(r => {
+                    const items = Array.isArray(r.items) ? r.items : [];
+                    const summary = items.map(it => `${it.product?.name || 'Produk'} (+${it.quantity} @ ${rp(it.unit_cost)})`).join(', ');
+                    return [
+                        `<span class="fw-bold font-monospace">${escapeHtml(r.receipt_number || '-')}</span><br><small class="text-muted">${escapeHtml(fmtWibDateTime(r.received_at || r.created_at))}</small>`,
+                        escapeHtml(r.supplier?.name || 'Supplier Umum'),
+                        `<span class="small">${escapeHtml(summary || '-')}</span>${r.notes ? `<br><small class="text-muted">${escapeHtml(r.notes)}</small>` : ''}`,
+                    ];
+                }),
+                'Belum ada riwayat penerimaan stok dari pemasok.'
+            );
+        }
+
+        if (!silent && movWrap) {
+            movWrap.className = '';
+            movWrap.innerHTML = tb(
+                ['Waktu (WIB)', 'Produk', 'Tipe', 'Perubahan', 'Keterangan'],
+                state.stockMovements.map(m => {
+                    const delta = Number(m.quantity_change || 0);
+                    const deltaHtml = delta > 0
+                        ? `<strong class="text-success">+${delta}</strong>`
+                        : (delta < 0 ? `<strong class="text-danger">${delta}</strong>` : `<span class="text-muted">0</span>`);
+                    const typeTone = m.type === 'PURCHASE_RECEIPT' ? 'g' : (m.type === 'ADJUSTMENT' ? 'o' : 'i');
+                    return [
+                        `<small class="text-muted text-nowrap">${escapeHtml(fmtWibDateTime(m.created_at))}</small>`,
+                        `<span class="fw-semibold text-dark">${escapeHtml(m.product?.name || 'Produk')}</span><br><small class="text-muted font-monospace">${escapeHtml(m.product?.sku || '')}</small>`,
+                        pl(m.type || '-', typeTone),
+                        `${deltaHtml} <small class="text-muted">${escapeHtml(m.product?.unit || '')}</small>`,
+                        `<span class="small text-secondary">${escapeHtml(m.reason || '-')}</span>`,
+                    ];
+                }),
+                'Belum ada riwayat mutasi stok tercatat.'
+            );
+        }
+    } catch (err) {
+        if (!silent && movWrap) movWrap.innerHTML = `<div class="alert alert-danger m-3 mb-0 small">${escapeHtml(err.message)}</div>`;
+    }
+}
 
 function buildProductSelectOptions(selectedId = null) {
     return BOOTSTRAP.oltp.products.map(p => {
@@ -1311,7 +1739,10 @@ async function submitReceiveStock(e) {
         });
         closeMgrModal();
         toast(res.message || 'Penerimaan stok berhasil dicatat.');
-        location.reload();
+        await Promise.allSettled([
+            loadManagerStock({ silent: TB.ops !== 1 }),
+            loadManagerMovements({ silent: TB.ops !== 2 }),
+        ]);
     } catch (err) {
         toast(err.status === 404 || err.status === 405
             ? 'Fitur pencatatan penerimaan stok belum tersedia saat ini.'
@@ -1412,7 +1843,10 @@ async function submitAdjustStock(e) {
         });
         closeMgrModal();
         toast(res.message || 'Penyesuaian stok berhasil dicatat.');
-        location.reload();
+        await Promise.allSettled([
+            loadManagerStock({ silent: TB.ops !== 1 }),
+            loadManagerMovements({ silent: TB.ops !== 2 }),
+        ]);
     } catch (err) {
         toast(err.status === 404 || err.status === 405
             ? 'Fitur penyesuaian stok barang belum tersedia saat ini.'
@@ -2111,11 +2545,52 @@ function renderImportWizard() {
         const pv = state.importPreview || {};
         const errors = Array.isArray(pv.errors) ? pv.errors : [];
         const validCount = Number(pv.valid_count ?? pv.valid_rows ?? 0);
+        const fileHeaders = Array.isArray(pv.file_headers) ? pv.file_headers : [];
+        const fieldsMeta = Array.isArray(pv.fields_meta) ? pv.fields_meta : [];
+        const colMapping = pv.column_mapping || {};
+        const missingReq = Array.isArray(pv.missing_required) ? pv.missing_required : [];
+
+        const mappingBlock = fieldsMeta.length ? `
+            <div class="p-3 rounded-3 bg-light border mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                        <div class="fw-bold text-dark small">Pemetaan Kolom Otomatis &amp; Manual</div>
+                        <small class="text-muted">Header terdeteksi di baris ke-${pv.header_row_num ?? 1}. Sesuaikan jika ada kolom yang belum cocok lalu klik Validasi Ulang.</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm px-3" id="btnRevalidateMapping" onclick="revalidateImportMapping()">
+                        <i class="bi bi-arrow-repeat me-1"></i>Validasi Ulang
+                    </button>
+                </div>
+                ${missingReq.length ? `<div class="alert alert-warning py-2 px-3 small mb-2">Kolom wajib belum terdeteksi otomatis: <strong>${escapeHtml(missingReq.join(', '))}</strong>. Pilih kolom file pada dropdown di bawah lalu klik <strong>Validasi Ulang</strong>.</div>` : ''}
+                <div class="row g-2">
+                    ${fieldsMeta.map(fm => {
+                        const selectedKey = colMapping[fm.field] || fm.mapped_header || '';
+                        const isMissingReq = fm.required && !selectedKey;
+                        const opts = `<option value="">-- Tidak Dipetakan --</option>` + fileHeaders.map(fh =>
+                            `<option value="${escapeHtml(fh.key)}" ${String(selectedKey) === String(fh.key) ? 'selected' : ''}>${escapeHtml(fh.label)} (${escapeHtml(fh.key)})</option>`
+                        ).join('');
+                        return `
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <label class="form-label small fw-semibold mb-1 ${isMissingReq ? 'text-danger' : 'text-dark'}">
+                                    ${escapeHtml(fm.label)} ${fm.required ? '<span class="text-danger">*</span>' : '<span class="text-muted fw-normal">(opsional)</span>'}
+                                </label>
+                                <select class="form-select form-select-sm mgr-import-map-select ${isMissingReq ? 'border-danger' : ''}" data-field="${escapeHtml(fm.field)}">
+                                    ${opts}
+                                </select>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        ` : '';
+
         ib.innerHTML = cd('Pratinjau &amp; Validasi Baris', `
-            <div class="d-flex gap-2 mb-3">
+            <div class="d-flex flex-wrap gap-2 mb-3">
                 ${pl(`${validCount} baris valid`, 'g')}
                 ${pl(`${errors.length} baris error`, errors.length ? 'r' : 'g')}
+                ${pv.duplicate_count ? pl(`${pv.duplicate_count} data eksisting akan diperbarui`, 'o') : ''}
             </div>
+            ${mappingBlock}
             ${tb(['Baris', 'Identitas', 'Masalah'], errors.map(er => [er.row_number ?? '-', escapeHtml(er.identifier || er.field_name || '-'), pl(er.message || 'Error', 'r')]), 'Tidak ada error validasi.')}
             <div class="d-flex gap-2 mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="state.importStep=0;renderImportWizard()">Kembali</button>
@@ -2192,6 +2667,27 @@ async function submitImportUpload(e) {
     }
 }
 
+async function revalidateImportMapping() {
+    const batchId = state.importBatch?.id;
+    if (!batchId) return;
+    const mapping = {};
+    document.querySelectorAll('.mgr-import-map-select[data-field]').forEach(sel => {
+        mapping[sel.dataset.field] = sel.value || null;
+    });
+    const btn = $('#btnRevalidateMapping');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await managerApi(`/api/v1/imports/${encodeURIComponent(batchId)}/validate`, 'POST', { mapping });
+        state.importPreview = res.data || res;
+        toast('Validasi ulang dengan pemetaan kolom baru selesai.');
+        renderImportWizard();
+    } catch (err) {
+        toast(err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function executeImportCommit() {
     const batchId = state.importBatch?.id;
     if (!batchId) return;
@@ -2215,7 +2711,7 @@ async function executeImportCommit() {
 S.rep = () => {
     const activeKey = normalizePeriodKey(state.period);
     const { start, end } = getPeriodRange(activeKey);
-    const qs = `period=${encodeURIComponent(activeKey)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const qs = `period=${encodeURIComponent(activeKey)}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     return `${ph(
         'Laporan & Analitik',
         'Laporan keuangan terpadu, pencatatan biaya operasional, analitik produk, serta prediksi permintaan dan restok.',
@@ -2233,7 +2729,7 @@ async function loadReportsAndAnalytics(period = state.period || 'month') {
     state.period = normalizePeriodKey(period);
     syncPeriodControlsAndExports();
     const { start, end } = getPeriodRange(state.period);
-    const q = `?period=${encodeURIComponent(state.period)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const q = `?period=${encodeURIComponent(state.period)}&from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     const [finRes, sumRes, topRes, fcRes] = await Promise.allSettled([
         managerApi(`/api/v1/reports/financial${q}`),
         managerApi(`/api/v1/analytics/summary${q}`),
@@ -2252,7 +2748,7 @@ async function loadReportsAndAnalytics(period = state.period || 'month') {
 
 const RK = () => `
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        ${renderPeriodButtonsHtml(state.period, 'rep')}
+        ${renderPeriodFilterBarHtml(state.period, 'rep')}
         <small class="text-muted font-monospace" id="repPeriodRangeLabel">${escapeHtml(getPeriodRange(state.period).start)} s/d ${escapeHtml(getPeriodRange(state.period).end)}</small>
     </div>
     <div id="repFinancialWrap" class="text-muted small">Memuat ringkasan laporan keuangan...</div>
@@ -2272,7 +2768,7 @@ function renderReportFinancialSection() {
         wrap.innerHTML = `
             <div class="alert alert-light border small mb-3">Menampilkan ringkasan transaksi selesai periode ${escapeHtml(oltp.start)} s/d ${escapeHtml(oltp.end)}.</div>
             ${cdTable(`Ringkasan Transaksi (${escapeHtml(oltp.start)} s/d ${escapeHtml(oltp.end)})`, tb(
-                ['Komponen', 'Nilai'],
+                ['Pos Keuangan', 'Nilai'],
                 [
                     ['Omzet Penjualan Selesai', rp(oltp.sales_revenue)],
                     ['HPP Barang Terjual', rp(oltp.cogs)],
@@ -2296,7 +2792,7 @@ function renderReportFinancialSection() {
         + ((cogsIncomplete || expIncomplete) ? '<div class="alert alert-light border small mb-3">HPP atau biaya operasional belum lengkap. Laba bersih berstatus <strong>estimasi</strong>.</div>' : '');
 
     wrap.innerHTML = banner + cdTable(`Laporan Keuangan (${escapeHtml(periodStart)} s/d ${escapeHtml(periodEnd)} · per ${escapeHtml(fin.last_updated_at || '-')})`, tb(
-        ['Komponen', 'Nilai'],
+        ['Pos Keuangan', 'Nilai'],
         [
             ['Omzet Penjualan Selesai', rp(m.sales_revenue)],
             ['HPP Barang Terjual', rp(m.cogs)],
@@ -2371,7 +2867,7 @@ const RA = () => {
 
     return `
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            ${renderPeriodButtonsHtml(state.period, 'rep')}
+            ${renderPeriodFilterBarHtml(state.period, 'rep')}
             <small class="text-muted font-monospace" id="repAnalyticsPeriodLabel">${escapeHtml(getPeriodRange(state.period).start)} s/d ${escapeHtml(getPeriodRange(state.period).end)}</small>
         </div>
         <div id="repAnalyticsLiveWrap" class="mb-4">

@@ -102,5 +102,6 @@ Route::middleware(['auth', 'role:MANAGER'])->group(function () {
     Route::get('/manager/excel/errors/{id}', [\App\Http\Controllers\ManagerExcelController::class, 'exportErrors'])->name('manager.excel.errors');
     Route::post('/api/v1/imports', [\App\Http\Controllers\ManagerExcelController::class, 'uploadPreview']);
     Route::get('/api/v1/imports/{id}/preview', [\App\Http\Controllers\ManagerExcelController::class, 'getPreview']);
+    Route::post('/api/v1/imports/{id}/validate', [\App\Http\Controllers\ManagerExcelController::class, 'revalidateMapping']);
     Route::post('/api/v1/imports/{id}/commit', [\App\Http\Controllers\ManagerExcelController::class, 'commitBatch']);
 });

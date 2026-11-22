@@ -2,26 +2,27 @@
 
 namespace App\Services;
 
+use App\Services\Import\SmartImportMapper;
 use RuntimeException;
 use SimpleXMLElement;
 use ZipArchive;
 
 class SimpleXlsxService
 {
-    public function parseFile(string $filePath, string $extension): array
+    public function parseFile(string $filePath, string $extension, string $type = ''): array
     {
         $ext = strtolower(trim($extension));
         if ($ext === 'xlsx') {
-            return $this->parseXlsx($filePath);
+            return $this->parseXlsx($filePath, $type);
         }
         if (in_array($ext, ['csv', 'txt'], true)) {
-            return $this->parseCsv($filePath);
+            return $this->parseCsv($filePath, $type);
         }
 
         throw new RuntimeException('Format file tidak didukung. Gunakan file .xlsx atau .csv.');
     }
 
-    private function parseCsv(string $filePath): array
+    private function parseCsv(string $filePath, string $type = ''): array
     {
         $raw = file_get_contents($filePath);
         if ($raw === false) {
@@ -29,45 +30,43 @@ class SimpleXlsxService
         }
 
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
-        $lines = preg_split('/\r\n|\r|\n/', $raw);
-        $lines = array_values(array_filter($lines, fn ($l) => trim((string) $l) !== ''));
+        $lines = preg_split('/\r\n|\r|\n/', (string) $raw);
 
-        if (count($lines) < 2) {
+        $rawGrid = [];
+        foreach ($lines as $idx => $line) {
+            if (trim((string) $line) === '') {
+                continue;
+            }
+            $rawGrid[] = ['row_num' => $idx + 1, 'line' => (string) $line];
+        }
+
+        if (count($rawGrid) < 2) {
             throw new RuntimeException('File kosong atau hanya berisi baris header tanpa data.');
         }
 
-        $firstLine = $lines[0];
-        $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+        // Deteksi delimiter di beberapa baris awal agar judul tanpa pemisah tidak mengecoh
+        $sampleText = implode("\n", array_map(fn ($r) => $r['line'], array_slice($rawGrid, 0, 5)));
+        $delimiter = substr_count($sampleText, ';') > substr_count($sampleText, ',') ? ';' : ',';
 
-        $headers = array_map(
-            fn ($h) => $this->normalizeHeader((string) $h),
-            str_getcsv($firstLine, $delimiter)
-        );
-
-        $rows = [];
-        for ($i = 1; $i < count($lines); $i++) {
-            $values = str_getcsv($lines[$i], $delimiter);
-            $assoc = [];
-            $hasValue = false;
-            foreach ($headers as $idx => $key) {
-                if ($key === '') {
-                    continue;
+        $grid = [];
+        foreach ($rawGrid as $entry) {
+            $vals = array_map(fn ($v) => trim((string) $v), str_getcsv($entry['line'], $delimiter));
+            $hasContent = false;
+            foreach ($vals as $v) {
+                if ($v !== '') {
+                    $hasContent = true;
+                    break;
                 }
-                $val = isset($values[$idx]) ? trim((string) $values[$idx]) : '';
-                if ($val !== '') {
-                    $hasValue = true;
-                }
-                $assoc[$key] = $val;
             }
-            if ($hasValue) {
-                $rows[] = ['row_num' => $i + 1, 'data' => $assoc];
+            if ($hasContent) {
+                $grid[] = ['row_num' => $entry['row_num'], 'cells' => $vals];
             }
         }
 
-        return ['headers' => array_values(array_filter($headers)), 'rows' => $rows];
+        return $this->buildStructuredResult($grid, $type);
     }
 
-    private function parseXlsx(string $filePath): array
+    private function parseXlsx(string $filePath, string $type = ''): array
     {
         if (!class_exists(ZipArchive::class)) {
             throw new RuntimeException('Ekstensi PHP ZipArchive tidak aktif di container.');
@@ -151,22 +150,75 @@ class SimpleXlsxService
             throw new RuntimeException('File Excel kosong atau hanya berisi header tanpa baris data.');
         }
 
-        $headerRow = $grid[0]['cells'];
-        $maxCol = max(array_keys($headerRow));
-        $headers = [];
+        return $this->buildStructuredResult($grid, $type);
+    }
+
+    /**
+     * Auto-detect header row within rows 0..4 and map subsequent data rows cleanly by column index.
+     *
+     * @param  array<int, array{row_num: int, cells: array<int, string>}>  $grid
+     */
+    private function buildStructuredResult(array $grid, string $type = ''): array
+    {
+        if (count($grid) < 2) {
+            throw new RuntimeException('File kosong atau hanya berisi baris header tanpa data.');
+        }
+
+        $denseForDetection = array_map(function (array $row): array {
+            $cells = $row['cells'];
+            if (empty($cells)) {
+                return [];
+            }
+            $maxC = max(array_keys($cells));
+            $out = [];
+            for ($c = 0; $c <= $maxC; $c++) {
+                $out[$c] = (string) ($cells[$c] ?? '');
+            }
+
+            return $out;
+        }, array_slice($grid, 0, 5));
+
+        $headerIdx = SmartImportMapper::detectHeaderRowIndex($denseForDetection, $type);
+        if ($headerIdx >= count($grid) - 1) {
+            $headerIdx = 0;
+        }
+
+        $headerCells = $grid[$headerIdx]['cells'];
+        $maxCol = max(array_keys($headerCells));
+        foreach (array_slice($grid, $headerIdx + 1) as $row) {
+            if (! empty($row['cells'])) {
+                $maxCol = max($maxCol, max(array_keys($row['cells'])));
+            }
+        }
+
+        $colToKey = [];
+        $fileHeaders = [];
+        $seenKeys = [];
         for ($c = 0; $c <= $maxCol; $c++) {
-            $headers[$c] = $this->normalizeHeader($headerRow[$c] ?? '');
+            $rawLabel = trim((string) ($headerCells[$c] ?? ''));
+            $normKey = $this->normalizeHeader($rawLabel);
+            if ($normKey === '') {
+                continue;
+            }
+            if (isset($seenKeys[$normKey])) {
+                $seenKeys[$normKey]++;
+                $normKey .= '_' . $seenKeys[$normKey];
+            } else {
+                $seenKeys[$normKey] = 1;
+            }
+            $colToKey[$c] = $normKey;
+            $fileHeaders[] = [
+                'key' => $normKey,
+                'label' => $rawLabel !== '' ? $rawLabel : $normKey,
+            ];
         }
 
         $rows = [];
-        for ($r = 1; $r < count($grid); $r++) {
+        for ($r = $headerIdx + 1; $r < count($grid); $r++) {
             $cells = $grid[$r]['cells'];
             $assoc = [];
             $hasValue = false;
-            foreach ($headers as $c => $key) {
-                if ($key === '') {
-                    continue;
-                }
+            foreach ($colToKey as $c => $key) {
                 $val = isset($cells[$c]) ? trim((string) $cells[$c]) : '';
                 if ($val !== '') {
                     $hasValue = true;
@@ -178,7 +230,16 @@ class SimpleXlsxService
             }
         }
 
-        return ['headers' => array_values(array_filter($headers)), 'rows' => $rows];
+        if (empty($rows)) {
+            throw new RuntimeException('Tidak ada baris data setelah baris header (' . $grid[$headerIdx]['row_num'] . ').');
+        }
+
+        return [
+            'headers' => array_values(array_map(fn ($h) => $h['key'], $fileHeaders)),
+            'file_headers' => $fileHeaders,
+            'header_row_num' => $grid[$headerIdx]['row_num'],
+            'rows' => $rows,
+        ];
     }
 
     /**
@@ -296,10 +357,7 @@ class SimpleXlsxService
 
     private function normalizeHeader(string $header): string
     {
-        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $header);
-        $h = strtolower(trim((string) $clean));
-        $h = preg_replace('/[^a-z0-9_]+/', '_', $h);
-        return trim((string) $h, '_');
+        return SmartImportMapper::normalizeHeader($header);
     }
 
     private function columnLettersToIndex(string $letters): int

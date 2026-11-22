@@ -38,6 +38,9 @@ class ExcelImportService
         'SUPPLIER' => 'SUPPLIERS',
     ];
 
+    private array $lastParsedHeaders = [];
+    private int $lastHeaderRowNum = 1;
+
     public function __construct(
         private readonly InventoryService $inventoryService,
         private readonly AuditService $auditService
@@ -56,9 +59,12 @@ class ExcelImportService
     public function upload(UploadedFile $file, string $type, ?string $cutoffAt, ?string $actorUserId): ImportBatch
     {
         $normalizedType = self::normalizeType($type);
-        $rawRows = $this->readFileRows($file);
+        $this->lastParsedHeaders = [];
+        $this->lastHeaderRowNum = 1;
+        $rawRows = $this->readFileRows($file, $normalizedType);
+        $autoMapping = SmartImportMapper::autoMapHeaders($this->lastParsedHeaders, $normalizedType);
 
-        $batch = DB::transaction(function () use ($file, $normalizedType, $cutoffAt, $actorUserId, $rawRows): ImportBatch {
+        $batch = DB::transaction(function () use ($file, $normalizedType, $cutoffAt, $actorUserId, $rawRows, $autoMapping): ImportBatch {
             $checksum = @hash_file('sha256', $file->getRealPath()) ?: hash('sha256', $file->getClientOriginalName().now()->timestamp);
             $batch = ImportBatch::create([
                 'import_type' => $normalizedType,
@@ -70,14 +76,21 @@ class ExcelImportService
                 'valid_rows' => 0,
                 'error_rows' => 0,
                 'duplicate_rows' => 0,
+                'column_mapping' => [
+                    'header_row_num' => $this->lastHeaderRowNum,
+                    'file_headers' => $this->lastParsedHeaders,
+                    'mapping' => $autoMapping,
+                ],
                 'cutoff_at' => $cutoffAt,
                 'uploaded_by' => $actorUserId,
             ]);
 
-            foreach ($rawRows as $index => $payload) {
+            foreach ($rawRows as $index => $entry) {
+                $rowNum = is_array($entry) && array_key_exists('row_num', $entry) ? (int) $entry['row_num'] : ($index + 2);
+                $payload = is_array($entry) && array_key_exists('data', $entry) ? $entry['data'] : $entry;
                 ImportRow::create([
                     'batch_id' => $batch->id,
-                    'row_number' => $index + 2,
+                    'row_number' => $rowNum,
                     'raw_data' => $payload,
                     'normalized_data' => null,
                     'row_status' => 'PENDING',
@@ -91,16 +104,38 @@ class ExcelImportService
     }
 
     /**
-     * Validasi baris staging untuk mendeteksi duplikat & error field.
+     * Validasi baris staging untuk mendeteksi duplikat & error field (mendukung custom mapping manual).
      */
-    public function validateBatch(ImportBatch $batch): ImportBatch
+    public function validateBatch(ImportBatch $batch, ?array $customMapping = null): ImportBatch
     {
         if ($batch->status === 'COMMITTED') {
             throw new BusinessRuleException('Batch impor sudah di-commit dan tidak dapat divalidasi ulang.');
         }
 
-        return DB::transaction(function () use ($batch): ImportBatch {
+        return DB::transaction(function () use ($batch, $customMapping): ImportBatch {
             $batch->load('rows');
+
+            $colMeta = is_array($batch->column_mapping) ? $batch->column_mapping : [];
+            $fileHeaders = is_array($colMeta['file_headers'] ?? null) ? $colMeta['file_headers'] : [];
+            if (empty($fileHeaders) && $batch->rows->isNotEmpty()) {
+                $firstKeys = array_keys($this->normalizeRowKeys($batch->rows->first()->raw_data ?? []));
+                $fileHeaders = array_map(fn ($k) => ['key' => (string) $k, 'label' => (string) $k], $firstKeys);
+            }
+
+            $mapping = is_array($colMeta['mapping'] ?? null)
+                ? $colMeta['mapping']
+                : SmartImportMapper::autoMapHeaders($fileHeaders, $batch->import_type);
+
+            if ($customMapping !== null) {
+                $allowed = array_flip(array_map(fn ($h) => (string) ($h['key'] ?? ''), $fileHeaders));
+                $defs = SmartImportMapper::fieldDefinitions($batch->import_type);
+                foreach ($defs as $field => $_def) {
+                    if (array_key_exists($field, $customMapping)) {
+                        $chosen = trim((string) ($customMapping[$field] ?? ''));
+                        $mapping[$field] = ($chosen !== '' && isset($allowed[$chosen])) ? $chosen : null;
+                    }
+                }
+            }
 
             $validCount = 0;
             $errorCount = 0;
@@ -109,7 +144,8 @@ class ExcelImportService
 
             foreach ($batch->rows as $row) {
                 $row->errors()->delete();
-                $raw = $this->normalizeRowKeys($row->raw_data ?? []);
+                $rawBase = $this->normalizeRowKeys($row->raw_data ?? []);
+                $raw = SmartImportMapper::applyMappingToRow($rawBase, $mapping);
 
                 [$normalized, $errors, $uniqueKey] = match ($batch->import_type) {
                     'PRODUCTS' => $this->validateProductRow($raw),
@@ -164,11 +200,19 @@ class ExcelImportService
                 }
             }
 
+            $summary = SmartImportMapper::mappingSummary($fileHeaders, $mapping, $batch->import_type);
             $batch->update([
                 'status' => $errorCount === 0 && $batch->total_rows > 0 ? 'VALIDATED' : 'FAILED',
                 'valid_rows' => $validCount,
                 'error_rows' => $errorCount,
                 'duplicate_rows' => $duplicateCount,
+                'column_mapping' => [
+                    'header_row_num' => (int) ($colMeta['header_row_num'] ?? 1),
+                    'file_headers' => $fileHeaders,
+                    'mapping' => $mapping,
+                    'fields_meta' => $summary['fields'],
+                    'missing_required' => $summary['missing_required'],
+                ],
             ]);
 
             return $batch->fresh(['rows.errors']);
@@ -238,11 +282,7 @@ class ExcelImportService
 
     private function normalizeHeaderName(string $header): string
     {
-        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $header);
-        $clean = strtolower(trim((string) $clean));
-        $clean = preg_replace('/[^a-z0-9_]+/', '_', $clean);
-
-        return trim((string) $clean, '_');
+        return SmartImportMapper::normalizeHeader($header);
     }
 
     private function pickValue(array $raw, array $aliases, mixed $default = ''): mixed
@@ -272,13 +312,13 @@ class ExcelImportService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function readFileRows(UploadedFile $file): array
+    private function readFileRows(UploadedFile $file, string $type = ''): array
     {
         $ext = strtolower($file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
         $path = $file->getRealPath();
 
         if (in_array($ext, ['csv', 'txt'], true)) {
-            return $this->readCsvRows($path);
+            return $this->readCsvRows($path, $type);
         }
 
         if (class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
@@ -286,45 +326,57 @@ class ExcelImportService
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray(null, true, true, false);
 
-            return $this->rowsArrayToAssociative($rows);
+            return $this->rowsArrayToAssociative($rows, $type);
         }
 
         if ($ext === 'xlsx' && class_exists(ZipArchive::class)) {
-            return $this->readXlsxRowsNative($path);
+            return $this->readXlsxRowsNative($path, $type);
         }
 
-        return $this->readCsvRows($path);
+        return $this->readCsvRows($path, $type);
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function readCsvRows(string $path): array
+    private function readCsvRows(string $path, string $type = ''): array
     {
         $handle = fopen($path, 'r');
         if ($handle === false) {
             return [];
         }
 
-        $firstLine = fgets($handle);
-        if ($firstLine === false) {
+        $sample = '';
+        for ($i = 0; $i < 5; $i++) {
+            $line = fgets($handle);
+            if ($line === false) {
+                break;
+            }
+            $sample .= preg_replace('/^\xEF\xBB\xBF/', '', $line);
+        }
+        if ($sample === '') {
             fclose($handle);
 
             return [];
         }
-        $firstLine = preg_replace('/^\xEF\xBB\xBF/', '', $firstLine);
-        $delimiter = substr_count((string) $firstLine, ';') > substr_count((string) $firstLine, ',') ? ';' : ',';
+        $delimiter = substr_count($sample, ';') > substr_count($sample, ',') ? ';' : ',';
         rewind($handle);
 
         $rows = [];
+        $lineNo = 0;
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
-            if (! empty($data)) {
-                $rows[] = array_values($data);
+            $lineNo++;
+            $nonEmpty = collect($data)->contains(fn ($v) => trim((string) $v) !== '');
+            if ($nonEmpty) {
+                if (isset($data[0]) && is_string($data[0])) {
+                    $data[0] = preg_replace('/^\xEF\xBB\xBF/', '', $data[0]);
+                }
+                $rows[] = ['row_num' => $lineNo, 'cells' => array_values($data)];
             }
         }
         fclose($handle);
 
-        return $this->rowsArrayToAssociative($rows);
+        return $this->rowsArrayToAssociative($rows, $type);
     }
 
     /**
@@ -332,7 +384,7 @@ class ExcelImportService
      *
      * @return array<int, array<string, mixed>>
      */
-    private function readXlsxRowsNative(string $path): array
+    private function readXlsxRowsNative(string $path, string $type = ''): array
     {
         $zip = new ZipArchive;
         if ($zip->open($path) !== true) {
@@ -374,7 +426,10 @@ class ExcelImportService
 
         $sparseRows = [];
         $maxCol = 0;
+        $seqRow = 0;
         foreach ($sheet->sheetData->row as $row) {
+            $seqRow++;
+            $excelRowNum = (int) ($row['r'] ?? $seqRow);
             $rowCells = [];
             $nextCol = 0;
             foreach ($row->c as $cell) {
@@ -401,20 +456,20 @@ class ExcelImportService
             }
 
             if ($hasContent) {
-                $sparseRows[] = $rowCells;
+                $sparseRows[] = ['row_num' => $excelRowNum > 0 ? $excelRowNum : $seqRow, 'cells' => $rowCells];
             }
         }
 
         $rows = [];
-        foreach ($sparseRows as $rowCells) {
+        foreach ($sparseRows as $entry) {
             $dense = [];
             for ($c = 0; $c <= $maxCol; $c++) {
-                $dense[$c] = $rowCells[$c] ?? '';
+                $dense[$c] = $entry['cells'][$c] ?? '';
             }
-            $rows[] = $dense;
+            $rows[] = ['row_num' => $entry['row_num'], 'cells' => $dense];
         }
 
-        return $this->rowsArrayToAssociative($rows);
+        return $this->rowsArrayToAssociative($rows, $type);
     }
 
     private function extractXlsxCellValue(\SimpleXMLElement $cell, array $sharedStrings): string
@@ -460,19 +515,55 @@ class ExcelImportService
      * @param  array<int, array<int, mixed>>  $rows
      * @return array<int, array<string, mixed>>
      */
-    private function rowsArrayToAssociative(array $rows): array
+    private function rowsArrayToAssociative(array $rows, string $type = ''): array
     {
         if (count($rows) < 2) {
             return [];
         }
 
-        $headers = [];
-        foreach ($rows[0] as $idx => $h) {
-            $headers[$idx] = $this->normalizeHeaderName((string) $h);
+        // Normalize shape into [['row_num' => int, 'cells' => array]]
+        $grid = [];
+        foreach ($rows as $idx => $entry) {
+            if (is_array($entry) && array_key_exists('cells', $entry)) {
+                $grid[] = $entry;
+            } else {
+                $grid[] = ['row_num' => $idx + 1, 'cells' => array_values((array) $entry)];
+            }
         }
 
+        $denseForDetection = array_map(fn ($r) => $r['cells'], array_slice($grid, 0, 5));
+        $headerIdx = SmartImportMapper::detectHeaderRowIndex($denseForDetection, $type);
+        if ($headerIdx >= count($grid) - 1) {
+            $headerIdx = 0;
+        }
+        $this->lastHeaderRowNum = (int) ($grid[$headerIdx]['row_num'] ?? ($headerIdx + 1));
+
+        $headers = [];
+        $fileHeaders = [];
+        $seen = [];
+        foreach ($grid[$headerIdx]['cells'] as $idx => $h) {
+            $rawLabel = trim((string) $h);
+            $norm = $this->normalizeHeaderName($rawLabel);
+            if ($norm === '') {
+                continue;
+            }
+            if (isset($seen[$norm])) {
+                $seen[$norm]++;
+                $norm .= '_' . $seen[$norm];
+            } else {
+                $seen[$norm] = 1;
+            }
+            $headers[$idx] = $norm;
+            $fileHeaders[] = [
+                'key' => $norm,
+                'label' => $rawLabel !== '' ? $rawLabel : $norm,
+            ];
+        }
+        $this->lastParsedHeaders = $fileHeaders;
+
         $result = [];
-        foreach (array_slice($rows, 1) as $row) {
+        foreach (array_slice($grid, $headerIdx + 1) as $entry) {
+            $row = $entry['cells'];
             $isEmpty = collect($row)->every(fn ($v) => trim((string) $v) === '');
             if ($isEmpty) {
                 continue;
@@ -480,11 +571,9 @@ class ExcelImportService
 
             $assoc = [];
             foreach ($headers as $idx => $key) {
-                if ($key !== '') {
-                    $assoc[$key] = isset($row[$idx]) ? trim((string) $row[$idx]) : null;
-                }
+                $assoc[$key] = isset($row[$idx]) ? trim((string) $row[$idx]) : null;
             }
-            $result[] = $assoc;
+            $result[] = ['row_num' => $entry['row_num'], 'data' => $assoc];
         }
 
         return $result;
@@ -493,15 +582,18 @@ class ExcelImportService
     private function validateProductRow(array $raw): array
     {
         $errors = [];
-        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'kode']));
+        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'id_produk', 'kode']));
         $barcode = trim((string) $this->pickValue($raw, ['barcode'])) ?: null;
-        $name = trim((string) $this->pickValue($raw, ['name', 'nama_produk', 'nama_barang', 'nama', 'produk']));
+        $name = trim((string) $this->pickValue($raw, ['name', 'nama_produk', 'nama_barang', 'nama', 'produk', 'barang', 'item', 'deskripsi']));
         $categoryName = trim((string) $this->pickValue($raw, ['category_name', 'category', 'kategori'], 'Umum'));
         $unit = trim((string) $this->pickValue($raw, ['unit', 'satuan'], 'pcs')) ?: 'pcs';
-        $sellingPrice = $this->pickValue($raw, ['selling_price', 'harga_jual', 'harga', 'price'], null);
-        $currentCost = $this->pickValue($raw, ['current_cost', 'harga_pokok', 'harga_modal', 'harga_beli', 'modal', 'hpp', 'cost'], 0);
-        $reorderPoint = (int) $this->pickValue($raw, ['reorder_point', 'min_stock', 'min_stok', 'stok_minimum'], 5);
-        $initialStock = (int) $this->pickValue($raw, ['initial_stock', 'stok_awal', 'stok', 'stock'], 0);
+
+        $sellingRaw = $this->pickValue($raw, ['selling_price', 'harga_jual', 'harga', 'price', 'jual', 'tarif'], null);
+        $sellingParsed = SmartImportMapper::parseNumber($sellingRaw);
+        $costRaw = $this->pickValue($raw, ['current_cost', 'harga_pokok', 'harga_modal', 'harga_beli', 'modal', 'hpp', 'beli', 'cost'], '0');
+        $costParsed = $costRaw === '' ? 0.0 : SmartImportMapper::parseNumber($costRaw);
+        $reorderParsed = SmartImportMapper::parseNumber($this->pickValue($raw, ['reorder_point', 'min_stock', 'min_stok', 'stok_minimum'], '5'));
+        $stockParsed = SmartImportMapper::parseNumber($this->pickValue($raw, ['initial_stock', 'stok_awal', 'stok', 'stock', 'qty', 'jumlah', 'kuantitas', 'saldo'], '0'));
 
         if ($sku === '') {
             $errors[] = ['field' => 'sku', 'code' => 'REQUIRED', 'message' => 'SKU wajib diisi.'];
@@ -517,11 +609,11 @@ class ExcelImportService
             $errors[] = ['field' => 'name', 'code' => 'REQUIRED', 'message' => 'Nama produk wajib diisi.'];
         }
 
-        if (! is_numeric($sellingPrice) || (float) $sellingPrice < 0) {
+        if ($sellingParsed === null || $sellingParsed < 0) {
             $errors[] = ['field' => 'selling_price', 'code' => 'INVALID_PRICE', 'message' => 'Harga jual harus berupa angka >= 0.'];
         }
 
-        if (! is_numeric($currentCost) || (float) $currentCost < 0) {
+        if ($costParsed === null || $costParsed < 0) {
             $errors[] = ['field' => 'current_cost', 'code' => 'INVALID_COST', 'message' => 'Harga pokok (HPP) harus berupa angka >= 0.'];
         }
 
@@ -531,10 +623,10 @@ class ExcelImportService
             'name' => $name,
             'category_name' => $categoryName ?: 'Umum',
             'unit' => $unit,
-            'selling_price' => is_numeric($sellingPrice) ? round((float) $sellingPrice, 2) : 0,
-            'current_cost' => is_numeric($currentCost) ? round((float) $currentCost, 2) : 0,
-            'reorder_point' => max(0, $reorderPoint),
-            'initial_stock' => max(0, $initialStock),
+            'selling_price' => $sellingParsed !== null ? round($sellingParsed, 2) : 0,
+            'current_cost' => $costParsed !== null ? round($costParsed, 2) : 0,
+            'reorder_point' => $reorderParsed !== null ? max(0, (int) round($reorderParsed)) : 5,
+            'initial_stock' => $stockParsed !== null ? max(0, (int) round($stockParsed)) : 0,
         ];
 
         return [$normalized, $errors, $sku !== '' ? $sku : null];
@@ -543,10 +635,10 @@ class ExcelImportService
     private function validateMemberRow(array $raw): array
     {
         $errors = [];
-        $employeeNumber = trim((string) $this->pickValue($raw, ['employee_number', 'nim_nip', 'nip', 'nim', 'id_karyawan', 'member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota']));
-        $memberNumber = trim((string) $this->pickValue($raw, ['member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota', 'nim_nip', 'nim', 'nip', 'employee_number', 'id_karyawan'], $employeeNumber));
+        $employeeNumber = trim((string) $this->pickValue($raw, ['employee_number', 'nim_nip', 'nip', 'nim', 'id_karyawan', 'id_anggota', 'member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota', 'nomor', 'member']));
+        $memberNumber = trim((string) $this->pickValue($raw, ['member_number', 'no_anggota', 'nomor_anggota', 'kode_anggota', 'nim_nip', 'nim', 'nip', 'employee_number', 'id_karyawan', 'id_anggota'], $employeeNumber));
         $fullName = trim((string) $this->pickValue($raw, ['full_name', 'nama_lengkap', 'name', 'nama']));
-        $department = trim((string) $this->pickValue($raw, ['department', 'jurusan', 'unit_kerja', 'divisi', 'unit'], 'Umum')) ?: 'Umum';
+        $department = trim((string) $this->pickValue($raw, ['department', 'jurusan', 'prodi', 'unit_kerja', 'divisi', 'unit', 'departemen', 'bagian'], 'Umum')) ?: 'Umum';
         $email = strtolower(trim((string) $this->pickValue($raw, ['email'])));
 
         if ($employeeNumber === '') {
@@ -583,24 +675,24 @@ class ExcelImportService
     private function validateStockOpeningRow(array $raw): array
     {
         $errors = [];
-        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'kode']));
-        $qty = $this->pickValue($raw, ['quantity', 'on_hand', 'qty', 'stok_fisik', 'stok_awal', 'stok', 'jumlah'], null);
-        $unitCost = $this->pickValue($raw, ['unit_cost', 'current_cost', 'harga_modal_baru', 'harga_modal', 'harga_beli', 'hpp', 'cost'], null);
+        $sku = trim((string) $this->pickValue($raw, ['sku', 'kode_sku', 'kode_produk', 'kode_barang', 'id_produk', 'kode']));
+        $qtyParsed = SmartImportMapper::parseNumber($this->pickValue($raw, ['quantity', 'on_hand', 'qty', 'stok_fisik', 'stok_awal', 'stok', 'stock', 'jumlah', 'kuantitas', 'saldo'], null));
+        $unitCostParsed = SmartImportMapper::parseNumber($this->pickValue($raw, ['unit_cost', 'current_cost', 'harga_modal_baru', 'harga_modal', 'harga_beli', 'modal', 'hpp', 'cost'], null));
 
         $product = $sku !== '' ? Product::where('sku', $sku)->first() : null;
         if (! $product) {
             $errors[] = ['field' => 'sku', 'code' => 'PRODUCT_NOT_FOUND', 'message' => "Produk dengan SKU '{$sku}' tidak ditemukan."];
         }
 
-        if (! is_numeric($qty) || (int) $qty <= 0) {
+        if ($qtyParsed === null || (int) round($qtyParsed) <= 0) {
             $errors[] = ['field' => 'quantity', 'code' => 'INVALID_QTY', 'message' => 'Kuantitas saldo awal harus bilangan bulat > 0.'];
         }
 
         $normalized = [
             'product_id' => $product?->id,
             'sku' => $sku,
-            'quantity' => is_numeric($qty) ? (int) $qty : 0,
-            'unit_cost' => is_numeric($unitCost) ? round((float) $unitCost, 2) : (float) ($product?->current_cost ?? 0),
+            'quantity' => $qtyParsed !== null ? (int) round($qtyParsed) : 0,
+            'unit_cost' => $unitCostParsed !== null ? round($unitCostParsed, 2) : (float) ($product?->current_cost ?? 0),
         ];
 
         return [$normalized, $errors, $sku !== '' ? $sku : null];
