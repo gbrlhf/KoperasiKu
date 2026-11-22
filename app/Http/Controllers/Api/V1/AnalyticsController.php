@@ -46,6 +46,8 @@ class AnalyticsController extends Controller
 
         return response()->json($this->analytics->readSnapshot(function () use ($request, $from, $to) {
             return array_merge($this->analytics->summary($from, $to), [
+                'payment_breakdown' => $this->analytics->paymentBreakdown($from, $to),
+                'operating_expenses_items' => $this->analytics->operatingExpensesList($from, $to),
                 'frequency' => $request->query('frequency', 'day'),
                 'rows' => $this->analytics->trend($from, $to, $request->query('frequency', 'day')),
             ]);
@@ -120,7 +122,9 @@ class AnalyticsController extends Controller
         if (! in_array($format, ['xlsx', 'csv', 'pdf'], true)) {
             throw ValidationException::withMessages(['format' => 'Ekspor: xlsx, csv, atau pdf.']);
         }
-        $data = $this->analytics->readSnapshot(fn () => $this->analytics->summary($from, $to));
+        $data = $this->analytics->readSnapshot(
+            fn () => $this->analytics->exportPayload($from, $to, (string) $request->query('period', ''))
+        );
         if (! $data['ready']) {
             abort(503, 'Belum ada hasil ETL sukses yang dapat diekspor.');
         }
