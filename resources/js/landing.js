@@ -440,8 +440,6 @@ window.openProductDetailModal = function (productId) {
     const reviewsEl = document.getElementById('modalProductReviews');
     const soldEl = document.getElementById('modalProductSold');
     const priceEl = document.getElementById('modalProductPrice');
-    const origPriceEl = document.getElementById('modalProductOriginalPrice');
-    const discountEl = document.getElementById('modalProductDiscount');
     const unitEl = document.getElementById('modalProductUnit');
     const stockBadgeEl = document.getElementById('modalProductStockBadge');
     const specsBody = document.getElementById('modalProductSpecsBody');
@@ -482,21 +480,6 @@ window.openProductDetailModal = function (productId) {
     const currentPrice = Number(product.price || 0);
     if (priceEl) priceEl.textContent = `Rp ${currentPrice.toLocaleString('id-ID')}`;
     if (unitEl) unitEl.textContent = `/ ${product.unit || 'Unit'}`;
-
-    if (product.original_price && product.original_price > currentPrice) {
-        if (origPriceEl) {
-            origPriceEl.textContent = `Rp ${Number(product.original_price).toLocaleString('id-ID')}`;
-            origPriceEl.classList.remove('d-none');
-        }
-        if (discountEl) {
-            const discountPct = Math.round(((product.original_price - currentPrice) / product.original_price) * 100);
-            discountEl.textContent = `Hemat ${discountPct}%`;
-            discountEl.classList.remove('d-none');
-        }
-    } else {
-        if (origPriceEl) origPriceEl.classList.add('d-none');
-        if (discountEl) discountEl.classList.add('d-none');
-    }
 
     // Stock Badge
     if (stockBadgeEl) stockBadgeEl.textContent = `Tersedia: ${product.available_stock ?? 0} ${product.unit || 'unit'}`;
@@ -787,21 +770,16 @@ window.handleCheckoutSubmit = function (event) {
         if (codeDisplay) codeDisplay.textContent = realPickupCode;
         if (methodDisplay) methodDisplay.textContent = methodNames[selectedMethod] || selectedMethod;
 
-        // Render Barcode Code-128 di Boarding Pass Tiket
-        if (window.JsBarcode) {
-            try {
-                window.JsBarcode("#checkoutPickupBarcodeSvg", realPickupCode, {
-                    format: "CODE128",
-                    lineColor: "#000000",
-                    width: 2.2,
-                    height: 60,
-                    displayValue: false,
-                    margin: 4
-                });
-            } catch (e) {
-                console.error("JsBarcode error in checkout success:", e);
-            }
-        }
+        // Render QR Code 2D + Barcode Code-128 di Boarding Pass Tiket
+        renderPickupVisualCodes(realPickupCode, {
+            qrCanvasId: 'checkoutPickupQrCanvas',
+            barcodeSvgId: 'checkoutPickupBarcodeSvg',
+            qrWidth: 170,
+            barWidth: 2.2,
+            barHeight: 58,
+            barMargin: 16,
+            displayValue: false,
+        });
 
         // Kosongkan keranjang
         checkoutFingerprint = null; checkoutKey = null;
@@ -812,6 +790,17 @@ window.handleCheckoutSubmit = function (event) {
         const successModalEl = document.getElementById('pickupSuccessModal');
         if (successModalEl && window.bootstrap) {
             const showSuccess = () => {
+                successModalEl.addEventListener('shown.bs.modal', () => {
+                    renderPickupVisualCodes(realPickupCode, {
+                        qrCanvasId: 'checkoutPickupQrCanvas',
+                        barcodeSvgId: 'checkoutPickupBarcodeSvg',
+                        qrWidth: 170,
+                        barWidth: 2.2,
+                        barHeight: 58,
+                        barMargin: 16,
+                        displayValue: false,
+                    });
+                }, { once: true });
                 successModalEl.addEventListener('hidden.bs.modal', () => window.location.reload(), {once:true});
                 window.bootstrap.Modal.getOrCreateInstance(successModalEl).show();
             };
@@ -873,16 +862,134 @@ window.copyMemberPickupCode = function (text, btn) {
     });
 };
 
-// Buka Modal Fullscreen Barcode 1D (Kecerahan Maksimal untuk Scanner Kasir)
+// Helper terpadu untuk merender QR Code 2D + Barcode 1D (Code-128) berlatar putih kontras tinggi
+function renderPickupVisualCodes(code, opts = {}) {
+    const cleanCode = String(code || '').trim();
+    if (!cleanCode) return;
+
+    const qrCanvasId = opts.qrCanvasId || null;
+    const barcodeSvgId = opts.barcodeSvgId || null;
+    const qrWidth = opts.qrWidth || 180;
+    const barWidth = opts.barWidth || 2.2;
+    const barHeight = opts.barHeight || 62;
+    const barMargin = opts.barMargin || 16;
+    const displayValue = opts.displayValue !== undefined ? opts.displayValue : false;
+
+    if (qrCanvasId && window.QRCode) {
+        const canvas = document.getElementById(qrCanvasId);
+        if (canvas) {
+            try {
+                window.QRCode.toCanvas(canvas, cleanCode, {
+                    width: qrWidth,
+                    margin: 2,
+                    errorCorrectionLevel: 'M',
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff',
+                    },
+                }, (err) => {
+                    if (err) console.warn('QRCode render error:', err);
+                });
+            } catch (e) {
+                console.warn('QRCode render exception:', e);
+            }
+        }
+    }
+
+    if (barcodeSvgId && window.JsBarcode) {
+        const svgEl = document.getElementById(barcodeSvgId);
+        if (svgEl) {
+            try {
+                window.JsBarcode(svgEl, cleanCode, {
+                    format: 'CODE128',
+                    lineColor: '#000000',
+                    background: '#ffffff',
+                    width: barWidth,
+                    height: barHeight,
+                    displayValue,
+                    fontSize: 13,
+                    margin: barMargin,
+                });
+            } catch (e) {
+                console.warn('JsBarcode render error:', e);
+            }
+        }
+    }
+}
+
+window.openMemberPickupBarcodeModal = function (orderData) {
+    const code = String(orderData?.pickup_code || '').trim();
+    if (!code) {
+        alert('Kode pickup belum tersedia.');
+        return;
+    }
+
+    const codeEl = document.getElementById('drawerModalPickupCode');
+    const orderNoEl = document.getElementById('drawerModalOrderNo');
+    const totalEl = document.getElementById('drawerModalTotal');
+    const statusEl = document.getElementById('drawerModalStatusBadge');
+
+    if (codeEl) codeEl.textContent = code;
+    if (orderNoEl) orderNoEl.textContent = orderData?.order_no || '-';
+    if (totalEl) totalEl.textContent = `Rp ${Number(orderData?.total_amount || 0).toLocaleString('id-ID')}`;
+    if (statusEl) {
+        statusEl.innerHTML = orderData?.status === 'PENDING_PAYMENT'
+            ? '<span class="badge bg-warning text-dark">Menunggu Pembayaran / Verifikasi di Kasir</span>'
+            : '<span class="badge bg-success text-white">Siap Diambil di Gerai</span>';
+    }
+
+    const renderOpts = {
+        qrCanvasId: 'drawerPickupQrCanvas',
+        barcodeSvgId: 'drawerPickupBarcodeSvg',
+        qrWidth: 185,
+        barWidth: 2.2,
+        barHeight: 60,
+        barMargin: 16,
+        displayValue: true,
+    };
+
+    const modalEl = document.getElementById('pickupBarcodeModal');
+    if (modalEl && window.bootstrap) {
+        modalEl.addEventListener('shown.bs.modal', () => {
+            renderPickupVisualCodes(code, renderOpts);
+        }, { once: true });
+        renderPickupVisualCodes(code, renderOpts);
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const drawerModalEl = document.getElementById('pickupBarcodeModal');
+    if (drawerModalEl) {
+        drawerModalEl.addEventListener('shown.bs.modal', () => {
+            const codeEl = document.getElementById('drawerModalPickupCode');
+            const code = (codeEl?.textContent || codeEl?.dataset?.defaultCode || '').trim();
+            if (code) {
+                renderPickupVisualCodes(code, {
+                    qrCanvasId: 'drawerPickupQrCanvas',
+                    barcodeSvgId: 'drawerPickupBarcodeSvg',
+                    qrWidth: 185,
+                    barWidth: 2.2,
+                    barHeight: 60,
+                    barMargin: 16,
+                    displayValue: true,
+                });
+            }
+        });
+    }
+});
+
+// Buka Modal Fullscreen Barcode 1D & QR 2D (Kecerahan Maksimal untuk Scanner Kasir)
 window.openFullscreenPickupModal = function (code) {
-    if (!code) { alert('Belum ada kode pickup yang valid.'); return; }
+    const cleanCode = String(code || '').trim();
+    if (!cleanCode) { alert('Belum ada kode pickup yang valid.'); return; }
     const badgeEl = document.getElementById('fsPickupCodeBadge');
     const textEl = document.getElementById('fsPickupCodeText');
-    if (badgeEl) badgeEl.textContent = code;
-    if (textEl) textEl.textContent = code;
+    if (badgeEl) badgeEl.textContent = cleanCode;
+    if (textEl) textEl.textContent = cleanCode;
 
     // Otomatis tutup modal kode kecil jika sedang terbuka
-    ['pickupBarcodeModal', 'checkoutModal'].forEach(function (modalId) {
+    ['pickupBarcodeModal', 'checkoutModal', 'pickupSuccessModal'].forEach(function (modalId) {
         const modalEl = document.getElementById(modalId);
         if (modalEl && window.bootstrap) {
             const instance = window.bootstrap.Modal.getInstance(modalEl);
@@ -892,24 +999,22 @@ window.openFullscreenPickupModal = function (code) {
         }
     });
 
-    // Render Barcode 1D Code-128 via JsBarcode
-    if (window.JsBarcode) {
-        try {
-            window.JsBarcode("#fsPickupBarcodeSvg", code, {
-                format: "CODE128",
-                lineColor: "#000000",
-                width: 3.0,
-                height: 95,
-                displayValue: false,
-                margin: 4
-            });
-        } catch (e) {
-            console.error("Barcode render error:", e);
-        }
-    }
+    const renderOpts = {
+        qrCanvasId: 'fsPickupQrCanvas',
+        barcodeSvgId: 'fsPickupBarcodeSvg',
+        qrWidth: 215,
+        barWidth: 2.8,
+        barHeight: 82,
+        barMargin: 18,
+        displayValue: false,
+    };
 
     const fsModalEl = document.getElementById('fullscreenBarcodeModal');
     if (fsModalEl && window.bootstrap) {
+        fsModalEl.addEventListener('shown.bs.modal', () => {
+            renderPickupVisualCodes(cleanCode, renderOpts);
+        }, { once: true });
+        renderPickupVisualCodes(cleanCode, renderOpts);
         const bsModal = window.bootstrap.Modal.getOrCreateInstance(fsModalEl);
         bsModal.show();
     }

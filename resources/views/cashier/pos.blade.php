@@ -4,17 +4,18 @@
 
 @push('styles')
 <style>
-    /* Styling modul scanner barcode html5-qrcode */
+    /* Styling modul scanner barcode html5-qrcode (Jaga rasio aspek video 1:1 agar koordinat decode akurat) */
     #qr-reader {
         border: none !important;
         width: 100% !important;
+        max-width: 520px !important;
+        margin: 0 auto !important;
     }
     #qr-reader video {
         width: 100% !important;
-        height: 280px !important;
-        max-height: 280px !important;
-        object-fit: cover !important;
-        border-radius: 12px !important;
+        height: auto !important;
+        display: block !important;
+        border-radius: 10px !important;
     }
     #qr-reader__scan_region {
         background: transparent !important;
@@ -41,16 +42,15 @@
         border-radius: 12px;
         overflow: hidden;
         border: 2px solid #1e293b;
-        min-height: 220px;
-        max-height: 280px;
+        min-height: 240px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
     .scanner-laser-line {
         position: absolute;
-        left: 6%;
-        right: 6%;
+        left: 8%;
+        right: 8%;
         height: 2.5px;
         background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 50%, rgba(239, 68, 68, 0) 100%);
         box-shadow: 0 0 10px #ef4444, 0 0 20px #dc2626;
@@ -64,15 +64,14 @@
         100% { top: 15%; opacity: 0.3; }
     }
 
-    /* Reticle Garis Bidik Barcode Sembako */
+    /* Reticle Garis Bidik Barcode & QR (Transparan agar tidak menggelapkan kamera) */
     .scanner-reticle {
         position: absolute;
-        inset: 12% 8%;
-        border: 2px dashed rgba(255, 255, 255, 0.45);
-        border-radius: 8px;
+        inset: 12% 10%;
+        border: 2px dashed rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
         pointer-events: none;
         z-index: 10;
-        box-shadow: inset 0 0 0 1000px rgba(0, 0, 0, 0.22);
     }
     .scanner-reticle::before,
     .scanner-reticle::after {
@@ -776,6 +775,10 @@
                             Proses
                         </button>
                     </div>
+                    <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 text-nowrap flex-shrink-0 px-3 fw-semibold" onclick="openBarcodeScannerModal()" title="Pindai QR Code atau Barcode Pickup Anggota dengan Kamera">
+                        <i class="bi bi-camera-fill"></i>
+                        <span>Scan Kamera</span>
+                    </button>
                     <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 text-nowrap flex-shrink-0 px-3" onclick="location.assign('/cashier/antrian')">
                         <i class="bi bi-arrow-clockwise"></i>
                         <span>Muat Ulang</span>
@@ -2507,9 +2510,11 @@ async function executeCancelOrder() {
 // 6. ENGINE SCANNER BARCODE KAMERA & HARDWARE GERAI (html5-qrcode Real Engine)
 // ==============================================================================
 let html5QrCode = null;
+let nativeDetectorTimer = null;
 let currentCameraId = null;
 let availableCameras = [];
 let isScannerRunning = false;
+let isScannerStarting = false;
 let lastScannedCode = '';
 let lastScannedTimestamp = 0;
 let sessionScanCount = 0;
@@ -2669,6 +2674,8 @@ function focusPosCart() {
 
 function openBarcodeScannerModal() {
     dismissGopayScanSheet();
+    lastScannedCode = '';
+    lastScannedTimestamp = 0;
 
     const errorAlert = document.getElementById('scannerErrorAlert');
     const statusAlert = document.getElementById('scannerStatusAlert');
@@ -2682,13 +2689,16 @@ function openBarcodeScannerModal() {
 
     const modalEl = document.getElementById('barcodeScannerModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    
-    // Pastikan pemanggilan stream kamera dieksekusi setelah modal selesai bertransisi
-    const onShown = () => {
-        modalEl.removeEventListener('shown.bs.modal', onShown);
+
+    if (modalEl.classList.contains('show')) {
         startBarcodeScanner();
-    };
-    modalEl.addEventListener('shown.bs.modal', onShown);
+        return;
+    }
+
+    // Pastikan pemanggilan stream kamera dieksekusi setelah modal selesai bertransisi
+    modalEl.addEventListener('shown.bs.modal', () => {
+        startBarcodeScanner();
+    }, { once: true });
     modal.show();
 }
 
@@ -2705,8 +2715,110 @@ function retryCameraAccess() {
     startBarcodeScanner();
 }
 
+function closeScannerModalSafely() {
+    return new Promise(async (resolve) => {
+        await stopBarcodeScanner();
+        const modalEl = document.getElementById('barcodeScannerModal');
+        if (!modalEl || !window.bootstrap) {
+            resolve();
+            return;
+        }
+        const isShown = modalEl.classList.contains('show') || modalEl.style.display === 'block';
+        if (!isShown) {
+            resolve();
+            return;
+        }
+        let settled = false;
+        const done = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+        };
+        modalEl.addEventListener('hidden.bs.modal', done, { once: true });
+        const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        instance.hide();
+        setTimeout(done, 450);
+    });
+}
+
+function enableZxingTryHarder(scannerInstance) {
+    try {
+        const shim = scannerInstance?.qrcode;
+        [shim?.primaryDecoder, shim?.secondaryDecoder].forEach((dec) => {
+            if (dec?.hints instanceof Map) {
+                // DecodeHintType.TRY_HARDER = 3 in zxing-js; enables multi-scanline & reversed 1D Code-128 decode
+                dec.hints.set(3, true);
+            }
+        });
+    } catch (_) {}
+}
+
+function applyCameraAutofocusHint() {
+    try {
+        const video = document.querySelector('#qr-reader video');
+        const stream = video?.srcObject;
+        const track = stream?.getVideoTracks?.()?.[0];
+        if (!track || typeof track.applyConstraints !== 'function') return;
+        const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+        const adv = [];
+        if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+            adv.push({ focusMode: 'continuous' });
+        }
+        if (adv.length > 0) {
+            track.applyConstraints({ advanced: adv }).catch(() => {});
+        }
+    } catch (_) {}
+}
+
+function stopNativeBarcodeDetectorLoop() {
+    if (nativeDetectorTimer) {
+        clearInterval(nativeDetectorTimer);
+        nativeDetectorTimer = null;
+    }
+}
+
+async function startNativeBarcodeDetectorLoop() {
+    stopNativeBarcodeDetectorLoop();
+    if (typeof window.BarcodeDetector !== 'function') return;
+
+    let detector = null;
+    try {
+        const supported = typeof window.BarcodeDetector.getSupportedFormats === 'function'
+            ? await window.BarcodeDetector.getSupportedFormats()
+            : ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e'];
+        const wanted = ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
+            .filter((f) => supported.includes(f));
+        if (!wanted.length) return;
+        detector = new window.BarcodeDetector({ formats: wanted });
+    } catch (_) {
+        return;
+    }
+
+    let busy = false;
+    nativeDetectorTimer = setInterval(async () => {
+        if (!isScannerRunning || busy) return;
+        const video = document.querySelector('#qr-reader video');
+        if (!video || video.readyState < 2 || !video.videoWidth) return;
+        busy = true;
+        try {
+            const barcodes = await detector.detect(video);
+            if (Array.isArray(barcodes) && barcodes.length > 0) {
+                const rawVal = String(barcodes[0]?.rawValue || '').trim();
+                if (rawVal) {
+                    onBarcodeScanSuccess(rawVal);
+                }
+            }
+        } catch (_) {
+            // Abaikan error sementara saat frame video belum siap
+        } finally {
+            busy = false;
+        }
+    }, 220);
+}
+
 async function startBarcodeScanner() {
-    if (isScannerRunning) return;
+    if (isScannerRunning || isScannerStarting) return;
+    isScannerStarting = true;
 
     const errorAlert = document.getElementById('scannerErrorAlert');
     const statusAlert = document.getElementById('scannerStatusAlert');
@@ -2736,7 +2848,7 @@ async function startBarcodeScanner() {
             throw new Error("Perangkat atau peramban ini tidak mendukung API kamera (navigator.mediaDevices.getUserMedia).");
         }
 
-        // 2. Format retail yang didukung
+        // 2. Format retail & pickup yang didukung (QR 2D + Barcode 1D Code-128 / EAN / UPC)
         const Formats = window.Html5QrcodeSupportedFormats || (typeof Html5QrcodeSupportedFormats !== 'undefined' ? Html5QrcodeSupportedFormats : null);
         const supportedFormats = Formats ? [
             Formats.QR_CODE,
@@ -2749,16 +2861,13 @@ async function startBarcodeScanner() {
         ] : [0, 5, 9, 10, 3, 14, 15];
 
         // 3. Bersihkan instance scanner sebelumnya jika ada
+        await stopBarcodeScanner();
         if (html5QrCode) {
             try {
-                if (isScannerRunning) {
-                    await html5QrCode.stop();
-                }
                 await html5QrCode.clear();
             } catch (cleanupErr) {
                 console.warn("Cleanup old scanner:", cleanupErr);
             }
-            isScannerRunning = false;
             html5QrCode = null;
         }
 
@@ -2767,13 +2876,14 @@ async function startBarcodeScanner() {
             qrReaderContainer.innerHTML = '';
         }
 
-        html5QrCode = new Html5QrcodeClass("qr-reader", { 
-            formatsToSupport: supportedFormats, 
+        html5QrCode = new Html5QrcodeClass("qr-reader", {
+            formatsToSupport: supportedFormats,
             verbose: false,
             experimentalFeatures: {
                 useBarCodeDetectorIfSupported: true
             }
         });
+        enableZxingTryHarder(html5QrCode);
 
         // 4. Deteksi daftar kamera hardware yang terhubung
         try {
@@ -2786,95 +2896,89 @@ async function startBarcodeScanner() {
             console.warn("Query kamera awal:", camErr);
         }
 
-        // 5. Konfigurasi scan viewfinder aman (selalu berada di dalam dimensi container)
-        const scanConfig = {
-            fps: 20,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const w = Math.max(160, Math.floor(viewfinderWidth * 0.88));
-                const h = Math.max(120, Math.floor(viewfinderHeight * 0.65));
-                return {
-                    width: Math.min(w, Math.max(100, viewfinderWidth - 10)),
-                    height: Math.min(h, Math.max(80, viewfinderHeight - 10))
-                };
-            },
-            aspectRatio: 1.333333,
-            disableFlip: false
+        // 5. Konfigurasi full-frame scan (tanpa crop qrbox sempit agar 1D Code-128 & QR 2D terbaca utuh 1:1)
+        const makeScanConfig = (videoConstraints = null) => {
+            const cfg = {
+                fps: 15,
+                disableFlip: false
+            };
+            if (videoConstraints) {
+                cfg.videoConstraints = videoConstraints;
+            }
+            return cfg;
         };
 
-        // 6. Strategi pemilihan kamera multi-tier (Mencegah OverconstrainedError)
+        // 6. Strategi pemilihan kamera multi-tier (HD 720p dulu agar garis barcode 1D tajam, lalu fallback standar)
         let started = false;
+        let lastStartError = null;
 
-        // Strategi 1: Gunakan deviceId kamera tertentu jika tersedia
+        let targetId = currentCameraId;
         if (availableCameras && availableCameras.length > 0) {
-            let targetId = currentCameraId;
             if (!targetId || !availableCameras.some(c => c.id === targetId)) {
-                // Prioritaskan kamera belakang di mobile jika ada label back/environment
                 const backCam = availableCameras.find(c => /back|rear|belakang|environment/i.test(c.label));
                 targetId = backCam ? backCam.id : availableCameras[0].id;
                 currentCameraId = targetId;
             }
-
-            try {
-                await html5QrCode.start(
-                    targetId,
-                    scanConfig,
-                    onBarcodeScanSuccess,
-                    () => {} // silence noise
-                );
-                started = true;
-            } catch (camIdErr) {
-                console.warn("Start kamera dengan deviceId gagal, mencoba fallback facingMode...", camIdErr);
-            }
         }
 
-        // Strategi 2: Coba kamera belakang (environment)
-        if (!started) {
+        const attempts = [];
+        if (targetId) {
+            attempts.push({
+                idOrCfg: targetId,
+                cfg: makeScanConfig({ deviceId: { exact: targetId }, width: { ideal: 1280 }, height: { ideal: 720 } })
+            });
+            attempts.push({
+                idOrCfg: targetId,
+                cfg: makeScanConfig()
+            });
+        }
+        attempts.push({
+            idOrCfg: { facingMode: "environment" },
+            cfg: makeScanConfig({ facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } })
+        });
+        attempts.push({
+            idOrCfg: { facingMode: "user" },
+            cfg: makeScanConfig({ facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } })
+        });
+        attempts.push({
+            idOrCfg: { facingMode: "environment" },
+            cfg: makeScanConfig()
+        });
+        attempts.push({
+            idOrCfg: { facingMode: "user" },
+            cfg: makeScanConfig()
+        });
+
+        for (const attempt of attempts) {
             try {
                 await html5QrCode.start(
-                    { facingMode: "environment" },
-                    scanConfig,
+                    attempt.idOrCfg,
+                    attempt.cfg,
                     onBarcodeScanSuccess,
                     () => {}
                 );
                 started = true;
-            } catch (envErr) {
-                console.warn("Kamera environment tidak ada, mencoba kamera user/depan laptop...", envErr);
+                break;
+            } catch (attemptErr) {
+                lastStartError = attemptErr;
+                console.warn("Percobaan start kamera gagal, mencoba fallback berikutnya:", attemptErr);
             }
         }
 
-        // Strategi 3: Coba kamera depan (user - webcam laptop/PC)
         if (!started) {
-            try {
-                await html5QrCode.start(
-                    { facingMode: "user" },
-                    scanConfig,
-                    onBarcodeScanSuccess,
-                    () => {}
-                );
-                started = true;
-            } catch (userErr) {
-                console.warn("Kamera user gagal, mencoba default stream...", userErr);
-            }
-        }
-
-        // Strategi 4: Default video stream tanpa batasan constraint
-        if (!started) {
-            await html5QrCode.start(
-                {},
-                scanConfig,
-                onBarcodeScanSuccess,
-                () => {}
-            );
-            started = true;
+            throw lastStartError || new Error("Gagal mengaktifkan stream kamera.");
         }
 
         isScannerRunning = true;
+        applyCameraAutofocusHint();
+        startNativeBarcodeDetectorLoop();
         if (spinner) spinner.classList.add('d-none');
-        statusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-record-circle-fill text-danger me-1"></i> Kamera Aktif:</span> Dekatkan barcode sembako atau QR ke dalam kotak bidik.`;
+        statusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-record-circle-fill text-danger me-1"></i> Kamera Aktif:</span> Arahkan QR Code atau Barcode Pickup (PKP-...) / Produk ke depan kamera.`;
 
     } catch (err) {
         console.warn("Camera start exception:", err);
         isScannerRunning = false;
+        stopNativeBarcodeDetectorLoop();
         statusAlert.classList.add('d-none');
         errorAlert.classList.remove('d-none');
 
@@ -2892,17 +2996,22 @@ async function startBarcodeScanner() {
             errorTitle.textContent = "Kamera Belum Dapat Dibuka";
             errorMessage.textContent = (err.message || 'Gagal memulai stream video kamera') + ". Silakan gunakan opsi Scan dari File Gambar atau input manual.";
         }
+    } finally {
+        isScannerStarting = false;
     }
 }
 
-function onBarcodeScanSuccess(decodedText) {
+async function onBarcodeScanSuccess(decodedText) {
+    const clean = String(decodedText || '').replace(/[\r\n\t\x00-\x1F]+/g, '').trim();
+    if (!clean) return;
+
     const now = Date.now();
     // Debounce 1.2 detik agar tidak men-scan ganda dalam milidetik yang sama
-    if (decodedText === lastScannedCode && (now - lastScannedTimestamp) < 1200) {
+    if (clean === lastScannedCode && (now - lastScannedTimestamp) < 1200) {
         return;
     }
 
-    lastScannedCode = decodedText;
+    lastScannedCode = clean;
     lastScannedTimestamp = now;
 
     playGopayChime();
@@ -2917,31 +3026,29 @@ function onBarcodeScanSuccess(decodedText) {
         countBadge.textContent = `${sessionScanCount} Barang Ter-scan`;
     }
 
-    // Cek apakah mode multi-scan aktif
+    const isPickup = /^(PKP|ORD|DMO)-/i.test(clean);
     const multiScan = document.getElementById('toggleMultiScan')?.checked ?? false;
-    if (!multiScan) {
-        // Keluar otomatis dari modal seperti di GoPay
-        stopBarcodeScanner();
-        const modalEl = document.getElementById('barcodeScannerModal');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) modalInstance.hide();
-        
-        handleIncomingBarcode(decodedText, { source: 'camera', showGopaySheet: true });
+
+    if (!multiScan || isPickup) {
+        // Hentikan kamera & tunggu modal scanner benar-benar tertutup sebelum membuka modal pickup / transaksi
+        await closeScannerModalSafely();
+        handleIncomingBarcode(clean, { source: 'camera', showGopaySheet: true });
     } else {
-        // Tetap di kamera untuk scan beruntun
-        handleIncomingBarcode(decodedText, { source: 'camera', showGopaySheet: false });
+        handleIncomingBarcode(clean, { source: 'camera', showGopaySheet: false });
     }
 }
 
 async function stopBarcodeScanner() {
+    stopNativeBarcodeDetectorLoop();
     if (html5QrCode && isScannerRunning) {
+        isScannerRunning = false;
         try {
             await html5QrCode.stop();
         } catch (err) {
             console.warn("Stop scanner error:", err);
-        } finally {
-            isScannerRunning = false;
         }
+    } else {
+        isScannerRunning = false;
     }
 }
 
@@ -2974,17 +3081,13 @@ window.simulateBarcodeScan = function(code, name) {
     handleIncomingBarcode(code, { source: 'demo', showGopaySheet: true });
 };
 
-// Scan dari berkas gambar / foto barcode (Langsung keluar otomatis seperti di GoPay)
+// Scan dari berkas gambar / foto barcode (Mendukung Html5Qrcode TRY_HARDER + Native BarcodeDetector fallback)
 async function handleBarcodeFile(input) {
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
 
     try {
-        // Hentikan kamera jika sedang aktif agar tidak bentrok
-        if (html5QrCode && isScannerRunning) {
-            try { await html5QrCode.stop(); } catch(e) {}
-            isScannerRunning = false;
-        }
+        await stopBarcodeScanner();
 
         const Html5QrcodeClass = window.Html5Qrcode || (typeof Html5Qrcode !== 'undefined' ? Html5Qrcode : null);
         if (!Html5QrcodeClass) throw new Error("Library scanner barcode belum terpasang.");
@@ -3000,39 +3103,59 @@ async function handleBarcodeFile(input) {
             Formats.UPC_E
         ] : [0, 5, 9, 10, 3, 14, 15];
 
+        let decodedText = '';
         let fileScanner = new Html5QrcodeClass("qr-reader-file-temp", {
             formatsToSupport: supportedFormats,
-            verbose: false
+            verbose: false,
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
         });
+        enableZxingTryHarder(fileScanner);
 
-        const decodedText = await fileScanner.scanFile(file, true);
-        try { await fileScanner.clear(); } catch(e) {}
-
-        // 1. LANGSUNG TUTUP MODAL SCANNER SEPERTI DI GOPAY
-        const modalEl = document.getElementById('barcodeScannerModal');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) {
-            modalInstance.hide();
+        try {
+            decodedText = await fileScanner.scanFile(file, false);
+        } catch (firstErr) {
+            // Fallback ke native BarcodeDetector jika tersedia di browser
+            if (typeof window.BarcodeDetector === 'function' && typeof createImageBitmap === 'function') {
+                const bitmap = await createImageBitmap(file);
+                const detector = new window.BarcodeDetector({
+                    formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
+                });
+                const results = await detector.detect(bitmap);
+                if (results?.length && results[0]?.rawValue) {
+                    decodedText = results[0].rawValue;
+                } else {
+                    throw firstErr;
+                }
+            } else {
+                throw firstErr;
+            }
+        } finally {
+            try { await fileScanner.clear(); } catch(e) {}
         }
 
-        // 2. MAIN SUARA CHIME & VIBRATION
+        const clean = String(decodedText || '').replace(/[\r\n\t\x00-\x1F]+/g, '').trim();
+        if (!clean) throw new Error("Kode tidak terbaca dari gambar.");
+
+        await closeScannerModalSafely();
+
         playGopayChime();
         if (navigator.vibrate) {
             try { navigator.vibrate([60, 40, 80]); } catch(e) {}
         }
 
-        // 3. PROSES DATA BARCODE & TAMPILKAN GOPAY BOTTOM SHEET
-        handleIncomingBarcode(decodedText, { source: 'file', showGopaySheet: true });
+        handleIncomingBarcode(clean, { source: 'file', showGopaySheet: true });
 
     } catch (err) {
         console.warn("Scan file barcode error:", err);
-        showScanToast("Gagal Membaca File Gambar", "Pastikan foto barcode tajam, tidak miring ekstrem, dan memiliki kontras yang cukup.");
+        showScanToast("Gagal Membaca File Gambar", "Pastikan foto QR / barcode tajam, tidak miring ekstrem, dan memiliki kontras yang cukup.", true);
     } finally {
         input.value = '';
     }
 }
 
-function submitModalManualBarcode() {
+async function submitModalManualBarcode() {
     const val = document.getElementById('modalManualBarcodeInput').value.trim();
     if (!val) return;
 
@@ -3046,11 +3169,8 @@ function submitModalManualBarcode() {
     document.getElementById('modalManualBarcodeInput').value = '';
 
     const multiScan = document.getElementById('toggleMultiScan')?.checked ?? false;
-    if (!multiScan) {
-        stopBarcodeScanner();
-        const modalEl = document.getElementById('barcodeScannerModal');
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
+    if (!multiScan || /^(PKP|ORD|DMO)-/i.test(val)) {
+        await closeScannerModalSafely();
         handleIncomingBarcode(val, { source: 'manual', showGopaySheet: true });
     } else {
         handleIncomingBarcode(val, { source: 'manual', showGopaySheet: false });
@@ -3162,13 +3282,13 @@ function upsertPickupQueueRow(data) {
 
 let lookupBusy = false;
 async function handleIncomingBarcode(code, options = {}) {
-    const clean = String(code || '').trim();
+    const clean = String(code || '').replace(/[\r\n\t\x00-\x1F]+/g, '').trim();
     if (!clean || lookupBusy || cashierBusy) return;
     lookupBusy = true;
     hideInlineAlert('posErrorAlert');
     hideInlineAlert('pickupQueueErrorAlert');
     try {
-        const pickup = /^(PKP|ORD)-/i.test(clean);
+        const pickup = /^(PKP|ORD|DMO)-/i.test(clean);
         const url = pickup ? '/cashier/pickup-lookup?code=' : '/api/products/lookup?barcode=';
         const response = await fetch(url + encodeURIComponent(clean), { headers: { Accept: 'application/json' }, cache: 'no-store' });
         const result = await response.json();
@@ -3176,6 +3296,7 @@ async function handleIncomingBarcode(code, options = {}) {
         const data = result.data;
         if (pickup) {
             if (!['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP'].includes(data.status)) {
+                await closeScannerModalSafely();
                 showCashierError('Pesanan ' + data.pickup_code + ' sudah berstatus ' + data.status + ' dan tidak dapat diproses ulang.');
                 return;
             }
@@ -3183,24 +3304,17 @@ async function handleIncomingBarcode(code, options = {}) {
             if (index >= 0) realPickupQueue[index] = data; else realPickupQueue.push(data);
             upsertPickupQueueRow(data);
             switchToPickupPane();
-            const action = () => {
-                dismissGopayScanSheet();
-                if (data.can_handover) {
-                    openPickupHandoverModal(data.pickup_code, data.member_name, data.member_id, data.items_summary, data.total_amount, data.payment_method);
-                } else if (data.pending_payment_id || data.payment_method === 'BANK_TRANSFER') {
-                    openVerifyTransferModal(data.pickup_code, data.member_name, data.member_id, data.pending_payment_amount || data.remaining_amount || data.total_amount, data.transfer_ref || '');
-                } else if (data.payment_method !== 'CREDIT') {
-                    recordQueuedPayment(data.pickup_code);
-                } else {
-                    showCashierError('Fasilitas kredit pesanan tidak siap (Credit Hold tidak aktif).');
-                }
-            };
-            const scanner = document.getElementById('barcodeScannerModal');
-            if (scanner?.classList?.contains('show') || scanner?.style?.display === 'block') {
-                scanner.addEventListener('hidden.bs.modal', action, { once: true });
-                stopBarcodeScanner();
-                bootstrap.Modal.getOrCreateInstance(scanner).hide();
-            } else action();
+            await closeScannerModalSafely();
+            dismissGopayScanSheet();
+            if (data.can_handover) {
+                openPickupHandoverModal(data.pickup_code, data.member_name, data.member_id, data.items_summary, data.total_amount, data.payment_method);
+            } else if (data.pending_payment_id || data.payment_method === 'BANK_TRANSFER') {
+                openVerifyTransferModal(data.pickup_code, data.member_name, data.member_id, data.pending_payment_amount || data.remaining_amount || data.total_amount, data.transfer_ref || '');
+            } else if (data.payment_method !== 'CREDIT') {
+                recordQueuedPayment(data.pickup_code);
+            } else {
+                showCashierError('Fasilitas kredit pesanan tidak siap (Credit Hold tidak aktif).');
+            }
             return;
         }
         const i = stockCatalogue.findIndex(p => p.sku === data.sku);

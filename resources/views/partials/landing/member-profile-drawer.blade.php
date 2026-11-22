@@ -241,11 +241,20 @@
                     <strong class="text-primary flex-shrink-0 text-nowrap">Rp {{ number_format($activeOrders[0]['total_amount'], 0, ',', '.') }}</strong>
                 </div>
 
+                @php
+                    $primaryPickupPayload = [
+                        'pickup_code' => $activeOrders[0]['pickup_code'] ?? '',
+                        'order_no' => $activeOrders[0]['order_no'] ?? '',
+                        'total_amount' => $activeOrders[0]['total_amount'] ?? 0,
+                        'status' => $activeOrders[0]['status'] ?? '',
+                        'items_summary' => $activeOrders[0]['items_summary'] ?? '',
+                    ];
+                @endphp
                 <!-- Action Buttons: Barcode & Copy -->
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary btn-sm w-100 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#pickupBarcodeModal">
+                    <button type="button" class="btn btn-primary btn-sm w-100 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" data-pickup="{{ json_encode($primaryPickupPayload) }}" onclick="openMemberPickupBarcodeModal(JSON.parse(this.dataset.pickup))">
                         <i class="bi bi-qr-code"></i>
-                        <span>Tampilkan Barcode</span>
+                        <span>Tampilkan QR / Barcode</span>
                     </button>
                     <button type="button" class="btn btn-outline-dark btn-sm w-100 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5" onclick="copyMemberPickupCode('{{ $activeOrders[0]['pickup_code'] }}', this)">
                         <i class="bi bi-clipboard"></i>
@@ -260,6 +269,15 @@
                         </small>
                         <div class="d-flex flex-column gap-1.5">
                             @foreach(array_slice($activeOrders, 1) as $extraOrder)
+                                @php
+                                    $extraPickupPayload = [
+                                        'pickup_code' => $extraOrder['pickup_code'] ?? '',
+                                        'order_no' => $extraOrder['order_no'] ?? '',
+                                        'total_amount' => $extraOrder['total_amount'] ?? 0,
+                                        'status' => $extraOrder['status'] ?? '',
+                                        'items_summary' => $extraOrder['items_summary'] ?? '',
+                                    ];
+                                @endphp
                                 <div class="p-2 rounded-2 bg-white border d-flex justify-content-between align-items-center gap-2 overflow-hidden">
                                     <div class="min-w-0 flex-grow-1" style="min-width: 0;">
                                         <div class="d-flex align-items-center gap-1.5 flex-wrap">
@@ -272,9 +290,14 @@
                                     </div>
                                     <div class="text-end flex-shrink-0">
                                         <strong class="text-primary d-block text-nowrap" style="font-size: 0.75rem;">Rp {{ number_format($extraOrder['total_amount'], 0, ',', '.') }}</strong>
-                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.68rem; min-height: auto;" onclick="copyMemberPickupCode('{{ $extraOrder['pickup_code'] }}', this)">
-                                            <i class="bi bi-clipboard"></i> Salin
-                                        </button>
+                                        <div class="d-inline-flex align-items-center gap-2 mt-0.5">
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" style="font-size: 0.68rem; min-height: auto;" data-pickup="{{ json_encode($extraPickupPayload) }}" onclick="openMemberPickupBarcodeModal(JSON.parse(this.dataset.pickup))">
+                                                <i class="bi bi-qr-code"></i> QR
+                                            </button>
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-secondary" style="font-size: 0.68rem; min-height: auto;" onclick="copyMemberPickupCode('{{ $extraOrder['pickup_code'] }}', this)">
+                                                <i class="bi bi-clipboard"></i> Salin
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach
@@ -343,54 +366,35 @@
                     GERAI KOPEG MART KANAYAKAN A11
                 </span>
                 
-                <h4 class="fw-extrabold text-dark mb-1">
+                <h4 class="fw-extrabold text-dark font-monospace mb-1" id="drawerModalPickupCode" data-default-code="{{ $activeOrders[0]['pickup_code'] ?? '' }}">
                     {{ $activeOrders[0]['pickup_code'] ?? '' }}
                 </h4>
-                <p class="text-muted small mb-3">Tunjukkan layar ini langsung ke petugas kasir saat pengambilan pesanan.</p>
+                <p class="text-muted small mb-3">Arahkan QR Code atau Barcode ini ke kamera / scanner kasir saat pengambilan pesanan.</p>
 
-                <!-- Scannable Barcode 1D (Garis) Standar Scanner Kasir -->
-                <div class="p-3 bg-white border rounded-3 d-inline-block shadow-sm mb-3 text-center w-100" style="max-width: 340px;">
-                    <div class="p-2.5 bg-white rounded border">
-                        <svg id="drawerPickupBarcodeSvg" class="w-100" style="max-height: 85px;"></svg>
+                <!-- Scannable QR Code (2D - Cepat untuk Kamera) & Barcode 1D (Code-128) -->
+                <div class="p-3 bg-white border rounded-3 d-inline-block shadow-sm mb-3 text-center w-100" style="max-width: 360px;">
+                    <div class="d-flex justify-content-center p-2 bg-white rounded border mb-2">
+                        <canvas id="drawerPickupQrCanvas" aria-label="QR Code Pickup"></canvas>
                     </div>
-                    <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Format: Barcode 1D Code-128 (Standar Scanner Kasir)</small>
+                    <small class="text-success fw-semibold d-block mb-2" style="font-size: 0.72rem;">
+                        <i class="bi bi-camera-fill me-1"></i> QR Code 2D (Direkomendasikan untuk Scan Kamera Kasir)
+                    </small>
+                    <div class="p-2 bg-white rounded border">
+                        <svg id="drawerPickupBarcodeSvg" class="w-100" style="max-height: 82px;"></svg>
+                    </div>
+                    <small class="text-muted d-block mt-1.5" style="font-size: 0.7rem;">Barcode 1D Code-128 (Scanner Laser / Kamera HD)</small>
                 </div>
 
                 <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
-                    <button type="button" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="openFullscreenPickupModal('{{ $activeOrders[0]['pickup_code'] ?? '' }}')">
+                    <button type="button" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5" id="drawerModalFullscreenBtn" onclick="openFullscreenPickupModal(document.getElementById('drawerModalPickupCode')?.textContent.trim() || '')">
                         <i class="bi bi-arrows-fullscreen text-primary"></i>
-                        <span>Mode Layar Penuh (Kecerahan Maksimal)</span>
+                        <span>Mode Layar Penuh</span>
                     </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5" onclick="copyMemberPickupCode('{{ $activeOrders[0]['pickup_code'] ?? '' }}', this)">
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5" id="drawerModalCopyBtn" onclick="copyMemberPickupCode(document.getElementById('drawerModalPickupCode')?.textContent.trim() || '', this)">
                         <i class="bi bi-clipboard"></i>
                         <span>Salin Kode</span>
                     </button>
                 </div>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    const modalEl = document.getElementById('pickupBarcodeModal');
-                    if (modalEl) {
-                        modalEl.addEventListener('shown.bs.modal', () => {
-                            const code = "{{ $activeOrders[0]['pickup_code'] ?? '' }}";
-                            if (window.JsBarcode) {
-                                try {
-                                    window.JsBarcode("#drawerPickupBarcodeSvg", code, {
-                                        format: "CODE128",
-                                        lineColor: "#000000",
-                                        width: 2.2,
-                                        height: 60,
-                                        displayValue: true,
-                                        fontSize: 14,
-                                        margin: 6,
-                                        background: "#ffffff"
-                                    });
-                                } catch(e) { console.warn("JsBarcode drawer error", e); }
-                            }
-                        });
-                    }
-                });
-                </script>
 
                 <div class="p-2.5 rounded-2 bg-light border text-start small text-secondary">
                     <div class="d-flex justify-content-between mb-1">
@@ -398,16 +402,22 @@
                         <strong class="text-dark">{{ $member['name'] ?? 'Ahmad Fauzi' }}{{ !empty($landingMemberCode) ? ' (' . $landingMemberCode . ')' : '' }}</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-1">
-                        <span>Total Belanja:</span>
-                        <strong class="text-primary">Rp {{ number_format($activeOrders[0]['total_amount'] ?? 0, 0, ',', '.') }}</strong>
+                        <span>No. Pesanan:</span>
+                        <strong class="text-dark font-monospace" id="drawerModalOrderNo">{{ $activeOrders[0]['order_no'] ?? '-' }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Total Belanja:</span>
+                        <strong class="text-primary" id="drawerModalTotal">Rp {{ number_format($activeOrders[0]['total_amount'] ?? 0, 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
                         <span>Status:</span>
-                        @if(($activeOrders[0]['status'] ?? '') === 'PENDING_PAYMENT')
-                            <span class="badge bg-warning text-dark">Menunggu Pembayaran / Verifikasi di Kasir</span>
-                        @else
-                            <span class="badge bg-success text-white">Siap Diambil di Gerai</span>
-                        @endif
+                        <span id="drawerModalStatusBadge">
+                            @if(($activeOrders[0]['status'] ?? '') === 'PENDING_PAYMENT')
+                                <span class="badge bg-warning text-dark">Menunggu Pembayaran / Verifikasi di Kasir</span>
+                            @else
+                                <span class="badge bg-success text-white">Siap Diambil di Gerai</span>
+                            @endif
+                        </span>
                     </div>
                 </div>
             </div>
