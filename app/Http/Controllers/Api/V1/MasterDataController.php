@@ -16,7 +16,9 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\InventoryService;
 use App\Services\Pricing\WeightedAverageCostService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -280,6 +282,22 @@ class MasterDataController extends Controller
         ]);
     }
 
+    public function stockMovements(Request $request): JsonResponse
+    {
+        $limit = min(100, max(10, (int) $request->integer('limit', 50)));
+        $movements = StockMovement::query()
+            ->with('product:id,sku,name,unit')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat mutasi stok berhasil diambil.',
+            'data' => $movements,
+        ]);
+    }
+
     public function receipts(): JsonResponse
     {
         $receipts = PurchaseReceipt::with(['supplier', 'items.product'])
@@ -356,101 +374,178 @@ class MasterDataController extends Controller
         ], 201);
     }
 
-    public function storeAdjustment(Request $request, AuditService $auditService): JsonResponse
+    public function storeAdjustment(Request $request, InventoryService $inventoryService): JsonResponse
     {
         $validated = $request->validate([
             'product_id' => ['required', 'uuid', 'exists:products,id'],
             'adjustment_type' => ['required', 'string', 'in:ADDITION,DEDUCTION,OPNAME'],
             'quantity' => ['required', 'integer', 'min:0'],
             'reason' => ['required', 'string', 'max:255'],
+            'idempotency_key' => ['nullable', 'string', 'max:128'],
         ]);
 
-        $result = DB::transaction(function () use ($validated, $request, $auditService): array {
-            $product = Product::query()->whereKey($validated['product_id'])->lockForUpdate()->firstOrFail();
-            $balance = InventoryBalance::query()->where('product_id', $product->id)->lockForUpdate()->first();
+        $rawKey = trim((string) (
+            $request->header('Idempotency-Key')
+            ?: $request->header('X-Idempotency-Key')
+            ?: ($validated['idempotency_key'] ?? '')
+        ));
 
-            if (! $balance) {
-                $balance = InventoryBalance::create([
-                    'product_id' => $product->id,
-                    'on_hand' => 0,
-                    'reserved' => 0,
-                ]);
-            }
-
-            $oldOnHand = (int) $balance->on_hand;
-            $reserved = (int) $balance->reserved;
-            $qty = (int) $validated['quantity'];
-            $type = $validated['adjustment_type'];
-
-            if ($type === 'ADDITION') {
-                if ($qty <= 0) {
-                    throw new BusinessRuleException('Jumlah penambahan stok harus lebih dari 0.');
-                }
-                $delta = $qty;
-                $newOnHand = $oldOnHand + $qty;
-            } elseif ($type === 'DEDUCTION') {
-                if ($qty <= 0) {
-                    throw new BusinessRuleException('Jumlah pengurangan stok harus lebih dari 0.');
-                }
-                $delta = -$qty;
-                $newOnHand = $oldOnHand - $qty;
-            } else {
-                // OPNAME: set physical on_hand directly to $qty
-                $newOnHand = $qty;
-                $delta = $newOnHand - $oldOnHand;
-            }
-
-            if ($newOnHand < 0) {
-                throw new BusinessRuleException('Stok fisik hasil penyesuaian tidak boleh bernilai negatif.');
-            }
-
-            if ($newOnHand < $reserved) {
-                throw new BusinessRuleException("Stok fisik ({$newOnHand}) tidak boleh lebih kecil dari stok yang sedang direservasi pesanan aktif ({$reserved}).");
-            }
-
-            $balance->update(['on_hand' => $newOnHand]);
-
-            $movement = StockMovement::create([
-                'product_id' => $product->id,
-                'type' => 'ADJUSTMENT',
-                'reference_id' => (string) Str::uuid(),
-                'quantity_change' => $delta,
-                'reason' => "[{$type}] ".$validated['reason'],
+        if ($rawKey !== '') {
+            $sourceReference = Str::isUuid($rawKey)
+                ? strtolower($rawKey)
+                : $this->deterministicUuid('adj-key:' . $rawKey);
+        } else {
+            $minuteBucket = CarbonImmutable::now('Asia/Jakarta')->format('YmdHi');
+            $seed = implode('|', [
+                'adj',
+                (string) $validated['product_id'],
+                strtoupper((string) $validated['adjustment_type']),
+                (string) $validated['quantity'],
+                $minuteBucket,
             ]);
+            $sourceReference = $this->deterministicUuid($seed);
+        }
 
-            $auditService->record(
-                action: 'INVENTORY_ADJUSTED',
-                entityType: 'product',
-                entityId: (string) $product->id,
-                oldValues: ['on_hand' => $oldOnHand],
-                newValues: [
-                    'adjustment_type' => $type,
+        try {
+            $result = DB::transaction(function () use ($validated, $request, $inventoryService, $sourceReference): array {
+                $product = Product::query()->whereKey($validated['product_id'])->lockForUpdate()->firstOrFail();
+                $balance = InventoryBalance::query()->where('product_id', $product->id)->lockForUpdate()->first();
+
+                if (! $balance) {
+                    $balance = InventoryBalance::create([
+                        'product_id' => $product->id,
+                        'on_hand' => 0,
+                        'reserved' => 0,
+                    ]);
+                }
+
+                $oldOnHand = (int) $balance->on_hand;
+                $reserved = (int) $balance->reserved;
+                $qty = (int) $validated['quantity'];
+                $type = $validated['adjustment_type'];
+                $movementReason = "[{$type}] ".trim((string) $validated['reason']);
+
+                $existingMovement = StockMovement::query()
+                    ->where('product_id', $product->id)
+                    ->where('type', 'ADJUSTMENT')
+                    ->where('reference_id', $sourceReference)
+                    ->first();
+
+                if ($existingMovement) {
+                    $conflict = match ($type) {
+                        'ADDITION' => (int) $existingMovement->quantity_change !== $qty || $existingMovement->reason !== $movementReason,
+                        'DEDUCTION' => (int) $existingMovement->quantity_change !== -$qty || $existingMovement->reason !== $movementReason,
+                        default => $oldOnHand !== $qty || $existingMovement->reason !== $movementReason,
+                    };
+
+                    if ($conflict) {
+                        throw new BusinessRuleException('Referensi penyesuaian stok sudah digunakan untuk nilai berbeda.', 409, 'IDEMPOTENCY_CONFLICT');
+                    }
+
+                    return [
+                        'idempotent' => true,
+                        'product_id' => $product->id,
+                        'sku' => $product->sku,
+                        'name' => $product->name,
+                        'old_on_hand' => $oldOnHand - (int) $existingMovement->quantity_change,
+                        'new_on_hand' => $oldOnHand,
+                        'reserved' => $reserved,
+                        'available_stock' => $oldOnHand - $reserved,
+                        'delta' => (int) $existingMovement->quantity_change,
+                        'movement_id' => $existingMovement->id,
+                        'reference_id' => $sourceReference,
+                    ];
+                }
+
+                if ($type === 'ADDITION') {
+                    if ($qty <= 0) {
+                        throw new BusinessRuleException('Jumlah penambahan stok harus lebih dari 0.');
+                    }
+                    $delta = $qty;
+                    $newOnHand = $oldOnHand + $qty;
+                } elseif ($type === 'DEDUCTION') {
+                    if ($qty <= 0) {
+                        throw new BusinessRuleException('Jumlah pengurangan stok harus lebih dari 0.');
+                    }
+                    $delta = -$qty;
+                    $newOnHand = $oldOnHand - $qty;
+                } else {
+                    $newOnHand = $qty;
+                    $delta = $newOnHand - $oldOnHand;
+                }
+
+                if ($newOnHand < 0) {
+                    throw new BusinessRuleException('Stok fisik hasil penyesuaian tidak boleh bernilai negatif.');
+                }
+
+                if ($newOnHand < $reserved) {
+                    throw new BusinessRuleException("Stok fisik ({$newOnHand}) tidak boleh lebih kecil dari stok yang sedang direservasi pesanan aktif ({$reserved}).");
+                }
+
+                $movementId = null;
+                if ($delta !== 0) {
+                    $inventoryService->adjust(
+                        productId: (string) $product->id,
+                        delta: $delta,
+                        reason: $movementReason,
+                        actorUserId: (string) ($request->user()?->id ?? 'SYSTEM'),
+                        sourceReference: $sourceReference
+                    );
+
+                    $movementId = StockMovement::query()
+                        ->where('product_id', $product->id)
+                        ->where('type', 'ADJUSTMENT')
+                        ->where('reference_id', $sourceReference)
+                        ->latest('created_at')
+                        ->value('id');
+                }
+
+                return [
+                    'idempotent' => false,
+                    'product_id' => $product->id,
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'old_on_hand' => $oldOnHand,
                     'new_on_hand' => $newOnHand,
+                    'reserved' => $reserved,
+                    'available_stock' => $newOnHand - $reserved,
                     'delta' => $delta,
-                    'reason' => $validated['reason'],
-                    'movement_id' => $movement->id,
-                ],
-                actorId: $request->user()?->id
-            );
+                    'movement_id' => $movementId,
+                    'reference_id' => $sourceReference,
+                ];
+            }, 3);
+        } catch (BusinessRuleException $e) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $e->errorCode,
+                'message' => $e->getMessage(),
+            ], $e->getHttpStatus());
+        }
 
-            return [
-                'product_id' => $product->id,
-                'sku' => $product->sku,
-                'name' => $product->name,
-                'old_on_hand' => $oldOnHand,
-                'new_on_hand' => $newOnHand,
-                'reserved' => $reserved,
-                'available_stock' => $newOnHand - $reserved,
-                'delta' => $delta,
-                'movement_id' => $movement->id,
-            ];
-        });
+        $isReplay = (bool) ($result['idempotent'] ?? false);
 
         return response()->json([
             'success' => true,
-            'message' => 'Penyesuaian stok berhasil disimpan ke kartu stok.',
+            'message' => $isReplay
+                ? 'Permintaan penyesuaian stok sebelumnya dikembalikan (Idempotent).'
+                : 'Penyesuaian stok berhasil disimpan ke kartu stok.',
             'data' => $result,
-        ], 201);
+        ], $isReplay ? 200 : 201);
+    }
+
+    private function deterministicUuid(string $seed): string
+    {
+        $hash = hash('sha256', $seed);
+
+        return sprintf(
+            '%s-%s-4%s-%x%s-%s',
+            substr($hash, 0, 8),
+            substr($hash, 8, 4),
+            substr($hash, 13, 3),
+            (hexdec(substr($hash, 16, 1)) & 0x3) | 0x8,
+            substr($hash, 17, 3),
+            substr($hash, 20, 12)
+        );
     }
 
     public function expenses(): JsonResponse

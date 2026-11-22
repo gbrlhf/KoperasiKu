@@ -237,6 +237,10 @@ class TransactionService
                     throw new BusinessRuleException("Pesanan berstatus {$order->status} tidak dapat menerima pembayaran order baru.", 400, 'INVALID_ORDER_STATUS');
                 }
 
+                if (strtoupper((string) $order->payment_choice) === 'CREDIT') {
+                    throw new BusinessRuleException('Pesanan dengan metode pembayaran CREDIT tidak dapat dibayar melalui pembayaran order langsung.', 422, 'CREDIT_ORDER_PAYMENT_FORBIDDEN');
+                }
+
                 if ($amount <= 0) {
                     throw new BusinessRuleException('Nominal pembayaran harus lebih besar dari nol.', 422, 'INVALID_PAYMENT');
                 }
@@ -686,7 +690,7 @@ class TransactionService
         if ($expectedTotal !== null) {
             $canonicalPayload['expected_total'] = Money::decimal(Money::minor($expectedTotal));
         }
-        if ($cashReceived !== null && $paymentChoice === 'CASH') {
+        if ($cashReceived !== null && $cashReceived !== '' && $paymentChoice === 'CASH') {
             $canonicalPayload['cash_received'] = Money::decimal(Money::minor($cashReceived));
         }
         $execution = $this->idempotency->run(
@@ -771,8 +775,8 @@ class TransactionService
                 }
 
                 $totalAmount = Money::amount(Money::decimal($totalMinor));
-                if ($paymentChoice === 'CASH' && $cashReceived !== null && Money::minor($cashReceived) < $totalMinor) {
-                    throw new BusinessRuleException('Uang tunai diterima kurang dari total transaksi.', 422, 'INSUFFICIENT_CASH');
+                if ($paymentChoice === 'CASH' && ($cashReceived === null || $cashReceived === '' || !is_numeric($cashReceived) || Money::minor($cashReceived) < $totalMinor)) {
+                    throw new BusinessRuleException('Uang tunai diterima wajib diisi dan tidak boleh kurang dari total transaksi.', 422, 'INSUFFICIENT_CASH');
                 }
                 if ($expectedTotal !== null && Money::minor($expectedTotal) !== $totalMinor) {
                     throw new BusinessRuleException('Harga berubah. Muat ulang katalog dan konfirmasi ulang nominal pembayaran.', 409, 'PRICE_CHANGED');

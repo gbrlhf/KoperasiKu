@@ -27,6 +27,118 @@ class AnalyticsQueryService
         return $this->oltpSummary($from, $to);
     }
 
+    public function exportPayload(string $from, string $to, string $periodLabel = ''): array
+    {
+        $summary = $this->summary($from, $to);
+        $summary['period_label'] = $periodLabel;
+        $summary['payment_breakdown'] = $this->paymentBreakdown($from, $to);
+        $summary['top_products'] = $this->topProducts($from, $to, 10);
+        $summary['operating_expenses_items'] = $this->operatingExpensesList($from, $to);
+        $summary['rows'] = $this->trend($from, $to, 'day');
+
+        return $summary;
+    }
+
+    /**
+     * @return array<int, array{method: string, label: string, orders_count: int, amount: string}>
+     */
+    public function paymentBreakdown(string $from, string $to): array
+    {
+        $labels = [
+            'CASH' => 'Tunai',
+            'BANK_TRANSFER' => 'Transfer Bank / QRIS',
+            'CREDIT' => 'Piutang Anggota',
+        ];
+        $counts = ['CASH' => 0, 'BANK_TRANSFER' => 0, 'CREDIT' => 0];
+        $totals = ['CASH' => 0.0, 'BANK_TRANSFER' => 0.0, 'CREDIT' => 0.0];
+
+        if ($this->hasPopulatedWarehouse()) {
+            $rows = DB::table('analytics.fact_sales')
+                ->whereBetween('local_date', [$from, $to])
+                ->groupBy('payment_choice')
+                ->selectRaw('payment_choice, COUNT(DISTINCT order_id) AS cnt, COALESCE(SUM(revenue), 0) AS amt')
+                ->get();
+
+            foreach ($rows as $r) {
+                $k = strtoupper((string) $r->payment_choice);
+                if (! isset($totals[$k])) {
+                    $counts[$k] = 0;
+                    $totals[$k] = 0.0;
+                    $labels[$k] = $k;
+                }
+                $counts[$k] += (int) $r->cnt;
+                $totals[$k] += (float) $r->amt;
+            }
+        } elseif (Schema::hasTable('orders')) {
+            [$startUtc, $endUtc] = $this->utcBounds($from, $to);
+            $rows = DB::table('orders')
+                ->where('status', 'COMPLETED')
+                ->whereBetween(DB::raw('COALESCE(completed_at, created_at)'), [$startUtc, $endUtc])
+                ->groupBy('payment_choice')
+                ->selectRaw('payment_choice, COUNT(*) AS cnt, COALESCE(SUM(total_amount), 0) AS amt')
+                ->get();
+
+            foreach ($rows as $r) {
+                $k = strtoupper((string) $r->payment_choice);
+                if (! isset($totals[$k])) {
+                    $counts[$k] = 0;
+                    $totals[$k] = 0.0;
+                    $labels[$k] = $k;
+                }
+                $counts[$k] += (int) $r->cnt;
+                $totals[$k] += (float) $r->amt;
+            }
+        }
+
+        $out = [];
+        foreach ($labels as $code => $label) {
+            $out[] = [
+                'method' => $code,
+                'label' => $label,
+                'orders_count' => $counts[$code] ?? 0,
+                'amount' => $this->fmt($totals[$code] ?? 0.0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<int, array{expense_date: string, category: string, description: string, amount: string}>
+     */
+    public function operatingExpensesList(string $from, string $to): array
+    {
+        if (Schema::hasTable('operating_expenses')) {
+            return DB::table('operating_expenses')
+                ->whereBetween('expense_date', [$from, $to])
+                ->orderBy('expense_date')
+                ->get(['expense_date', 'category', 'description', 'amount'])
+                ->map(fn ($e) => [
+                    'expense_date' => substr((string) $e->expense_date, 0, 10),
+                    'category' => (string) ($e->category ?? 'Umum'),
+                    'description' => (string) ($e->description ?? '-'),
+                    'amount' => $this->fmt($e->amount),
+                ])
+                ->all();
+        }
+
+        if ($this->hasPopulatedWarehouse()) {
+            return DB::table('analytics.fact_operating_expenses')
+                ->whereBetween('local_date', [$from, $to])
+                ->orderBy('local_date')
+                ->get(['local_date', 'category', 'description', 'amount'])
+                ->map(fn ($e) => [
+                    'expense_date' => (string) $e->local_date,
+                    'category' => (string) ($e->category ?? 'Umum'),
+                    'description' => (string) ($e->description ?? '-'),
+                    'amount' => $this->fmt($e->amount),
+                ])
+                ->all();
+        }
+
+        return [];
+    }
+
     public function trend(string $from, string $to, string $frequency = 'day'): array
     {
         if ($this->hasPopulatedWarehouse()) {
@@ -43,7 +155,7 @@ class AnalyticsQueryService
                 ->join('analytics.dim_product as p', 'p.product_key', '=', 's.product_key')
                 ->whereBetween('s.local_date', [$from, $to])
                 ->groupBy('p.sku', 'p.name', 'p.category')
-                ->selectRaw('p.sku, p.name, p.category, SUM(s.quantity)::int AS units, SUM(s.gross_sales)::numeric(14,2) AS sales_revenue, SUM(COALESCE(s.cogs, 0))::numeric(14,2) AS cogs')
+                ->selectRaw('p.sku, p.name, p.category, SUM(s.quantity)::int AS units, SUM(s.revenue)::numeric(14,2) AS sales_revenue, SUM(COALESCE(s.cogs, 0))::numeric(14,2) AS cogs')
                 ->orderByDesc('sales_revenue')
                 ->limit($limit)
                 ->get();
@@ -516,7 +628,44 @@ class AnalyticsQueryService
                 return false;
             }
 
-            return DB::table('analytics.etl_runs')->where('status', 'SUCCEEDED')->exists();
+            $latest = DB::table('analytics.etl_runs')
+                ->orderByDesc('started_at')
+                ->orderByDesc('finished_at')
+                ->first(['status', 'started_at', 'finished_at']);
+
+            if (! $latest || strtoupper((string) $latest->status) !== 'SUCCEEDED') {
+                return false;
+            }
+
+            $cutoffRaw = $latest->finished_at ?? $latest->started_at;
+            if (! $cutoffRaw) {
+                return false;
+            }
+
+            $etlFinishedAt = CarbonImmutable::parse((string) $cutoffRaw);
+
+            if (Schema::hasTable('orders')) {
+                $hasNewerOrder = DB::table('orders')
+                    ->where('status', 'COMPLETED')
+                    ->whereRaw('COALESCE(completed_at, updated_at, created_at) > ?', [$etlFinishedAt])
+                    ->exists();
+
+                if ($hasNewerOrder) {
+                    return false;
+                }
+            }
+
+            if (Schema::hasTable('operating_expenses')) {
+                $hasNewerExpense = DB::table('operating_expenses')
+                    ->whereRaw('COALESCE(updated_at, created_at) > ?', [$etlFinishedAt])
+                    ->exists();
+
+                if ($hasNewerExpense) {
+                    return false;
+                }
+            }
+
+            return true;
         } catch (\Throwable) {
             return false;
         }
@@ -545,21 +694,27 @@ class AnalyticsQueryService
     {
         $sales = DB::table('analytics.fact_sales')
             ->whereBetween('local_date', [$from, $to])
-            ->selectRaw('COALESCE(SUM(gross_sales), 0) AS rev, COALESCE(SUM(cogs), 0) AS cogs, COALESCE(SUM(CASE WHEN payment_choice IN (\'CASH\', \'BANK_TRANSFER\') THEN gross_sales ELSE 0 END), 0) AS cash_rev, COALESCE(SUM(CASE WHEN payment_choice = \'CREDIT\' THEN gross_sales ELSE 0 END), 0) AS cred_rev, COUNT(DISTINCT order_id) AS cnt')
+            ->selectRaw('COALESCE(SUM(revenue), 0) AS rev, COALESCE(SUM(cogs), 0) AS cogs, COALESCE(SUM(CASE WHEN payment_choice IN (\'CASH\', \'BANK_TRANSFER\') THEN revenue ELSE 0 END), 0) AS cash_rev, COALESCE(SUM(CASE WHEN payment_choice = \'CREDIT\' THEN revenue ELSE 0 END), 0) AS cred_rev, COUNT(DISTINCT order_id) AS cnt')
             ->first();
 
         $cashIn = (float) DB::table('analytics.fact_cash_receipts')
             ->whereBetween('local_date', [$from, $to])
-            ->sum('amount');
+            ->sum('verified_amount');
 
         $opex = (float) DB::table('analytics.fact_operating_expenses')
             ->whereBetween('local_date', [$from, $to])
             ->sum('amount');
 
-        $recvRow = DB::table('analytics.fact_receivables_daily')
+        $latestSnapshotDate = DB::table('analytics.fact_receivables_daily')
             ->where('snapshot_date', '<=', $to)
-            ->orderByDesc('snapshot_date')
-            ->first();
+            ->max('snapshot_date');
+
+        $recvRow = $latestSnapshotDate
+            ? DB::table('analytics.fact_receivables_daily')
+                ->where('snapshot_date', $latestSnapshotDate)
+                ->selectRaw('COALESCE(SUM(outstanding_amount), 0) AS total_outstanding, COALESCE(SUM(overdue_amount), 0) AS overdue_outstanding')
+                ->first()
+            : null;
 
         $openRecv = $recvRow ? (float) $recvRow->total_outstanding : 0.0;
         $overdueRecv = $recvRow ? (float) $recvRow->overdue_outstanding : 0.0;
@@ -596,11 +751,11 @@ class AnalyticsQueryService
     {
         $sales = DB::table('analytics.fact_sales')
             ->whereBetween('local_date', [$from, $to])
-            ->get(['local_date', 'gross_sales', 'cogs']);
+            ->get(['local_date', 'revenue', 'cogs']);
 
         $cash = DB::table('analytics.fact_cash_receipts')
             ->whereBetween('local_date', [$from, $to])
-            ->get(['local_date', 'amount']);
+            ->get(['local_date', 'verified_amount']);
 
         $opex = DB::table('analytics.fact_operating_expenses')
             ->whereBetween('local_date', [$from, $to])
@@ -634,13 +789,13 @@ class AnalyticsQueryService
         foreach ($sales as $s) {
             $k = $bucketKey((string) $s->local_date);
             $ensureBucket($k);
-            $buckets[$k]['sales_revenue'] += (float) $s->gross_sales;
+            $buckets[$k]['sales_revenue'] += (float) $s->revenue;
             $buckets[$k]['cogs'] += (float) ($s->cogs ?? 0);
         }
         foreach ($cash as $c) {
             $k = $bucketKey((string) $c->local_date);
             $ensureBucket($k);
-            $buckets[$k]['cash_receipts'] += (float) $c->amount;
+            $buckets[$k]['cash_receipts'] += (float) $c->verified_amount;
         }
         foreach ($opex as $e) {
             $k = $bucketKey((string) $e->local_date);

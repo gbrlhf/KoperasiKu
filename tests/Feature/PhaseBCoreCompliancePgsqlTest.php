@@ -445,6 +445,7 @@ class PhaseBCoreCompliancePgsqlTest extends TestCase
         // POS beli 2 -> berhasil
         $this->actingAs($this->cashierUser)->postJson('/api/v1/pos/sales', [
             'payment_choice' => 'CASH',
+            'cash_received' => '200000.00',
             'items' => [['product_id' => $this->productId, 'quantity' => 2]],
         ])->assertStatus(201);
 

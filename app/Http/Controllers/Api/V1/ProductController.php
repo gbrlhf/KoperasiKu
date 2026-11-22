@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\BusinessRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\InventoryBalance;
@@ -85,6 +86,7 @@ class ProductController extends Controller
             'price' => ['nullable', 'numeric', 'min:0'],
             'current_cost' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'allow_below_cost' => ['nullable', 'boolean'],
             'reorder_point' => ['nullable', 'integer', 'min:0'],
             'min_stock' => ['nullable', 'integer', 'min:0'],
             'initial_stock' => ['nullable', 'integer', 'min:0'],
@@ -100,6 +102,17 @@ class ProductController extends Controller
 
         $sellingPrice = (float) ($validated['selling_price'] ?? $validated['price'] ?? 0);
         $currentCost = (float) ($validated['current_cost'] ?? $validated['cost_price'] ?? 0);
+        $allowBelowCost = $request->boolean('allow_below_cost');
+
+        try {
+            $this->assertValidSellingMargin($sellingPrice, $currentCost, $allowBelowCost);
+        } catch (BusinessRuleException $e) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $e->errorCode,
+                'message' => $e->getMessage(),
+            ], $e->getHttpStatus());
+        }
         $reorderPoint = (int) ($validated['reorder_point'] ?? $validated['min_stock'] ?? 5);
         $initialStock = (int) ($validated['initial_stock'] ?? 0);
         $isActive = $this->resolveIsActive($request, true);
@@ -191,6 +204,7 @@ class ProductController extends Controller
             'price' => ['nullable', 'numeric', 'min:0'],
             'current_cost' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'allow_below_cost' => ['nullable', 'boolean'],
             'reorder_point' => ['nullable', 'integer', 'min:0'],
             'min_stock' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable'],
@@ -198,99 +212,114 @@ class ProductController extends Controller
             'image' => ['nullable'],
         ]);
 
-        $updatedProduct = DB::transaction(function () use ($product, $validated, $request, $priceChangeService, $auditService): Product {
-            $locked = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
+        try {
+            $updatedProduct = DB::transaction(function () use ($product, $validated, $request, $priceChangeService, $auditService): Product {
+                $locked = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
 
-            $updates = [];
+                $updates = [];
 
-            if ($request->hasAny(['category_id', 'category'])) {
-                [$categoryId, $categoryName] = $this->resolveCategory(
-                    $validated['category_id'] ?? null,
-                    $validated['category'] ?? null
+                if ($request->hasAny(['category_id', 'category'])) {
+                    [$categoryId, $categoryName] = $this->resolveCategory(
+                        $validated['category_id'] ?? null,
+                        $validated['category'] ?? null
+                    );
+                    $updates['category_id'] = $categoryId;
+                    $updates['category'] = $categoryName;
+                }
+
+                if ($request->exists('supplier_id')) {
+                    $updates['supplier_id'] = ! empty($validated['supplier_id']) ? $validated['supplier_id'] : null;
+                }
+
+                if (isset($validated['sku'])) {
+                    $updates['sku'] = trim($validated['sku']);
+                }
+
+                if ($request->exists('barcode')) {
+                    $updates['barcode'] = ! empty($validated['barcode']) ? trim($validated['barcode']) : null;
+                }
+
+                if (isset($validated['name'])) {
+                    $updates['name'] = trim($validated['name']);
+                }
+
+                if (! empty($validated['unit'])) {
+                    $updates['unit'] = trim($validated['unit']);
+                }
+
+                if ($request->hasAny(['reorder_point', 'min_stock'])) {
+                    $updates['reorder_point'] = (int) ($validated['reorder_point'] ?? $validated['min_stock'] ?? $locked->reorder_point);
+                }
+
+                if ($request->hasAny(['is_active', 'status'])) {
+                    $updates['is_active'] = $this->resolveIsActive($request, (bool) $locked->is_active);
+                }
+
+                $imageUrl = $this->handleImageUpload($request);
+                if ($imageUrl !== null) {
+                    $updates['image'] = $imageUrl;
+                    $updates['image_path'] = $imageUrl;
+                }
+
+                $oldCost = (float) $locked->current_cost;
+                $newCost = $request->hasAny(['current_cost', 'cost_price'])
+                    ? (float) ($validated['current_cost'] ?? $validated['cost_price'] ?? $oldCost)
+                    : $oldCost;
+
+                $effectiveSellingPrice = $request->hasAny(['selling_price', 'price'])
+                    ? (float) ($validated['selling_price'] ?? $validated['price'] ?? 0)
+                    : (float) $locked->selling_price;
+
+                if ($request->hasAny(['selling_price', 'price', 'current_cost', 'cost_price'])) {
+                    $this->assertValidSellingMargin($effectiveSellingPrice, $newCost, $request->boolean('allow_below_cost'));
+                }
+
+                if (round($newCost, 2) !== round($oldCost, 2)) {
+                    $updates['current_cost'] = round($newCost, 2);
+                }
+
+                if (! empty($updates)) {
+                    $locked->update($updates);
+                }
+
+                if ($request->hasAny(['selling_price', 'price'])) {
+                    $locked = $priceChangeService->updateSellingPrice(
+                        product: $locked,
+                        newSellingPrice: $effectiveSellingPrice,
+                        actorUserId: $request->user()?->id,
+                        reason: 'Perubahan harga jual melalui form Edit Produk'
+                    );
+                } elseif (round($newCost, 2) !== round($oldCost, 2)) {
+                    ProductPriceHistory::create([
+                        'product_id' => $locked->id,
+                        'old_sell_price' => $locked->selling_price,
+                        'new_sell_price' => $locked->selling_price,
+                        'old_cost' => $oldCost,
+                        'new_cost' => round($newCost, 2),
+                        'changed_by' => $request->user()?->id,
+                        'reason' => 'Perubahan HPP melalui form Edit Produk',
+                        'changed_at' => now(),
+                    ]);
+                }
+
+                $auditService->record(
+                    action: 'PRODUCT_UPDATED',
+                    entityType: 'product',
+                    entityId: (string) $locked->id,
+                    oldValues: null,
+                    newValues: $updates,
+                    actorId: $request->user()?->id
                 );
-                $updates['category_id'] = $categoryId;
-                $updates['category'] = $categoryName;
-            }
 
-            if ($request->exists('supplier_id')) {
-                $updates['supplier_id'] = ! empty($validated['supplier_id']) ? $validated['supplier_id'] : null;
-            }
-
-            if (isset($validated['sku'])) {
-                $updates['sku'] = trim($validated['sku']);
-            }
-
-            if ($request->exists('barcode')) {
-                $updates['barcode'] = ! empty($validated['barcode']) ? trim($validated['barcode']) : null;
-            }
-
-            if (isset($validated['name'])) {
-                $updates['name'] = trim($validated['name']);
-            }
-
-            if (! empty($validated['unit'])) {
-                $updates['unit'] = trim($validated['unit']);
-            }
-
-            if ($request->hasAny(['reorder_point', 'min_stock'])) {
-                $updates['reorder_point'] = (int) ($validated['reorder_point'] ?? $validated['min_stock'] ?? $locked->reorder_point);
-            }
-
-            if ($request->hasAny(['is_active', 'status'])) {
-                $updates['is_active'] = $this->resolveIsActive($request, (bool) $locked->is_active);
-            }
-
-            $imageUrl = $this->handleImageUpload($request);
-            if ($imageUrl !== null) {
-                $updates['image'] = $imageUrl;
-                $updates['image_path'] = $imageUrl;
-            }
-
-            $oldCost = (float) $locked->current_cost;
-            $newCost = $request->hasAny(['current_cost', 'cost_price'])
-                ? (float) ($validated['current_cost'] ?? $validated['cost_price'] ?? $oldCost)
-                : $oldCost;
-
-            if (round($newCost, 2) !== round($oldCost, 2)) {
-                $updates['current_cost'] = round($newCost, 2);
-            }
-
-            if (! empty($updates)) {
-                $locked->update($updates);
-            }
-
-            if ($request->hasAny(['selling_price', 'price'])) {
-                $newSellingPrice = (float) ($validated['selling_price'] ?? $validated['price'] ?? $locked->selling_price);
-                $locked = $priceChangeService->updateSellingPrice(
-                    product: $locked,
-                    newSellingPrice: $newSellingPrice,
-                    actorUserId: $request->user()?->id,
-                    reason: 'Perubahan harga jual melalui form Edit Produk'
-                );
-            } elseif (round($newCost, 2) !== round($oldCost, 2)) {
-                ProductPriceHistory::create([
-                    'product_id' => $locked->id,
-                    'old_sell_price' => $locked->selling_price,
-                    'new_sell_price' => $locked->selling_price,
-                    'old_cost' => $oldCost,
-                    'new_cost' => round($newCost, 2),
-                    'changed_by' => $request->user()?->id,
-                    'reason' => 'Perubahan HPP melalui form Edit Produk',
-                    'changed_at' => now(),
-                ]);
-            }
-
-            $auditService->record(
-                action: 'PRODUCT_UPDATED',
-                entityType: 'product',
-                entityId: (string) $locked->id,
-                oldValues: null,
-                newValues: $updates,
-                actorId: $request->user()?->id
-            );
-
-            return $locked->fresh(['categoryRelation', 'supplier', 'inventory']);
-        });
+                return $locked->fresh(['categoryRelation', 'supplier', 'inventory']);
+            });
+        } catch (BusinessRuleException $e) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $e->errorCode,
+                'message' => $e->getMessage(),
+            ], $e->getHttpStatus());
+        }
 
         return response()->json([
             'success' => true,
@@ -305,21 +334,48 @@ class ProductController extends Controller
 
         $validated = $request->validate([
             'selling_price' => ['required', 'numeric', 'min:0'],
+            'allow_below_cost' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $updatedProduct = $priceChangeService->updateSellingPrice(
-            product: $product,
-            newSellingPrice: (float) $validated['selling_price'],
-            actorUserId: $request->user()?->id,
-            reason: $validated['reason'] ?? null
-        );
+        try {
+            $newPrice = (float) $validated['selling_price'];
+            $this->assertValidSellingMargin($newPrice, (float) $product->current_cost, $request->boolean('allow_below_cost'));
+
+            $updatedProduct = $priceChangeService->updateSellingPrice(
+                product: $product,
+                newSellingPrice: $newPrice,
+                actorUserId: $request->user()?->id,
+                reason: $validated['reason'] ?? null
+            );
+        } catch (BusinessRuleException $e) {
+            return response()->json([
+                'success' => false,
+                'error_code' => $e->errorCode,
+                'message' => $e->getMessage(),
+            ], $e->getHttpStatus());
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Harga jual produk berhasil diperbarui dan dicatat di histori harga.',
             'data' => $updatedProduct,
         ]);
+    }
+
+    private function assertValidSellingMargin(float $sellingPrice, float $currentCost, bool $allowBelowCost): void
+    {
+        if ($sellingPrice <= 0) {
+            throw new BusinessRuleException('Harga jual harus lebih besar dari 0.', 422, 'INVALID_SELLING_PRICE');
+        }
+
+        if (! $allowBelowCost && round($sellingPrice, 2) < round($currentCost, 2)) {
+            throw new BusinessRuleException(
+                'Harga jual tidak boleh lebih rendah dari HPP saat ini, kecuali flag allow_below_cost=true disertakan.',
+                422,
+                'SELLING_PRICE_BELOW_COST'
+            );
+        }
     }
 
     /**

@@ -376,7 +376,7 @@ class ConcurrencyPgsqlTest extends TestCase
             );
 
             $posCode = sprintf(
-                'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); config(["database.default" => "pgsql", "database.connections.pgsql.database" => "koperadata_test"]); DB::purge("pgsql"); try { $res = app(App\Services\TransactionService::class)->posSale(["payment_choice" => "CASH", "items" => [["product_id" => "%s", "quantity" => 4]]], "%s", null); echo "POS_OK:" . $res["order_id"]; } catch (Throwable $e) { echo "POS_ERR:" . $e->getMessage(); }',
+                'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); config(["database.default" => "pgsql", "database.connections.pgsql.database" => "koperadata_test"]); DB::purge("pgsql"); try { $res = app(App\Services\TransactionService::class)->posSale(["payment_choice" => "CASH", "cash_received" => 80000, "items" => [["product_id" => "%s", "quantity" => 4]]], "%s", null); echo "POS_OK:" . $res["order_id"]; } catch (Throwable $e) { echo "POS_ERR:" . $e->getMessage(); }',
                 $prodId,
                 $cashierUserId
             );

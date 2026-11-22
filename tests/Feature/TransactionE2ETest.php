@@ -203,6 +203,7 @@ class TransactionE2ETest extends TestCase
     {
         $response = $this->actingAs($this->cashierUser)->postJson('/cashier/pos-sale', [
             'payment_choice' => 'CASH',
+            'cash_received' => 36000,
             'items' => [
                 ['product_id' => 'MNY-001', 'quantity' => 1],
             ],

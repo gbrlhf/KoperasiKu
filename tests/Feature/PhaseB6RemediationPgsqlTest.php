@@ -341,6 +341,7 @@ class PhaseB6RemediationPgsqlTest extends TestCase
         // POS Sale idempotency + payment metadata (B6.5) + payload mismatch check
         $posRes = $this->actingAs($this->cashierUser)->postJson('/api/v1/pos/sales', [
             'payment_choice' => 'CASH',
+            'cash_received' => '50000.00',
             'idempotency_key' => 'b6-pos-1',
             'items' => [['product_id' => $this->productId, 'quantity' => 1]],
         ])->assertStatus(201);
