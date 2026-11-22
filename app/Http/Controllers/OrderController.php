@@ -111,22 +111,77 @@ class OrderController extends Controller
     }
 
     /**
-     * Daftar antrian order untuk Kasir/Manajer (GET /api/v1/cashier/orders)
+     * Daftar antrian & riwayat order untuk Kasir/Manajer (GET /api/v1/cashier/orders)
      */
     public function cashierOrders(Request $request)
     {
-        $statusFilter = $request->query('status');
-        $query = Order::with(['items:id,order_id,product_id,quantity,unit_price_snapshot'])->orderByDesc('created_at');
+        $statusFilter = strtoupper(trim((string) $request->query('status', '')));
+        $channelFilter = strtoupper(trim((string) $request->query('channel', '')));
+        $search = trim((string) $request->query('search', ''));
 
-        if ($statusFilter) {
-            $query->where('status', strtoupper((string) $statusFilter));
-        } else {
+        $query = Order::query()
+            ->with([
+                'items:id,order_id,product_id,quantity,unit_price_snapshot,hpp_snapshot',
+                'items.product:id,sku,name,unit,current_cost',
+                'member:id,full_name,employee_number,member_number,department',
+                'payments:id,order_id,method,amount,status,external_reference,verified_at',
+                'receivable:id,order_id,original_amount,outstanding_amount,due_date,status',
+            ])
+            ->orderByDesc('created_at');
+
+        if ($statusFilter === 'ALL') {
+            // Tampilkan seluruh status pesanan (aktif, selesai, dan dibatalkan)
+        } elseif ($statusFilter === 'ACTIVE' || $statusFilter === '') {
             $query->whereIn('status', ['PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP']);
+        } else {
+            $query->where('status', $statusFilter);
         }
+
+        if (in_array($channelFilter, ['POS', 'ONLINE_PICKUP'], true)) {
+            $query->where('channel', $channelFilter);
+        }
+
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('order_no', 'ilike', $like)
+                    ->orWhere('pickup_code', 'ilike', $like)
+                    ->orWhereHas('member', function ($mq) use ($like) {
+                        $mq->where('full_name', 'ilike', $like)
+                            ->orWhere('employee_number', 'ilike', $like)
+                            ->orWhere('member_number', 'ilike', $like);
+                    })
+                    ->orWhereHas('items.product', function ($pq) use ($like) {
+                        $pq->where('name', 'ilike', $like)
+                            ->orWhere('sku', 'ilike', $like);
+                    });
+            });
+        }
+
+        $counts = Order::query()
+            ->selectRaw("
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('PENDING_PAYMENT', 'PENDING_PICKUP', 'READY_FOR_PICKUP') THEN 1 ELSE 0 END) AS active,
+                SUM(CASE WHEN status = 'PENDING_PAYMENT' THEN 1 ELSE 0 END) AS pending_payment,
+                SUM(CASE WHEN status IN ('PENDING_PICKUP', 'READY_FOR_PICKUP') THEN 1 ELSE 0 END) AS ready_pickup,
+                SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
+                SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled
+            ")
+            ->first();
 
         return response()->json([
             'success' => true,
-            'data' => $query->limit(100)->get(),
+            'data' => $query->limit(150)->get(),
+            'meta' => [
+                'counts' => [
+                    'total' => (int) ($counts->total ?? 0),
+                    'active' => (int) ($counts->active ?? 0),
+                    'pending_payment' => (int) ($counts->pending_payment ?? 0),
+                    'ready_pickup' => (int) ($counts->ready_pickup ?? 0),
+                    'completed' => (int) ($counts->completed ?? 0),
+                    'cancelled' => (int) ($counts->cancelled ?? 0),
+                ],
+            ],
         ]);
     }
 

@@ -18,6 +18,16 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function member()
+    {
+        return $this->belongsTo(Member::class, 'member_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'order_id');
+    }
+
     public function receivable()
     {
         return $this->hasOne(Receivable::class);

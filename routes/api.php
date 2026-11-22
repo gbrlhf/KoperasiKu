@@ -83,6 +83,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/purchase-receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeReceipt']);
         Route::get('/inventory/receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'receipts']);
         Route::post('/inventory/receipts', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeReceipt']);
+        Route::get('/inventory/movements', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'stockMovements']);
         Route::post('/inventory/adjustments', [\App\Http\Controllers\Api\V1\MasterDataController::class, 'storeAdjustment']);
 
         // Biaya Operasional (Operating Expenses)
