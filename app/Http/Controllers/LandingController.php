@@ -18,15 +18,20 @@ class LandingController extends Controller
     {
         $products = \App\Models\Product::with('inventory')->where('is_active', true)->orderBy('sku')->get();
         $categoryNames = \App\Models\Category::pluck('name', 'id');
-        $catalog = $products->map(fn ($p) => [
-            'id' => (string) $p->id, 'sku' => $p->sku, 'name' => $p->name,
-            'category' => $categoryNames->get($p->category_id) ?? ($p->category ?: '-'), 'price' => (float) $p->selling_price,
-            'original_price' => (float) ($p->original_price ?: $p->selling_price),
-            'available_stock' => max(0, (int) $p->inventory?->on_hand - (int) $p->inventory?->reserved),
-            'unit' => $p->unit ?? '-', 'badge' => $p->badge ?? '', 'rating' => $p->rating ?? 0,
-            'reviews_count' => 0, 'sold_count' => (string) ($p->sales_count ?? 0).' terjual',
-            'icon' => 'bi-box-seam', 'image' => $p->image ?? '', 'description' => $p->name, 'specs' => [],
-        ])->all();
+        $catalog = $products->map(function ($p) use ($categoryNames) {
+            $rawBadge = trim((string) ($p->badge ?? ''));
+            $cleanBadge = preg_match('/diskon/i', $rawBadge) ? '' : $rawBadge;
+
+            return [
+                'id' => (string) $p->id, 'sku' => $p->sku, 'name' => $p->name,
+                'category' => $categoryNames->get($p->category_id) ?? ($p->category ?: '-'), 'price' => (float) $p->selling_price,
+                'original_price' => (float) $p->selling_price,
+                'available_stock' => max(0, (int) $p->inventory?->on_hand - (int) $p->inventory?->reserved),
+                'unit' => $p->unit ?? '-', 'badge' => $cleanBadge, 'rating' => $p->rating ?? 0,
+                'reviews_count' => 0, 'sold_count' => (string) ($p->sales_count ?? 0).' terjual',
+                'icon' => 'bi-box-seam', 'image' => $p->image ?? '', 'description' => $p->name, 'specs' => [],
+            ];
+        })->all();
         $categories = \App\Models\Category::orderBy('name')->get()->map(fn ($c) => [
             'id' => $c->id, 'name' => $c->name, 'icon' => $c->icon ?? 'bi-box',
             'item_count' => $products->filter(fn ($p) => $p->category_id === $c->id || strcasecmp((string) $p->category, (string) $c->name) === 0)->count().' Produk',

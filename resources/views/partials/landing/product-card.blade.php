@@ -30,17 +30,9 @@
             <span class="product-price-number">{{ number_format($item['price'], 0, ',', '.') }}</span>
         </div>
 
-        <!-- Badge Persentase Diskon Merah & Harga Coret -->
+        <!-- Keterangan Satuan Harga Resmi -->
         <div class="product-discount-row mb-1">
-            @if(!empty($item['original_price']) && $item['original_price'] > $item['price'])
-                @php
-                    $discountPct = round((($item['original_price'] - $item['price']) / $item['original_price']) * 100);
-                @endphp
-                <span class="badge-discount">-{{ $discountPct }}%</span>
-                <del class="product-price-slashed">Rp {{ number_format($item['original_price'], 0, ',', '.') }}</del>
-            @else
-                <small class="text-muted" style="font-size: 0.7rem;">Harga resmi / {{ $item['unit'] }}</small>
-            @endif
+            <small class="text-muted" style="font-size: 0.7rem;">Harga resmi / {{ $item['unit'] }}</small>
         </div>
 
         <!-- Lencana Toko Resmi Tokopedia (Gerai Kanayakan A11) -->

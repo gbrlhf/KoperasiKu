@@ -3,7 +3,7 @@
    Interaktivitas:
    - Foto produk besar resolusi tinggi dengan badge status
    - Rating, ulasan pembeli, dan jumlah produk terjual
-   - Harga spesial anggota, harga coret promo, dan persentase hemat
+   - Harga resmi anggota tanpa potongan diskon
    - Tabel spesifikasi resmi produk (Berat, sertifikasi Halal, kemasan, penyimpanan)
    - Deskripsi lengkap komoditas sembako/kebutuhan rumah tangga
    - Pengatur jumlah beli (Quantity Stepper) dengan kalkulasi subtotal otomatis
@@ -80,16 +80,10 @@
                             Nama Produk
                         </h4>
 
-                        <!-- Price Section (Special Member Price + Original Strike Price) -->
+                        <!-- Price Section -->
                         <div class="p-2.5 rounded-2 bg-light border mb-3 d-flex align-items-baseline gap-2 flex-wrap">
                             <span class="fs-3 fw-extrabold text-primary" id="modalProductPrice">
                                 Rp 0
-                            </span>
-                            <del class="text-muted small fw-medium" id="modalProductOriginalPrice">
-                                Rp 0
-                            </del>
-                            <span class="badge bg-danger text-white rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.7rem;" id="modalProductDiscount">
-                                Hemat 9%
                             </span>
                             <span class="text-muted small ms-auto" id="modalProductUnit">/ Sak</span>
                         </div>

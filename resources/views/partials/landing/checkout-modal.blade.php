@@ -151,9 +151,12 @@
                             —
                         </div>
 
-                        <!-- Scannable Barcode SVG Container -->
-                        <div class="p-2.5 bg-light rounded-3 border d-inline-block my-2 text-center w-100" style="max-width: 320px;">
-                            <svg id="checkoutPickupBarcodeSvg" class="w-100" style="max-height: 70px;"></svg>
+                        <!-- Scannable QR Code & Barcode SVG Container (Pure White Background) -->
+                        <div class="p-3 bg-white rounded-3 border d-inline-block my-2 text-center w-100" style="max-width: 340px;">
+                            <div class="d-flex justify-content-center mb-2">
+                                <canvas id="checkoutPickupQrCanvas" aria-label="QR Code Pickup"></canvas>
+                            </div>
+                            <svg id="checkoutPickupBarcodeSvg" class="w-100" style="max-height: 76px;"></svg>
                         </div>
 
                         <div class="d-flex justify-content-center gap-2 mt-1 flex-wrap">
@@ -221,14 +224,17 @@
                     Arahkan Layar Ini ke Scanner Barcode Kasir Gerai
                 </small>
                 
-                <div class="p-4 bg-white border border-2 border-dark rounded-4 d-inline-block shadow-lg mx-auto" style="max-width: 90vw; width: 440px;">
-                    <div class="d-flex justify-content-center px-2 py-3 bg-white rounded">
-                        <svg id="fsPickupBarcodeSvg" class="w-100" style="max-height: 120px;"></svg>
+                <div class="p-4 bg-white border border-2 border-dark rounded-4 d-inline-block shadow-lg mx-auto" style="max-width: 92vw; width: 460px;">
+                    <div class="d-flex justify-content-center mb-3 bg-white rounded">
+                        <canvas id="fsPickupQrCanvas" aria-label="QR Code Pickup Layar Penuh"></canvas>
                     </div>
-                    <div class="display-5 fw-extrabold text-dark font-monospace mt-3 tracking-wider" id="fsPickupCodeText">
+                    <div class="d-flex justify-content-center px-2 py-2 bg-white rounded border-top pt-3">
+                        <svg id="fsPickupBarcodeSvg" class="w-100" style="max-height: 110px;"></svg>
+                    </div>
+                    <div class="display-6 fw-extrabold text-dark font-monospace mt-2 tracking-wider" id="fsPickupCodeText">
                         —
                     </div>
-                    <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.75rem;">Standar Scanner Barcode 1D (Code-128)</small>
+                    <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.75rem;">QR Code 2D &amp; Barcode 1D (Code-128) — Siap Scan Kamera Kasir</small>
                 </div>
 
                 <div class="mt-3 text-secondary small">
